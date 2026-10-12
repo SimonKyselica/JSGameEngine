@@ -20,6 +20,10 @@ export default class AudioProbe extends Behaviour implements ScriptLifecycle {
         source.pitch === 1 &&
         !source.loop &&
         !source.playOnStart,
+      // Says what is there, because this is the check that fails when the scene was edited.
+      `expected a clip, volume 0.8, pitch 1, no loop and no play on start; found ${
+        source.clip === null ? 'no clip' : 'a clip'
+      }, volume ${source.volume}, pitch ${source.pitch}, loop ${source.loop}, play on start ${source.playOnStart}`,
     );
 
     const beep = assets.find('Sounds/beep.wav');
@@ -43,7 +47,11 @@ export default class AudioProbe extends Behaviour implements ScriptLifecycle {
       music !== null && audio.isPlaying(music) && musicSource?.loop === true,
     );
 
-    test.check('AudioApi.isPlaying is false before playing', !audio.isPlaying(entity));
+    test.check(
+      'AudioApi.isPlaying is false before playing',
+      !audio.isPlaying(entity),
+      `"${entity.name}" is already playing, as it is when its Audio Source has Play On Start ticked`,
+    );
     test.check('AudioApi.play', audio.play(entity) && audio.isPlaying(entity));
     audio.stop(entity);
     test.check('AudioApi.stop', !audio.isPlaying(entity));

@@ -182,6 +182,11 @@ Step-by-step versions of these live in `.claude/skills/`.
   arrived as 28.000000000000004 and were rounded up to 29, which redrew every text on the
   screen whenever the camera zoomed. Subtract a tolerance before rounding up
   (`getRasterPixelsPerEm`).
+- **A destroyed script must stay destroyed.** When a scene stopped, an `onDestroy` that
+  looked up another script with `getScript` got a freshly constructed one, because the script
+  it asked for had been destroyed a moment earlier and the lookup creates what is missing.
+  Constructors ran during shutdown. Lookups now create nothing while an entity or the scene is
+  going down.
 - **A scale on an entity stretches its children too.** A sprite without a texture gets its
   size from the scale, so a button's background is a child of the button, not the button
   itself, or the label on it would be stretched along (`entityPresets.ts`).

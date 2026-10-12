@@ -81,6 +81,32 @@ test('the feature-test project passes in the editor', async ({ page }) => {
   await expect(log.locator('.console-entry.error')).toHaveCount(0);
 });
 
+test('stopping the feature test before it has finished is not reported as a failure', async ({
+  page,
+}) => {
+  await openFeatureTestProject(page);
+  await page.getByRole('tab', { name: /Console/ }).click();
+  const log = page.getByRole('log');
+
+  // Twice, because the second run starts from whatever the first one left behind.
+  for (let round = 0; round < 2; round++) {
+    await page.getByRole('button', { name: 'Play', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Stop', exact: true })).toBeVisible();
+    // The probes report from their first frame; the test as a whole waits for input.
+    await page.waitForFunction(
+      () =>
+        ((window as unknown as Record<string, { checks?: unknown[] }>).__ROWAN_FEATURE_TEST__
+          ?.checks?.length ?? 0) > 50,
+    );
+    await page.getByRole('button', { name: 'Stop', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Play', exact: true })).toBeVisible();
+
+    await expect(log).toContainText('The feature test was stopped before it had finished.');
+    await expect(log.locator('.console-entry.error')).toHaveCount(0);
+    await expect(log.locator('.console-entry.warn')).toHaveCount(0);
+  }
+});
+
 test('a single-file export runs straight from disk', async ({ page, context }, testInfo) => {
   await openFeatureTestProject(page);
   await chooseMenu(page, 'File', 'Build Game…');

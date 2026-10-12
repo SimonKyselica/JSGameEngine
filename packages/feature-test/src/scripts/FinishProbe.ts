@@ -1,5 +1,5 @@
 import { Behaviour, type ScriptLifecycle } from 'rowan';
-import { getReport } from './TestHarness';
+import { getReport, UNLOAD_CHECK } from './TestHarness';
 
 /** Runs in the second scene: confirms the scene change worked and closes the report. */
 export default class FinishProbe extends Behaviour implements ScriptLifecycle {
@@ -26,6 +26,16 @@ export default class FinishProbe extends Behaviour implements ScriptLifecycle {
         detail: `frame ${this.time.frameCount}`,
       },
     );
+
+    // The harness of the Main scene records this check in its onDestroy. If it is not
+    // there, the scene was unloaded without its scripts being told.
+    if (!report.checks.some((check) => check.name === UNLOAD_CHECK)) {
+      report.checks.push({
+        name: UNLOAD_CHECK,
+        passed: false,
+        detail: 'the scripts of the Main scene were not told',
+      });
+    }
 
     const failed = report.checks.filter((check) => !check.passed);
     for (const check of failed) {

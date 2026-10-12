@@ -132,6 +132,14 @@ describe('feature-test scene, run headless', () => {
     expect(run.report.checks.length).toBeGreaterThan(150);
   });
 
+  it('sees the scripts of the first scene being told that it is unloaded', () => {
+    expect(run.report.checks).toContainEqual({
+      name: 'onDestroy runs when a scene is unloaded',
+      passed: true,
+      detail: '',
+    });
+  });
+
   it('gives every check a unique name', () => {
     const names = run.report.checks.map((check) => check.name);
     expect(new Set(names).size).toBe(names.length);
@@ -294,6 +302,29 @@ describe('feature-test scene, run headless', () => {
     // Leaving the Main scene stops its sounds.
     expect(voices.every((voice) => !voice.isPlaying)).toBe(true);
   });
+
+  it.each([1, 2, 10, 31, 60, 120])(
+    'reports no failure when it is stopped after %i frames, before it has finished',
+    async (frames) => {
+      clearFeatureTestReport();
+      const project = createFeatureTestProject();
+      const headless = createHeadlessGame(project, new SourceScriptProvider(project.assets));
+      await headless.game.start();
+      for (let frame = 1; frame <= frames; frame++) {
+        driveFeatureTestInput(headless.game.input, frame);
+        headless.game.update(FRAME);
+      }
+      // What the Stop button of the editor does. Stopping is not something that went wrong.
+      headless.game.stop();
+
+      const problems = headless.logs.filter((entry) => entry.level !== 'info');
+      expect(problems.map((entry) => entry.message)).toEqual([]);
+      expect(headless.logs.at(-1)?.message).toMatch(
+        /^The feature test was stopped before it had finished\. It was still waiting for: /,
+      );
+      expect(getFeatureTestReport()?.done).toBe(false);
+    },
+  );
 
   it('is deterministic: a second run takes the same number of frames', async () => {
     const second = await runFeatureTest();

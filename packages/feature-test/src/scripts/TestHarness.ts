@@ -17,6 +17,9 @@ export interface FeatureTestReport {
 
 export const REPORT_GLOBAL = '__ROWAN_FEATURE_TEST__';
 
+/** Recorded by the harness when its scene is unloaded; FinishProbe fails it when it is missing. */
+export const UNLOAD_CHECK = 'onDestroy runs when a scene is unloaded';
+
 export function getReport(): FeatureTestReport | undefined {
   return (globalThis as Record<string, unknown>)[REPORT_GLOBAL] as FeatureTestReport | undefined;
 }
@@ -103,6 +106,14 @@ export default class TestHarness extends Behaviour implements ScriptLifecycle {
   }
 
   onDestroy(): void {
-    this.check('onDestroy runs when a scene is unloaded', this.finished);
+    if (this.finished) {
+      this.check(UNLOAD_CHECK, true);
+      return;
+    }
+    // Whoever runs the scene stopped it, for example with the Stop button of the editor.
+    // Nothing went wrong in the engine; the test just did not get to its end.
+    const { pending } = this.report;
+    const waiting = pending.length > 0 ? ` It was still waiting for: ${pending.join(', ')}.` : '';
+    this.log(`The feature test was stopped before it had finished.${waiting}`);
   }
 }

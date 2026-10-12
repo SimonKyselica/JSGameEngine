@@ -28,9 +28,17 @@ The report is written to `globalThis.__ROWAN_FEATURE_TEST__`:
 
 The Playwright tests need a fresh build: run `npm run build` first, or use `npm run test:e2e`.
 
-When run by hand, the input checks wait for you: hold and release Space, press D and W, press
-all three mouse buttons inside the game view and scroll the wheel. Results appear in the Console
-panel; without input the scene finishes after its 15 second timeout with the input checks failed.
+When run by hand, the input checks wait for you: hold and release Space, press D and W, move
+the pointer onto the "Click me" button, press all three mouse buttons there, scroll the wheel
+and move the pointer away again. Results appear in the Console panel; without input the scene
+finishes after its 15 second timeout with the input checks failed.
+
+Pressing Stop before the scene has finished is not a failure. The harness logs that it was
+stopped and which checks it was still waiting for, and nothing else.
+
+The probes check the scene as `project.ts` builds it. A copy of the project whose scene was
+edited fails the checks for whatever was changed; the failing check's detail says what it found.
+Help → Open Feature Test Project always opens a fresh copy.
 
 ## Files
 
@@ -38,7 +46,7 @@ panel; without input the scene finishes after its 15 second timeout with the inp
   Textures and sounds are generated in code, so there are no binary files to maintain.
 - `src/scripts/*.ts`: the probe scripts, one per area (`MathProbe`, `EntityProbe`,
   `LifecycleProbe`, `PhysicsProbe`, `TriggerProbe`, `InputProbe`, `AudioProbe`, `RenderProbe`,
-  `Spawner` with `Bullet`), plus `TestHarness` and `FinishProbe`.
+  `TextProbe`, `UiProbe`, `Spawner` with `Bullet`), plus `TestHarness` and `FinishProbe`.
 - `src/scripts.ts`: imports every script as text. **A new script file must be added here.**
 - `src/index.ts`: `createFeatureTestProject()`, the report accessors, and
   `driveFeatureTestInput`, which plays the input for the headless run.
@@ -59,6 +67,10 @@ test.pass('the ball bounced'); // later, when it happens
 Give every check a unique name that states the fact being checked. If the check needs something
 in the scene, add the entity in `src/project.ts` and say in the script's doc comment what it
 expects to find.
+
+A probe that reports from `onDestroy` must take the harness in `onStart` and keep it
+(`this.test = harnessOf(this)`). When the whole scene goes down, the harness may already have
+been destroyed by the time the probe is told, and can then no longer be looked up.
 
 Keep the scene deterministic: drive physics from `onFixedUpdate` and count steps, keep the
 experiments apart in space so they do not collide (the layout is described in `project.ts`), and
