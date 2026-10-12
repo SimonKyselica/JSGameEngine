@@ -4,7 +4,9 @@ import jukebox from './examples/Jukebox.ts?raw';
 import keyboardMover from './examples/KeyboardMover.ts?raw';
 import levelExit from './examples/LevelExit.ts?raw';
 import lifecycleLogger from './examples/LifecycleLogger.ts?raw';
+import menuButton from './examples/MenuButton.ts?raw';
 import patrol from './examples/Patrol.ts?raw';
+import pauseButton from './examples/PauseButton.ts?raw';
 import playerController from './examples/PlayerController.ts?raw';
 import scanner from './examples/Scanner.ts?raw';
 import scoreCounter from './examples/ScoreCounter.ts?raw';
@@ -91,6 +93,14 @@ export const GUIDES: readonly GuidePage[] = [
           'When the entity starts overlapping another and one of the two colliders is a trigger.',
         ],
         ['`onTriggerExit(other)`', 'When that overlap ends.'],
+        [
+          '`onPointerEnter()`, `onPointerExit()`',
+          "When the pointer moves onto the entity's [Button](api/Button), and off it again.",
+        ],
+        [
+          '`onPointerDown()`, `onPointerUp()`, `onClick()`',
+          'When the button is pressed, let go, and chosen. See [Screen and buttons](guide/ui).',
+        ],
         ['`onDestroy()`', 'When the entity is destroyed or the scene ends.'],
       ),
       p(
@@ -99,6 +109,7 @@ export const GUIDES: readonly GuidePage[] = [
       h('Order within a frame'),
       steps(
         'The physics catches up with the time that has passed. For each fixed step, every script gets `onFixedUpdate`, then the physics advances, then the collision and trigger callbacks for that step run. A frame can contain no step, one, or several.',
+        'Buttons look at the pointer, and the pointer callbacks they raise run.',
         '`onUpdate` runs for every script.',
         'Timers started with `after` and `every` that are due call back.',
         '`onLateUpdate` runs for every script.',
@@ -347,7 +358,7 @@ this.destroy(other, 2.5);  // in two and a half seconds`),
       list(
         'A text belongs to the world, like a sprite: it has a place in the scene, and it turns and scales with its entity. `fontSize` is in world units, so a text with a font size of 1 is as tall as a sprite one unit high.',
         'With `align` set to `left`, the text starts at the entity and grows to the right as it gets longer. That keeps a score in place while its number of digits changes. `center` and `right` work the same way from the middle and from the end.',
-        'For text that should stay where it is on the screen while the camera moves, such as a score, make its entity a child of the camera entity. It then moves along with the camera.',
+        'For text that should stay where it is on the screen while the camera moves, such as a score, give its entity a **Screen Anchor**, or create it with **Entity → Screen Text**. Its font size is then in pixels. See [Screen and buttons](guide/ui).',
         'Text stays sharp at every size: the engine draws it for the size it has on screen.',
       ),
       h('Fonts'),
@@ -356,6 +367,79 @@ this.destroy(other, 2.5);  // in two and a half seconds`),
       ),
       note(
         'Writing a new text costs a little each time, because the engine has to draw the letters again. Changing it when the score changes is fine. Avoid assigning a different text every single frame to many texts at once.',
+      ),
+    ],
+  },
+  {
+    id: 'ui',
+    title: 'Screen and buttons',
+    summary:
+      'Scores, menus and buttons: placing things on the screen instead of in the world, and reacting to the pointer.',
+    blocks: [
+      h('Placing things on the screen'),
+      p(
+        'An entity normally has a place in the world, and the camera decides where that ends up on the screen. A [ScreenAnchor](api/ScreenAnchor) component turns this around: the entity gets a place on the screen and stays there wherever the camera looks. **Entity → Screen Text** creates a text that is set up this way.',
+      ),
+      list(
+        'With a Screen Anchor, the **Position** of the entity is measured in pixels from a corner, an edge or the center of the screen, chosen with `horizontal` and `vertical`.',
+        'X points right and Y points up, as everywhere else. From the top-left corner, a position of `(16, -16)` is 16 pixels in from both edges.',
+        'A pixel is a pixel of the resolution under **File → Project Settings…**. The whole picture is scaled to the window the game runs in, so the layout looks the same on every screen.',
+        'Sizes are in pixels as well. A text on the screen has a `fontSize` such as 32 rather than 0.5. A sprite without a texture is one pixel large, so its **Scale** is its size in pixels; a sprite with a texture shows it pixel for pixel when `pixelsPerUnit` is 1.',
+        'The children of the entity are on the screen with it, positioned relative to it in pixels.',
+        'Everything on the screen is drawn over the world. Among themselves, things on the screen are ordered by `sortingOrder` as usual.',
+      ),
+      p(
+        'In the scene view, things on the screen are shown inside the frame of the camera, where the game will show them. They can be selected and moved there like everything else.',
+      ),
+      h('Buttons'),
+      p(
+        'A [Button](api/Button) component makes an entity react to the pointer: the mouse, or a finger on a touch screen. **Entity → Button** creates one in the middle of the screen, with a text and a background. The button itself draws nothing; what the player sees are the sprites and texts of the entity and its children.',
+      ),
+      table(
+        ['Field', 'What it does'],
+        [
+          '`size`',
+          'Width and height of the area that reacts, centered on the entity. In pixels on the screen, in world units in the world. The scene view outlines it when the entity is selected.',
+        ],
+        [
+          '`interactable`',
+          'Switch it off to disable the button: it gets no callbacks and is drawn in `disabledColor`.',
+        ],
+        [
+          '`hoverColor`, `pressedColor`, `disabledColor`',
+          'Tints that are multiplied with the colors of everything the button shows while the pointer is over it, while it is held down, and while it is disabled.',
+        ],
+      ),
+      p('A script on the same entity is told what the pointer does:'),
+      code(menuButton),
+      h('Pointer callbacks'),
+      table(
+        ['Callback', 'When it is called'],
+        ['`onPointerEnter()`', 'The pointer moves onto the button.'],
+        ['`onPointerExit()`', 'The pointer leaves the button.'],
+        [
+          '`onPointerDown()`',
+          'The left mouse button goes down on the button, or a finger touches it.',
+        ],
+        ['`onPointerUp()`', 'That press ends, wherever the pointer is by then.'],
+        [
+          '`onClick()`',
+          'Right after `onPointerUp`, when the press ended on the button it began on. Use this one to act on a choice.',
+        ],
+      ),
+      list(
+        'When buttons overlap, the one drawn on top gets the pointer: a button on the screen before one in the world, then the one with the higher `sortingOrder` on its own sprite or text.',
+        'A disabled button still covers the buttons behind it.',
+        'The callbacks run once per frame, before `onUpdate`. See [The script lifecycle](guide/lifecycle).',
+      ),
+      p('Buttons keep working while `this.time.timeScale` is 0, which is what a pause menu needs:'),
+      code(pauseButton),
+      h('Buttons in the world'),
+      p(
+        'A Button does not need a Screen Anchor. On an entity in the world its `size` is in world units and it follows the entity as it moves, turns and scales, which makes anything in the game clickable: a door, an enemy, a card on a table.',
+      ),
+      note(
+        'A click on a button is still a mouse click for the rest of the game: `this.input.wasMouseButtonPressed` is true in that frame as well. A script that shoots on every click also shoots when a button is clicked, unless it leaves those clicks out itself.',
       ),
     ],
   },
@@ -424,6 +508,10 @@ if (portrait) {
         [
           'Sizes',
           'World units. A sprite covers one unit per `pixelsPerUnit` pixels of its texture.',
+        ],
+        [
+          'On the screen',
+          'Pixels of the project resolution, measured from the corner, edge or center an entity is anchored to.',
         ],
         ['Keys', 'Named by `KeyboardEvent.code`: `KeyW`, `Space`, `ArrowLeft`.'],
         ['Assets', 'Referred to by id; `this.assets.find(name)` turns a name into an id.'],

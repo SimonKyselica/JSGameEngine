@@ -240,6 +240,62 @@ test.describe('editor', () => {
     await expect.poll(whitePixels).toBeGreaterThan(MIN_TEXT_PIXELS);
   });
 
+  test('puts a button on the screen that reacts to the pointer while the game runs', async ({
+    page,
+  }) => {
+    await openEditor(page);
+    await chooseMenu(page, 'Entity', 'Button');
+    await expect(hierarchyRow(page, 'Button')).toHaveClass(/selected/);
+    await expect(hierarchyRow(page, 'Background')).toBeVisible();
+    const inspector = page.getByRole('region', { name: 'Inspector' });
+    await expect(inspector.getByText('Screen Anchor')).toBeVisible();
+    await expect(inspector.getByRole('spinbutton', { name: 'Size X' })).toHaveValue('220');
+
+    // The background of a new button, and what its default tints make of that color.
+    const LOOKS = {
+      normal: [51, 115, 217],
+      hovered: [43, 98, 184],
+      pressed: [33, 75, 141],
+    } as const;
+    /**
+     * Which of the three colors the button is drawn in. The smoothed pixels along its edge
+     * can match a darker tint by chance, so a look only counts when it covers the button:
+     * well over a thousand pixels, and several times more than the other two.
+     */
+    const look = async (): Promise<string> => {
+      const counts = await Promise.all(
+        Object.entries(LOOKS).map(async ([name, color]) => ({
+          name,
+          pixels: await countCanvasPixels(page, GL_CANVAS, color, 10),
+        })),
+      );
+      counts.sort((a, b) => b.pixels - a.pixels);
+      const [first, second] = counts;
+      return first!.pixels > 1000 && first!.pixels > second!.pixels * 4 ? first!.name : 'none';
+    };
+
+    // The scene view shows the button inside the camera's frame, as the game will.
+    await expect.poll(look).toBe('normal');
+
+    await page.getByRole('button', { name: 'Play', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Stop', exact: true })).toBeVisible();
+    await expect.poll(look).toBe('normal');
+
+    // The button is anchored to the middle of the screen, which is the middle of the view.
+    const game = page.getByLabel('Game view');
+    const box = (await game.boundingBox())!;
+    await page.mouse.move(box.x + box.width / 2 + 20, box.y + box.height / 2 + 5);
+    await expect.poll(look).toBe('hovered');
+
+    await page.mouse.down();
+    await expect.poll(look).toBe('pressed');
+    await page.mouse.up();
+    await expect.poll(look).toBe('hovered');
+
+    await page.mouse.move(box.x + 10, box.y + 10);
+    await expect.poll(look).toBe('normal');
+  });
+
   test('snaps gizmo drags in snap mode and remembers the mode', async ({ page }) => {
     await openEditor(page);
     const snap = page.getByRole('button', { name: 'Snap', exact: true });

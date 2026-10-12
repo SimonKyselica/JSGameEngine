@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { RowanError } from '../core/assert';
 import { isUuid } from '../core/uuid';
 import { Vec2 } from '../math/vec2';
-import { Camera, Hierarchy, Identity, SpriteRenderer, Transform } from './components';
+import { Camera, Hierarchy, Identity, ScreenAnchor, SpriteRenderer, Transform } from './components';
 import { Scene } from './scene';
 
 const names = (entities: { name: string }[]): string[] => entities.map((entity) => entity.name);
@@ -309,5 +309,197 @@ describe('Scene transforms', () => {
     expect(child.transform.position.toArray()).toEqual([3, 3]);
     expect(() => child.setWorldPosition(new Vec2(1, 1))).not.toThrow();
     expect(child.transform.position.toArray()).toEqual([1, 1]);
+  });
+});
+
+/** Rounds away floating-point noise so positions can be compared exactly. */
+const rounded = (vector: Vec2): number[] =>
+  vector.toArray().map((value) => Math.round(value * 1e6) / 1e6);
+
+describe('Scene cameras', () => {
+  it('finds the first active primary camera, in the order the cameras were added', () => {
+    const scene = new Scene();
+    expect(scene.findPrimaryCamera()).toBeNull();
+    const first = scene.createEntity('First');
+    first.addComponent(Camera, { primary: false });
+    const second = scene.createEntity('Second');
+    second.addComponent(Camera);
+    const third = scene.createEntity('Third');
+    third.addComponent(Camera);
+    expect(scene.findPrimaryCamera()).toBe(second);
+
+    second.active = false;
+    expect(scene.findPrimaryCamera()).toBe(third);
+    third.requireComponent(Camera).primary = false;
+    // Without a camera marked as primary, the first active one is used.
+    expect(scene.findPrimaryCamera()).toBe(first);
+  });
+
+  it('forgets cameras that were removed or destroyed', () => {
+    const scene = new Scene();
+    const first = scene.createEntity('First');
+    first.addComponent(Camera);
+    const second = scene.createEntity('Second');
+    second.addComponent(Camera);
+
+    first.removeComponent(Camera);
+    expect(scene.findPrimaryCamera()).toBe(second);
+    second.destroy();
+    expect(scene.findPrimaryCamera()).toBeNull();
+    // A camera that is added again is the newest one, as in the scene's component order.
+    const third = scene.createEntity('Third');
+    third.addComponent(Camera);
+    first.addComponent(Camera);
+    expect(scene.findPrimaryCamera()).toBe(third);
+  });
+});
+
+describe('Scene screen anchors', () => {
+  /**
+   * A 1000x500 pixel screen seen through a camera that shows 10 world units from top to
+   * bottom: one pixel is 0.02 units, and the screen is 20 by 10 units in the world.
+   */
+  function createScreen(): { scene: Scene; camera: ReturnType<Scene['createEntity']> } {
+    const scene = new Scene();
+    scene.screenSize.set(1000, 500);
+    const camera = scene.createEntity('Camera');
+    camera.addComponent(Camera, { orthographicSize: 5 });
+    return { scene, camera };
+  }
+
+  it('places an anchored entity in pixels from its corner of the screen', () => {
+    const { scene, camera } = createScreen();
+    camera.transform.position.set(100, 50);
+    const label = scene.createEntity('Label');
+    label.addComponent(ScreenAnchor, { horizontal: 'left', vertical: 'top' });
+    label.transform.position.set(50, -25);
+
+    // The top-left corner of the view is at (90, 55); 50 pixels are one unit.
+    expect(rounded(label.worldPosition)).toEqual([91, 54.5]);
+    expect(rounded(scene.getWorldScale(label))).toEqual([0.02, 0.02]);
+    expect(label.worldRotation).toBe(0);
+  });
+
+  it('measures from every corner, edge and the center', () => {
+    const { scene } = createScreen();
+    const entity = scene.createEntity('Entity');
+    const anchor = entity.addComponent(ScreenAnchor);
+    const placeAt = (
+      horizontal: ScreenAnchor['horizontal'],
+      vertical: ScreenAnchor['vertical'],
+    ): number[] => {
+      anchor.horizontal = horizontal;
+      anchor.vertical = vertical;
+      return rounded(entity.worldPosition);
+    };
+    expect(placeAt('center', 'middle')).toEqual([0, 0]);
+    expect(placeAt('left', 'middle')).toEqual([-10, 0]);
+    expect(placeAt('right', 'middle')).toEqual([10, 0]);
+    expect(placeAt('center', 'top')).toEqual([0, 5]);
+    expect(placeAt('center', 'bottom')).toEqual([0, -5]);
+    expect(placeAt('right', 'bottom')).toEqual([10, -5]);
+  });
+
+  it('keeps an anchored entity in place on the screen when the camera moves, zooms or turns', () => {
+    const { scene, camera } = createScreen();
+    const label = scene.createEntity('Label');
+    label.addComponent(ScreenAnchor, { horizontal: 'right', vertical: 'top' });
+    label.transform.position.set(-100, -50);
+    label.transform.scale.set(2, 2);
+
+    camera.transform.position.set(-30, 7);
+    expect(rounded(label.worldPosition)).toEqual([-22, 11]);
+
+    // Twice the view: every pixel covers twice as much of the world.
+    camera.requireComponent(Camera).orthographicSize = 10;
+    expect(rounded(label.worldPosition)).toEqual([-14, 15]);
+    expect(rounded(scene.getWorldScale(label))).toEqual([0.08, 0.08]);
+
+    // Turned a quarter turn, the screen's "right" is the world's "up".
+    camera.transform.rotation = Math.PI / 2;
+    expect(rounded(label.worldPosition)).toEqual([-38, 23]);
+    expect(label.worldRotation).toBeCloseTo(Math.PI / 2);
+  });
+
+  it('puts the children of an anchored entity on the screen with it', () => {
+    const { scene } = createScreen();
+    const panel = scene.createEntity('Panel');
+    panel.addComponent(ScreenAnchor, { horizontal: 'left', vertical: 'bottom' });
+    panel.transform.position.set(100, 100);
+    const icon = scene.createEntity('Icon', { parent: panel });
+    icon.transform.position.set(50, 0);
+    const world = scene.createEntity('World');
+
+    expect(rounded(icon.worldPosition)).toEqual([-7, -3]);
+    expect([panel, icon, world].map((entity) => scene.isOnScreen(entity))).toEqual([
+      true,
+      true,
+      false,
+    ]);
+  });
+
+  it('lets an anchored entity ignore where its own parent is', () => {
+    const { scene } = createScreen();
+    const parent = scene.createEntity('Parent');
+    parent.transform.position.set(500, 500);
+    parent.transform.scale.set(3, 3);
+    const label = scene.createEntity('Label', { parent });
+    label.addComponent(ScreenAnchor);
+    label.transform.position.set(50, 0);
+    expect(rounded(label.worldPosition)).toEqual([1, 0]);
+
+    // Moving it elsewhere in the hierarchy changes nothing about where it is.
+    scene.setParent(label, null);
+    expect(label.transform.position.toArray()).toEqual([50, 0]);
+    expect(rounded(label.worldPosition)).toEqual([1, 0]);
+  });
+
+  it('turns a world position into pixels when an anchored entity is moved', () => {
+    const { scene, camera } = createScreen();
+    camera.transform.position.set(40, 0);
+    const label = scene.createEntity('Label');
+    label.addComponent(ScreenAnchor, { horizontal: 'left', vertical: 'top' });
+
+    // The view's top-left corner is at (30, 5). One unit right and down is 50 pixels each.
+    label.setWorldPosition(new Vec2(31, 4));
+    expect(rounded(label.transform.position)).toEqual([50, -50]);
+    expect(rounded(label.worldPosition)).toEqual([31, 4]);
+
+    camera.transform.rotation = Math.PI / 2;
+    label.setWorldRotation(Math.PI);
+    expect(label.transform.rotation).toBeCloseTo(Math.PI / 2);
+    expect(label.worldRotation).toBeCloseTo(Math.PI);
+  });
+
+  it('centers the screen on the origin, 10 units high, in a scene without a camera', () => {
+    const scene = new Scene();
+    scene.screenSize.set(1000, 500);
+    const label = scene.createEntity('Label');
+    label.addComponent(ScreenAnchor, { horizontal: 'right', vertical: 'top' });
+    expect(rounded(label.worldPosition)).toEqual([10, 5]);
+    expect(rounded(scene.getScreenToWorld().getScale())).toEqual([0.02, 0.02]);
+  });
+
+  it('copes with a camera that is itself anchored, and with a screen without a size', () => {
+    const { scene, camera } = createScreen();
+    camera.addComponent(ScreenAnchor);
+    camera.transform.position.set(3, 4);
+    const label = scene.createEntity('Label');
+    label.addComponent(ScreenAnchor);
+    // The camera's anchor is left aside when the screen is placed, so this ends.
+    expect(rounded(label.worldPosition)).toEqual([3, 4]);
+
+    scene.screenSize.set(0, 0);
+    expect(Number.isFinite(label.worldPosition.x)).toBe(true);
+  });
+
+  it('follows the size of the screen', () => {
+    const { scene } = createScreen();
+    const label = scene.createEntity('Label');
+    label.addComponent(ScreenAnchor, { horizontal: 'right', vertical: 'top' });
+    scene.screenSize.set(2000, 1000);
+    // Twice the pixels on the same view: the corner stays, a pixel is half as large.
+    expect(rounded(label.worldPosition)).toEqual([10, 5]);
+    expect(rounded(scene.getWorldScale(label))).toEqual([0.01, 0.01]);
   });
 });

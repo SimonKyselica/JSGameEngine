@@ -1,4 +1,6 @@
 import {
+  Button,
+  getButtonMatrix,
   getSpriteSize,
   getTextRect,
   layoutText,
@@ -118,9 +120,19 @@ export function getTextCorners(entity: Entity, measurer: TextMeasurer): Vec2[] |
   return UNIT_QUAD_CORNERS.map(([x, y]) => matrix.transformPoint(new Vec2(x, y)));
 }
 
+/** The world-space corners of the area of an entity's button, or `null` when it has none. */
+export function getButtonCorners(entity: Entity): Vec2[] | null {
+  const button = entity.getComponent(Button);
+  if (!button) {
+    return null;
+  }
+  const matrix = getButtonMatrix(entity, button);
+  return UNIT_QUAD_CORNERS.map(([x, y]) => matrix.transformPoint(new Vec2(x, y)));
+}
+
 /**
  * The world-space rectangle that encloses an entity and its descendants. Entities with
- * neither a sprite nor a text contribute their position.
+ * neither a sprite, a text nor a button contribute their position.
  */
 export function getEntityBounds(entity: Entity, sources: VisualSources): Rect {
   const points: Vec2[] = [];
@@ -128,6 +140,7 @@ export function getEntityBounds(entity: Entity, sources: VisualSources): Rect {
     const corners = [
       ...(getSpriteCorners(current, sources.assets) ?? []),
       ...(getTextCorners(current, sources.textMeasurer) ?? []),
+      ...(getButtonCorners(current) ?? []),
     ];
     points.push(...(corners.length > 0 ? corners : [current.worldPosition]));
     for (const child of current.children) {

@@ -5,11 +5,13 @@ import { Vec2 } from '../math/vec2';
 import {
   AudioSource,
   BoxCollider2D,
+  Button,
   Camera,
   CircleCollider2D,
   COMPONENT_TYPES,
   getComponentTypeByName,
   Rigidbody2D,
+  ScreenAnchor,
   ScriptComponent,
   SpriteRenderer,
   TextRenderer,
@@ -76,6 +78,14 @@ function createFullScene(): Scene {
   player.addComponent(BoxCollider2D, { size: new Vec2(2, 1), offset: new Vec2(0, 0.5) });
   player.addComponent(CircleCollider2D, { radius: 0.25, isTrigger: true });
   player.addComponent(AudioSource, { clip: 'clip-id', volume: 0.5, loop: true });
+  player.addComponent(ScreenAnchor, { horizontal: 'right', vertical: 'bottom' });
+  player.addComponent(Button, {
+    size: new Vec2(200, 60),
+    interactable: false,
+    hoverColor: new Color(1, 0.9, 0.8, 1),
+    pressedColor: new Color(0.7, 0.6, 0.5, 1),
+    disabledColor: new Color(0.4, 0.3, 0.2, 0.1),
+  });
   player.addComponent(ScriptComponent, {
     scripts: [{ script: 'script-id', enabled: false, properties: { speed: 5, dir: [1, 0] } }],
   });
@@ -139,6 +149,11 @@ describe('component schemas', () => {
     [TextRenderer, { align: 'justify' }, 'expected one of "left", "center", "right"'],
     [TextRenderer, { verticalAlign: 'center' }, 'expected one of "top", "middle", "bottom"'],
     [TextRenderer, { fontSize: '12px' }, 'expected a finite number'],
+    [ScreenAnchor, { horizontal: 'middle' }, 'expected one of "left", "center", "right"'],
+    [ScreenAnchor, { vertical: 'center' }, 'expected one of "top", "middle", "bottom"'],
+    [Button, { size: [1] }, 'expected an array of 2 numbers'],
+    [Button, { interactable: 'yes' }, 'expected a boolean'],
+    [Button, { hoverColor: 'red' }, 'expected an array of 3 to 4 numbers'],
     [ScriptComponent, { scripts: {} }, 'expected an array of script bindings'],
     [ScriptComponent, { scripts: [{ script: 7 }] }, 'scripts[0].script'],
     [ScriptComponent, { scripts: [{ script: null, properties: [] }] }, 'scripts[0].properties'],
@@ -198,8 +213,21 @@ describe('scene serialization', () => {
       'BoxCollider2D',
       'CircleCollider2D',
       'AudioSource',
+      'ScreenAnchor',
+      'Button',
       'Script',
     ]);
+    expect(data.entities[1]!.components.ScreenAnchor).toEqual({
+      horizontal: 'right',
+      vertical: 'bottom',
+    });
+    expect(data.entities[1]!.components.Button).toEqual({
+      size: [200, 60],
+      interactable: false,
+      hoverColor: [1, 0.9, 0.8, 1],
+      pressedColor: [0.7, 0.6, 0.5, 1],
+      disabledColor: [0.4, 0.3, 0.2, 0.1],
+    });
     expect(data.entities[1]!.components.TextRenderer).toEqual({
       text: 'Player 1\nReady',
       font: 'monospace',

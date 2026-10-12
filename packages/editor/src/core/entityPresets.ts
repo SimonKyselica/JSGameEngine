@@ -1,13 +1,16 @@
 import {
   AudioSource,
   BoxCollider2D,
+  Button,
   Camera,
   CircleCollider2D,
   Color,
   encodePng,
   Rigidbody2D,
+  ScreenAnchor,
   SpriteRenderer,
   TextRenderer,
+  Vec2,
   type AssetDatabase,
   type Entity,
   type Scene,
@@ -23,9 +26,16 @@ export const ENTITY_PRESETS = [
   { id: 'static-box', label: 'Static Platform' },
   { id: 'trigger', label: 'Trigger Zone' },
   { id: 'audio', label: 'Audio Source' },
+  { id: 'screen-text', label: 'Screen Text' },
+  { id: 'button', label: 'Button' },
 ] as const;
 
 export type EntityPresetId = (typeof ENTITY_PRESETS)[number]['id'];
+
+/** The size of a new button in pixels of the screen. */
+const BUTTON_SIZE = new Vec2(220, 64);
+/** Font sizes on the screen are in pixels, where the 0.5 of a text in the world would vanish. */
+const SCREEN_FONT_SIZE = 32;
 
 const CIRCLE_ASSET_NAME = 'Sprites/circle.png';
 const CIRCLE_SIZE = 64;
@@ -79,6 +89,27 @@ export function createPresetEntity(
     case 'audio':
       entity.addComponent(AudioSource);
       break;
+    case 'screen-text':
+      // In the top-left corner, where a score usually goes, and growing to the right.
+      entity.addComponent(ScreenAnchor, { horizontal: 'left', vertical: 'top' });
+      entity.transform.position.set(24, -24);
+      entity.addComponent(TextRenderer, {
+        fontSize: SCREEN_FONT_SIZE,
+        align: 'left',
+        verticalAlign: 'top',
+      });
+      break;
+    case 'button': {
+      entity.addComponent(ScreenAnchor);
+      entity.addComponent(Button, { size: BUTTON_SIZE.clone() });
+      entity.addComponent(TextRenderer, { text: 'Button', fontSize: 28 });
+      // The background is a child, because it gets its size from its scale, and a scale
+      // on the button itself would stretch the text along with it.
+      const background = scene.createEntity('Background', { parent: entity });
+      background.transform.scale.copy(BUTTON_SIZE);
+      background.addComponent(SpriteRenderer, { color: new Color(0.2, 0.45, 0.85, 1) });
+      break;
+    }
   }
   return entity;
 }

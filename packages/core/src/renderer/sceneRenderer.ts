@@ -5,7 +5,15 @@ import { Color } from '../math/color';
 import { Mat3 } from '../math/mat3';
 import { Rect } from '../math/rect';
 import { Vec2 } from '../math/vec2';
-import { Camera, SpriteRenderer, TextRenderer } from '../scene/components';
+import {
+  Button,
+  ButtonState,
+  Camera,
+  Hierarchy,
+  ScreenAnchor,
+  SpriteRenderer,
+  TextRenderer,
+} from '../scene/components';
 import type { Entity } from '../scene/entity';
 import type { Scene } from '../scene/scene';
 import { CameraView } from './cameraView';
@@ -18,10 +26,12 @@ import type { TextureCache } from './textureCache';
 interface DrawItem {
   readonly matrix: Mat3;
   texture: Texture | null;
-  /** The component's own color object, not a copy. */
-  color: Readonly<Color>;
+  /** The color of the sprite or text, tinted by the button it belongs to. */
+  readonly color: Color;
   flipX: boolean;
   flipY: boolean;
+  /** 1 for what is on the screen, which is drawn over the world, and 0 for the world. */
+  layer: number;
   sortingOrder: number;
   /** Position in the unsorted list, used to keep the sort stable. */
   sequence: number;
@@ -29,8 +39,6 @@ interface DrawItem {
 
 /** Shown when a scene has no camera, so the problem is obvious rather than a blank frame. */
 const NO_CAMERA_COLOR = Color.black();
-/** What a pooled draw item points at until it is given the color of a sprite or a text. */
-const UNUSED_COLOR = Color.white();
 
 export interface SceneRenderStats {
   /** Sprites and texts submitted to the renderer in the last frame. */
@@ -71,7 +79,9 @@ export class SceneRenderer {
     const items = this.items;
     // Only the first `count` items belong to this frame; the rest are pooled leftovers.
     const frameItems = items.length === count ? items : items.slice(0, count);
-    frameItems.sort((a, b) => a.sortingOrder - b.sortingOrder || a.sequence - b.sequence);
+    frameItems.sort(
+      (a, b) => a.layer - b.layer || a.sortingOrder - b.sortingOrder || a.sequence - b.sequence,
+    );
 
     this.renderer.beginFrame(clearColor);
     this.renderer.setViewProjection(view.viewProjection);
@@ -132,7 +142,7 @@ export class SceneRenderer {
         continue;
       }
       item.texture = sprite.texture === null ? null : this.textures.get(sprite.texture);
-      item.color = sprite.color;
+      this.finish(item, scene, id, sprite.color);
       item.flipX = sprite.flipX;
       item.flipY = sprite.flipY;
       item.sortingOrder = sprite.sortingOrder;
@@ -202,7 +212,7 @@ export class SceneRenderer {
         ),
       );
       item.texture = texture;
-      item.color = text.color;
+      this.finish(item, scene, id, text.color);
       item.flipX = false;
       item.flipY = false;
       item.sortingOrder = text.sortingOrder;
@@ -215,6 +225,39 @@ export class SceneRenderer {
     return count;
   }
 
+  /**
+   * Gives an item its color and its layer, both of which depend on what is above the entity
+   * in the hierarchy: a `ScreenAnchor` puts it on the screen, and a `Button` tints it.
+   */
+  private finish(item: DrawItem, scene: Scene, id: EntityId, color: Readonly<Color>): void {
+    const registry = scene.registry;
+    const shown = item.color.copy(color);
+    item.layer = 0;
+    // Most scenes have neither, and then no entity needs to be asked.
+    const anchors = registry.count(ScreenAnchor) > 0;
+    const buttons = registry.count(Button) > 0;
+    if (!anchors && !buttons) {
+      return;
+    }
+    let foundButton = false;
+    let current: EntityId | null = id;
+    while (current !== null) {
+      if (anchors && registry.has(current, ScreenAnchor)) {
+        item.layer = 1;
+      }
+      // Only the nearest button counts, so a button inside a button looks like itself.
+      const button = buttons && !foundButton ? registry.get(current, Button) : undefined;
+      if (button) {
+        foundButton = true;
+        const tint = getButtonTint(button, registry.get(current, ButtonState));
+        if (tint) {
+          shown.set(shown.r * tint.r, shown.g * tint.g, shown.b * tint.b, shown.a * tint.a);
+        }
+      }
+      current = registry.get(current, Hierarchy)?.parent ?? null;
+    }
+  }
+
   /** The pooled item at an index, created the first time the index is used. */
   private itemAt(index: number): DrawItem {
     let item = this.items[index];
@@ -222,9 +265,10 @@ export class SceneRenderer {
       item = {
         matrix: new Mat3(),
         texture: null,
-        color: UNUSED_COLOR,
+        color: new Color(),
         flipX: false,
         flipY: false,
+        layer: 0,
         sortingOrder: 0,
         sequence: 0,
       };
@@ -265,17 +309,24 @@ export const UNIT_QUAD_CORNERS: readonly (readonly [x: number, y: number])[] = [
  * primary, or the first active camera when none is marked.
  */
 export function findPrimaryCamera(scene: Scene): Entity | null {
-  let fallback: EntityId | null = null;
-  for (const [id, camera] of scene.registry.view(Camera)) {
-    if (!scene.getEntity(id).activeInHierarchy) {
-      continue;
-    }
-    if (camera.primary) {
-      return scene.getEntity(id);
-    }
-    fallback ??= id;
+  return scene.findPrimaryCamera();
+}
+
+/**
+ * The color a button multiplies into everything it shows, or `null` while it is neither
+ * hovered, pressed nor disabled. A button looks pressed only while the pointer is still on it.
+ */
+export function getButtonTint(
+  button: Readonly<Button>,
+  state: Readonly<ButtonState> | undefined,
+): Readonly<Color> | null {
+  if (!button.interactable) {
+    return button.disabledColor;
   }
-  return fallback === null ? null : scene.getEntity(fallback);
+  if (!state?.hovered) {
+    return null;
+  }
+  return state.pressed ? button.pressedColor : button.hoverColor;
 }
 
 /** Builds the view of a camera entity for a viewport with the given aspect ratio. */

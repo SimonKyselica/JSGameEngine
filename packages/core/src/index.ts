@@ -62,5 +62,6 @@ export * from './runtime/bundle';
 export * from './runtime/game';
 export * from './runtime/gameLoop';
 export * from './runtime/headless';
+export * from './ui/buttonSystem';
 export * from './runtime/sceneRuntime';
 export * from './runtime/viewport';

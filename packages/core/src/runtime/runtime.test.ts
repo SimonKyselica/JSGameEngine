@@ -3,7 +3,8 @@ import { encodePng } from '../assets/png';
 import { createDefaultSettings, Project } from '../assets/project';
 import { SourceScriptProvider } from '../compiler';
 import { Color } from '../math/color';
-import { Camera, SpriteRenderer } from '../scene/components';
+import { Vec2 } from '../math/vec2';
+import { Camera, ScreenAnchor, SpriteRenderer } from '../scene/components';
 import { Scene } from '../scene/scene';
 import { serializeScene } from '../scene/serializer';
 import {
@@ -202,6 +203,21 @@ describe('Game loop timing', () => {
     expect(game.game.time.fixedDeltaTime).toBe(1 / 30);
     game.step(60);
     expect(counterOf(game).fixed).toBe(30);
+  });
+
+  it('places what is anchored to the screen by the resolution in the project settings', async () => {
+    const project = createTestProject((scene) => {
+      scene.createEntity('Camera').addComponent(Camera, { orthographicSize: 4 });
+      const corner = scene.createEntity('Corner');
+      corner.addComponent(ScreenAnchor, { horizontal: 'right', vertical: 'top' });
+    });
+    project.settings.rendering.width = 800;
+    project.settings.rendering.height = 400;
+    const game = await startTestGame(project);
+    const { scene } = game.game;
+    expect(scene.screenSize.toArray()).toEqual([800, 400]);
+    // An 800x400 screen on a view 8 units high is 16 units wide.
+    expect(scene.findByName('Corner')!.worldPosition.equals(new Vec2(8, 4))).toBe(true);
   });
 
   it('clears per-frame input after each update', async () => {

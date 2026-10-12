@@ -34,6 +34,11 @@ export class InputState {
   readonly pointer = new Vec2();
   /** Viewport size in CSS pixels, needed to convert the pointer to world space. */
   readonly viewportSize = new Vec2(1, 1);
+  /**
+   * False until the pointer has been seen over the viewport, and again after it has left.
+   * A finger leaves when it is lifted, so on a touch screen nothing stays hovered.
+   */
+  pointerInside = false;
   /** Wheel movement accumulated this frame; positive scrolls down. */
   scrollDelta = 0;
 
@@ -55,6 +60,12 @@ export class InputState {
   handlePointerMove(x: number, y: number, viewportWidth: number, viewportHeight: number): void {
     this.pointer.set(x, y);
     this.viewportSize.set(viewportWidth, viewportHeight);
+    this.pointerInside = true;
+  }
+
+  /** The pointer left the viewport. Its last position is kept. */
+  handlePointerLeave(): void {
+    this.pointerInside = false;
   }
 
   handlePointerDown(button: number): void {
@@ -100,6 +111,7 @@ export class InputState {
   reset(): void {
     this.keysDown.clear();
     this.buttonsDown.clear();
+    this.pointerInside = false;
     this.endFrame();
   }
 }

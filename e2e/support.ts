@@ -163,6 +163,12 @@ export async function playFeatureTestInput(page: Page, canvas: Locator): Promise
     await page.mouse.up({ button });
   }
   await page.mouse.wheel(0, 120);
+
+  // The pointer has been on the button that UiProbe sits on, and clicked it. Moving it
+  // away is the last thing that probe waits for.
+  await waitForCheck(page, 'onClick');
+  await page.mouse.move(box.x + box.width * 0.8, box.y + box.height * 0.8);
+  await waitForCheck(page, 'onPointerExit, after the other pointer callbacks in their order');
 }
 
 /** Waits for the feature test running in the page to finish and returns its report. */

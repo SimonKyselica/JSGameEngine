@@ -14,7 +14,7 @@ import {
   type GizmoLayout,
   type TransformTool,
 } from './gizmos';
-import { getSpriteCorners, getTextCorners, type VisualSources } from './picking';
+import { getButtonCorners, getSpriteCorners, getTextCorners, type VisualSources } from './picking';
 
 const COLORS = {
   gridMinor: 'rgba(255, 255, 255, 0.05)',
@@ -25,6 +25,7 @@ const COLORS = {
   highlight: '#ffffff',
   selection: '#ff9f43',
   collider: '#5ee27a',
+  button: '#ff7ad9',
   camera: 'rgba(255, 255, 255, 0.55)',
 } as const;
 
@@ -225,6 +226,11 @@ function drawSelection(
     if (corners) {
       strokePolygon(context, corners.map(toScreen), COLORS.selection, 1.5);
     }
+  }
+  // The area that reacts to the pointer cannot be seen in the game, so it is shown here.
+  const button = getButtonCorners(entity);
+  if (button) {
+    strokePolygon(context, button.map(toScreen), COLORS.button, 1.5);
   }
 }
 

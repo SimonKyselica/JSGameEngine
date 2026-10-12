@@ -42,10 +42,15 @@ A/D and make jump with Space, a ground and a few crates. Press Play in the toolb
 **Engine**
 
 - Entities with components: Transform (with parent/child hierarchy), Sprite Renderer, Text
-  Renderer, Camera, Rigidbody 2D, Box Collider 2D, Circle Collider 2D, Audio Source and Script.
+  Renderer, Camera, Rigidbody 2D, Box Collider 2D, Circle Collider 2D, Audio Source, Screen
+  Anchor, Button and Script.
 - A batched WebGL2 sprite renderer with sorting, tinting, flipping and off-screen culling.
 - Text in the browser's sans-serif, serif and monospace fonts, with several lines, alignment,
   bold and italic. It is sorted together with sprites and stays sharp at every size.
+- Basic UI. A Screen Anchor places an entity on the screen instead of in the world, in pixels
+  from a corner, an edge or the center, so scores and menus stay put while the camera moves.
+  A Button reacts to the mouse and to touch, tints itself while hovered or pressed, and calls
+  `onClick` on the scripts of its entity.
 - 2D physics (planck.js, a Box2D port): dynamic, kinematic and static bodies with an optional
   start velocity, triggers, collision callbacks, raycasts, and point and circle queries, stepped
   at a fixed rate.
@@ -96,7 +101,8 @@ export default class PlayerController extends Behaviour {
 ```
 
 Callbacks: `onStart`, `onUpdate`, `onFixedUpdate`, `onLateUpdate`, `onDestroy`,
-`onCollisionEnter`, `onCollisionExit`, `onTriggerEnter`, `onTriggerExit`.
+`onCollisionEnter`, `onCollisionExit`, `onTriggerEnter`, `onTriggerExit`, and for entities with
+a Button `onPointerEnter`, `onPointerExit`, `onPointerDown`, `onPointerUp` and `onClick`.
 
 From a script you can reach `this.entity`, `this.transform`, `this.scene`, `this.input`,
 `this.physics`, `this.audio`, `this.assets` and `this.time`, plus `getComponent`, `getScript`,

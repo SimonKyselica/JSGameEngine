@@ -68,6 +68,8 @@ export function attachDomInput(
   );
 
   viewport.addEventListener('pointermove', updatePointer, options);
+  // Also fires when a finger is lifted, which is what ends a hover on a touch screen.
+  viewport.addEventListener('pointerleave', () => state.handlePointerLeave(), options);
   viewport.addEventListener(
     'pointerdown',
     (event) => {

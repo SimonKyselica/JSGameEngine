@@ -244,7 +244,10 @@ export class Game {
   }
 
   private startScene(scene: Scene): void {
-    const { gravity } = this.project.settings.physics;
+    const { rendering, physics } = this.project.settings;
+    const { gravity } = physics;
+    // What is anchored to the screen is placed in pixels of the project's resolution.
+    scene.screenSize.set(rendering.width, rendering.height);
     this.time.elapsed = 0;
     this.time.frameCount = 0;
     this.time.deltaTime = 0;

@@ -14,6 +14,7 @@ import {
   type Behaviour,
   type BehaviourClass,
   type CancelTimer,
+  type PointerCallback,
   type ScriptLifecycle,
 } from './behaviour';
 import type { ScriptModuleLoader } from './scriptModuleLoader';
@@ -146,6 +147,21 @@ export class ScriptSystem {
             this.call(instance, 'onTriggerExit', event.other);
             break;
         }
+      }
+    }
+  }
+
+  /** Calls a pointer callback on the scripts of the entity whose button raised it. */
+  dispatchPointerEvent(entity: Entity, callback: PointerCallback): void {
+    // A button can be clicked in the frame it appears, before its scripts were set up.
+    this.createEntityInstances(entity);
+    const instances = this.byEntity.get(entity.id);
+    if (!instances) {
+      return;
+    }
+    for (const instance of [...instances]) {
+      if (this.prepare(instance)) {
+        this.call(instance, callback);
       }
     }
   }

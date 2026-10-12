@@ -193,6 +193,13 @@ describe('feature-test scene, run headless', () => {
         style: { font: 'monospace', bold: false, italic: false },
         pixelsPerEm: 30,
       },
+      // On the screen a font size is in pixels, and is rasterized at exactly that many.
+      { text: 'HUD', style: { font: 'sans-serif', bold: false, italic: false }, pixelsPerEm: 28 },
+      {
+        text: 'Clicked',
+        style: { font: 'sans-serif', bold: false, italic: false },
+        pixelsPerEm: 32,
+      },
     ]);
 
     // Aligned left and top, the title starts at (-9, 3) and extends right and down. The
@@ -201,8 +208,9 @@ describe('feature-test scene, run headless', () => {
     expect(title.texture).toEqual({ width: 156, height: 84 });
     expect(rounded(title.transform.getScale().toArray())).toEqual([2.6, 1.4]);
     expect(title.color.toHex()).toBe('#ffe666');
-    // With a sorting order of 3 it is drawn after everything else in the scene so far.
-    expect(quads.at(-1)).toBe(title);
+    // With a sorting order of 3 it is drawn after the other texts of the world. Only what
+    // is on the screen comes later still.
+    expect(quads.indexOf(title)).toBeGreaterThan(quads.indexOf(quadAt(quads, -3, 3)!));
     // The counter is centered on its entity, like a sprite: 4.2 em by 1.2 em at 30 pixels
     // per em, plus 8 pixels of padding on every side.
     expect(quadAt(quads, -3, 3)?.texture).toEqual({ width: 142, height: 52 });
@@ -234,6 +242,44 @@ describe('feature-test scene, run headless', () => {
     expect(quadAt(quads, -3, 3)).toBeDefined();
     // The text that was hidden is drawn where its entity is.
     expect(quadAt(quads, 2, 3)).toBeDefined();
+  });
+
+  it('draws what is on the screen over the world, in pixels of the screen', () => {
+    const { quads } = run.before;
+    // The camera shows 12 units on a screen 720 pixels high: 60 pixels per unit. The
+    // button is 240x120 pixels, centered 320 pixels right of and 180 below the top-left
+    // corner, which is at (-10.667, 6) in the world.
+    const background = quadAt(quads, -1280 / 2 / 60 + 320 / 60, 6 - 180 / 60)!;
+    expect(rounded(background.transform.getScale().toArray())).toEqual([4, 2]);
+    // By this frame the pointer has come, clicked and gone, so the button looks as authored.
+    expect(background.color.toHex()).toBe('#334d80');
+
+    // A button that is not interactable is drawn in its disabled color: here half as
+    // bright and half as opaque as its sprite.
+    const disabled = quadAt(quads, 1280 / 2 / 60 - 140 / 60, 6 - 60 / 60)!;
+    expect(disabled.color.toHex()).toBe('#80661a');
+    expect(disabled.color.a).toBe(0.5);
+
+    // Everything on the screen comes after everything in the world.
+    const firstOnScreen = Math.min(quads.indexOf(background), quads.indexOf(disabled));
+    expect(quads.length - firstOnScreen).toBe(4);
+    expect(run.before.texts.map((entry) => entry.text)).toEqual(
+      expect.arrayContaining(['HUD', 'Clicked']),
+    );
+  });
+
+  it('keeps what is on the screen in place when the camera changes', () => {
+    // RenderProbe widens the view to 14 units. The same pixels are now elsewhere in the
+    // world, and larger there, which is exactly what keeps them unchanged on the screen.
+    const unitsPerPixel = 14 / 720;
+    const background = quadAt(
+      run.after.quads,
+      (-1280 / 2 + 320) * unitsPerPixel,
+      7 - 180 * unitsPerPixel,
+    )!;
+    expect(rounded(background.transform.getScale().toArray())).toEqual(
+      rounded([240 * unitsPerPixel, 120 * unitsPerPixel]),
+    );
   });
 
   it('plays the sounds the scene and its scripts ask for', () => {
@@ -290,6 +336,11 @@ describe('feature-test scene coverage', () => {
     onCollisionExit: true,
     onTriggerEnter: true,
     onTriggerExit: true,
+    onPointerEnter: true,
+    onPointerExit: true,
+    onPointerDown: true,
+    onPointerUp: true,
+    onClick: true,
   };
   const collisionFields: Record<keyof Collision, true> = { other: true, point: true, normal: true };
   const raycastFields: Record<keyof RaycastHit, true> = {

@@ -142,6 +142,9 @@ describe('getRasterPixelsPerEm', () => {
     expect(getRasterPixelsPerEm(layout, 12)).toBe(12);
     expect(getRasterPixelsPerEm(layout, 12.2)).toBe(13);
     expect(getRasterPixelsPerEm(layout, 32)).toBe(32);
+    // The size on screen is a product of several factors and rarely comes out exact.
+    expect(getRasterPixelsPerEm(layout, 28.000000000000004)).toBe(28);
+    expect(getRasterPixelsPerEm(layout, 27.999999999999996)).toBe(28);
   });
 
   it('rounds larger text up to one of a few sizes, so zooming rarely rasterizes again', () => {

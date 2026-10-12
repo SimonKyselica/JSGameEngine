@@ -14,6 +14,7 @@ import support from './scripts/support.ts?raw';
 import TestHarness from './scripts/TestHarness.ts?raw';
 import TextProbe from './scripts/TextProbe.ts?raw';
 import TriggerProbe from './scripts/TriggerProbe.ts?raw';
+import UiProbe from './scripts/UiProbe.ts?raw';
 
 /**
  * The source of every feature-test script, keyed by file name without extension.
@@ -39,4 +40,5 @@ export const FEATURE_TEST_SCRIPTS: Readonly<Record<string, string>> = {
   TestHarness,
   TextProbe,
   TriggerProbe,
+  UiProbe,
 };

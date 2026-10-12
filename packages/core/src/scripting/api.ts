@@ -16,20 +16,24 @@ export { Physics2D, type RaycastHit } from '../physics/physicsSystem';
 export {
   AudioSource,
   BoxCollider2D,
+  Button,
   Camera,
   CircleCollider2D,
   Identity,
   Rigidbody2D,
+  ScreenAnchor,
   ScriptComponent,
   SpriteRenderer,
   TextRenderer,
   Transform,
   type BodyType,
+  type HorizontalAnchor,
   type ScriptBinding,
   type ScriptPropertyValue,
   type TextAlign,
   type TextFont,
   type TextVerticalAlign,
+  type VerticalAnchor,
 } from '../scene/components';
 export { Entity } from '../scene/entity';
 export {

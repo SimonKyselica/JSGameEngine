@@ -251,6 +251,8 @@ function ComponentField({ entity, type, name, field }: ComponentFieldProps): Rea
                 prefix={axis.toUpperCase()}
                 ariaLabel={`${label} ${axis.toUpperCase()}`}
                 value={vector[axis]}
+                min={field.min}
+                max={field.max}
                 step={field.step}
                 onChange={(value) =>
                   edit(() => {

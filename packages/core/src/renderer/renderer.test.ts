@@ -5,7 +5,7 @@ import { Logger } from '../core/logger';
 import { Color } from '../math/color';
 import { Mat3 } from '../math/mat3';
 import { Vec2 } from '../math/vec2';
-import { Camera, SpriteRenderer } from '../scene/components';
+import { Button, Camera, ScreenAnchor, SpriteRenderer } from '../scene/components';
 import { Scene } from '../scene/scene';
 import { CameraView } from './cameraView';
 import { decodeImageHeadless } from './imageDecoder';
@@ -393,6 +393,80 @@ describe('SceneRenderer', () => {
     entities[1]!.destroy();
     sceneRenderer.render(scene, view, Color.black());
     expect(renderer.quads).toHaveLength(1);
+  });
+
+  it('draws what is on the screen over the world, whatever the sorting orders say', () => {
+    const { scene, renderer, sceneRenderer } = createRenderSetup();
+    scene.createEntity('Camera').addComponent(Camera);
+    const add = (name: string, color: Color, sortingOrder: number, onScreen: boolean): void => {
+      const entity = scene.createEntity(name);
+      entity.addComponent(SpriteRenderer, { color, sortingOrder });
+      if (onScreen) {
+        entity.addComponent(ScreenAnchor);
+        // On the screen a unit is a pixel, so give the sprite a size that can be seen.
+        entity.transform.scale.set(50, 50);
+      }
+    };
+    add('Hud back', new Color(1, 0, 0), -5, true);
+    add('World front', new Color(0, 1, 0), 100, false);
+    add('Hud front', new Color(0, 0, 1), 5, true);
+    add('World back', new Color(1, 1, 0), 0, false);
+    // A child of an anchored entity is on the screen as well.
+    const child = scene.createEntity('Hud child', { parent: scene.findByName('Hud back') });
+    child.addComponent(SpriteRenderer, { color: new Color(1, 0, 1), sortingOrder: -9 });
+
+    sceneRenderer.renderPrimaryCamera(scene);
+    expect(renderer.quads.map((quad) => quad.color.toHex())).toEqual([
+      '#ffff00',
+      '#00ff00',
+      '#ff00ff',
+      '#ff0000',
+      '#0000ff',
+    ]);
+  });
+
+  it('sizes what is on the screen in pixels of the screen, not of the window', () => {
+    const { scene, renderer, sceneRenderer } = createRenderSetup();
+    scene.screenSize.set(400, 200);
+    const camera = scene.createEntity('Camera');
+    camera.transform.position.set(30, -10);
+    camera.addComponent(Camera, { orthographicSize: 2 });
+    const badge = scene.createEntity('Badge');
+    badge.addComponent(ScreenAnchor, { horizontal: 'left', vertical: 'bottom' });
+    badge.transform.position.set(100, 50);
+    badge.transform.scale.set(40, 20);
+    badge.addComponent(SpriteRenderer);
+
+    sceneRenderer.renderPrimaryCamera(scene);
+    const quad = renderer.quads[0]!;
+    // 200 pixels show 4 world units, so a pixel is 0.02 units: 40x20 pixels are 0.8x0.4.
+    const scale = quad.transform.getScale();
+    expect([scale.x, scale.y].map((value) => Math.round(value * 1e6) / 1e6)).toEqual([0.8, 0.4]);
+    // A quarter of the way in from the bottom-left corner of a view from (26, -12) to (34, -8).
+    const center = quad.transform.getTranslation();
+    expect([center.x, center.y].map((value) => Math.round(value * 1e6) / 1e6)).toEqual([28, -11]);
+  });
+
+  it('tints sprites with the nearest button above them', () => {
+    const { scene, renderer, sceneRenderer } = createRenderSetup();
+    const view = new CameraView(new Vec2(), 0, 5, 2);
+    const outer = scene.createEntity('Outer');
+    outer.addComponent(Button, { interactable: false, disabledColor: new Color(0.5, 0.5, 0.5, 1) });
+    outer.addComponent(SpriteRenderer);
+    const inner = scene.createEntity('Inner', { parent: outer });
+    inner.addComponent(Button);
+    inner.addComponent(SpriteRenderer);
+    scene.createEntity('Leaf', { parent: inner }).addComponent(SpriteRenderer);
+
+    sceneRenderer.render(scene, view, Color.black());
+    // The inner button is enabled, so it and what is below it keep their own colors.
+    expect(renderer.quads.map((quad) => quad.color.toHex())).toEqual([
+      '#808080',
+      '#ffffff',
+      '#ffffff',
+    ]);
+    // The tint is applied to what is drawn, never to the component.
+    expect(outer.requireComponent(SpriteRenderer).color.toHex()).toBe('#ffffff');
   });
 
   it('renders through the primary camera with its background color', () => {

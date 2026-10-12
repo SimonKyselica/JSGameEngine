@@ -1,6 +1,7 @@
 import {
   AudioSource,
   BoxCollider2D,
+  Button,
   Camera,
   CircleCollider2D,
   Color,
@@ -12,6 +13,7 @@ import {
   Project,
   Rigidbody2D,
   Scene,
+  ScreenAnchor,
   ScriptComponent,
   serializeScene,
   SpriteRenderer,
@@ -168,6 +170,34 @@ export function createFeatureTestProject(): Project {
     text: 'Now you see me',
     visible: false,
   });
+
+  // On the screen: a label in a corner, and a button where the hosts put the pointer, a
+  // quarter of the way in from the top-left corner of the 1280x720 screen.
+  const hudLabel = at('Hud Label', 24, -24);
+  hudLabel.addComponent(ScreenAnchor, { horizontal: 'left', vertical: 'top' });
+  hudLabel.addComponent(TextRenderer, {
+    text: 'HUD',
+    fontSize: 28,
+    align: 'left',
+    verticalAlign: 'top',
+  });
+  const hudButton = at('Hud Button', 320, -180);
+  hudButton.addComponent(ScreenAnchor, { horizontal: 'left', vertical: 'top' });
+  hudButton.addComponent(Button, {
+    size: new Vec2(240, 120),
+    hoverColor: new Color(1, 1, 0.6, 1),
+    pressedColor: new Color(1, 0.6, 0.6, 1),
+  });
+  hudButton.addComponent(TextRenderer, { text: 'Click me', fontSize: 32 });
+  const hudBackground = at('Background', 0, 0, hudButton);
+  hudBackground.transform.scale.set(240, 120);
+  hudBackground.addComponent(SpriteRenderer, { color: new Color(0.2, 0.3, 0.5, 0.6) });
+  attach(hudButton, 'UiProbe');
+  const disabledButton = at('Disabled Button', -140, -60);
+  disabledButton.transform.scale.set(200, 60);
+  disabledButton.addComponent(ScreenAnchor, { horizontal: 'right', vertical: 'top' });
+  disabledButton.addComponent(Button, { interactable: false });
+  disabledButton.addComponent(SpriteRenderer, { color: new Color(1, 0.8, 0.2, 1) });
 
   attach(at('Math Probe', 0, 0), 'MathProbe');
   attach(at('Lifecycle Probe', 0, 0), 'LifecycleProbe');

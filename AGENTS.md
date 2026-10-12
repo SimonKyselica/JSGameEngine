@@ -69,7 +69,8 @@ what the tools enforce:
   for. Inside functions, comment only what the code cannot say: a reason, a trap, a unit.
 - **Units and conventions are stated once and kept everywhere:** world Y points up, angles are
   radians (the inspector converts to degrees), colors are straight-alpha floats from 0 to 1,
-  time is in seconds, sizes in world units unless a name says pixels.
+  time is in seconds, sizes in world units unless a name says pixels. The one exception is
+  what sits under a `ScreenAnchor`: there a unit is a pixel of the project's resolution.
 - **Errors.** Throw `RowanError` with a message a game developer can act on: say what is wrong
   and what to do. Validate data at the boundary (loading files, user input, script calls) and
   trust it inside. Never swallow an error silently: handle it, log it through the `Logger`, or
@@ -103,6 +104,9 @@ what the tools enforce:
   with the `HeadlessTextRasterizer`, which measures every character as half an em. Unit tests
   assert on those sizes; browser tests only check that text reaches the screen, by counting
   pixels of its color (`countCanvasPixels` in `e2e/support.ts`).
+- When a browser test counts pixels of a color, do not expect zero of another color. The
+  smoothed pixels along the edge of a shape are blends with whatever is behind it and can
+  match a darker shade by chance. Compare the counts instead, as the button test does.
 - Test behaviour, not implementation. A test name states a fact about the engine
   ("rests dynamic bodies on static colliders"). Assert on the specific value you expect.
 - Physics and timing tests step the game with a fixed delta so they are deterministic. Do not
@@ -174,3 +178,10 @@ Step-by-step versions of these live in `.claude/skills/`.
 - **`Instructions.md` is the owner's file.** Do not reformat or edit it; it is in `.prettierignore`.
 - **Reading the WebGL canvas** only works inside an animation frame, right after drawing; the
   drawing buffer is cleared after it is presented (`e2e/support.ts` shows how).
+- **A size on screen is a product of several factors and rarely comes out exact.** 28 pixels
+  arrived as 28.000000000000004 and were rounded up to 29, which redrew every text on the
+  screen whenever the camera zoomed. Subtract a tolerance before rounding up
+  (`getRasterPixelsPerEm`).
+- **A scale on an entity stretches its children too.** A sprite without a texture gets its
+  size from the scale, so a button's background is a child of the button, not the button
+  itself, or the label on it would be stretched along (`entityPresets.ts`).

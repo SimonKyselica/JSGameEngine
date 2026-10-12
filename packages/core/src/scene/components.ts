@@ -166,6 +166,97 @@ export class TextRenderer {
   visible = true;
 }
 
+export const HORIZONTAL_ANCHORS = ['left', 'center', 'right'] as const;
+/** The side of the screen an entity is placed from. See `ScreenAnchor.horizontal`. */
+export type HorizontalAnchor = (typeof HORIZONTAL_ANCHORS)[number];
+
+export const VERTICAL_ANCHORS = ['top', 'middle', 'bottom'] as const;
+/** The edge of the screen an entity is placed from. See `ScreenAnchor.vertical`. */
+export type VerticalAnchor = (typeof VERTICAL_ANCHORS)[number];
+
+/**
+ * Places the entity on the screen instead of in the world, for scores, menus and everything
+ * else that has to stay put while the camera moves.
+ *
+ * With this component the position of the entity's Transform is measured in pixels from a
+ * corner, an edge or the center of the screen: X to the right and Y up, so `(16, -16)` from
+ * the top-left corner is 16 pixels in from both edges. A pixel here is a pixel of the
+ * resolution in the project settings; the picture is scaled as a whole to the window the
+ * game runs in. Sizes follow suit: on the screen a `fontSize` of 32 is 32 pixels.
+ *
+ * The children of the entity are on the screen with it. The entity itself ignores the
+ * position of its own parent. Everything on the screen is drawn over the world.
+ */
+export class ScreenAnchor {
+  static readonly schema: ComponentSchema = {
+    name: 'ScreenAnchor',
+    displayName: 'Screen Anchor',
+    category: 'UI',
+    removable: true,
+    fields: {
+      horizontal: { type: 'enum', options: HORIZONTAL_ANCHORS },
+      vertical: { type: 'enum', options: VERTICAL_ANCHORS },
+    },
+  };
+
+  /** Whether the position is measured from the left edge, the center or the right edge. */
+  horizontal: HorizontalAnchor = 'center';
+  /** Whether the position is measured from the top edge, the middle or the bottom edge. */
+  vertical: VerticalAnchor = 'middle';
+}
+
+/**
+ * Makes the entity react to the pointer: the mouse, or a finger on a touch screen. The
+ * scripts of the entity get `onPointerEnter`, `onPointerExit`, `onPointerDown`,
+ * `onPointerUp` and `onClick`.
+ *
+ * A button has no look of its own. What is seen are the sprites and texts of the entity and
+ * of its children, and the button tints all of them while it is hovered, pressed or disabled.
+ * It works in the world as well as on the screen.
+ */
+export class Button {
+  static readonly schema: ComponentSchema = {
+    name: 'Button',
+    displayName: 'Button',
+    category: 'UI',
+    removable: true,
+    fields: {
+      size: { type: 'vec2', min: 0 },
+      interactable: { type: 'boolean' },
+      hoverColor: { type: 'color' },
+      pressedColor: { type: 'color' },
+      disabledColor: { type: 'color' },
+    },
+  };
+
+  /**
+   * Width and height of the area that reacts to the pointer. It is centered on the entity,
+   * in the entity's own units before its scale is applied: world units, or pixels on the
+   * screen.
+   */
+  size = new Vec2(1, 1);
+  /**
+   * A button that is not interactable gets no pointer callbacks and is drawn in
+   * `disabledColor`. It still covers the buttons behind it.
+   */
+  interactable = true;
+  /** The tint while the pointer is over the button. It is multiplied with the colors drawn. */
+  hoverColor = new Color(0.85, 0.85, 0.85, 1);
+  /** The tint while the button is held down. */
+  pressedColor = new Color(0.65, 0.65, 0.65, 1);
+  /** The tint while the button is not interactable. */
+  disabledColor = new Color(0.5, 0.5, 0.5, 0.5);
+}
+
+/**
+ * What the pointer is doing with a button right now. The button system attaches it while a
+ * game runs and the renderer reads it to tint the button; it is never saved with a scene.
+ */
+export class ButtonState {
+  hovered = false;
+  pressed = false;
+}
+
 /** An orthographic camera. The scene is drawn from the first active primary camera. */
 export class Camera {
   static readonly schema: ComponentSchema = {
@@ -401,6 +492,8 @@ export const COMPONENT_TYPES: readonly ComponentType[] = [
   BoxCollider2D,
   CircleCollider2D,
   AudioSource,
+  ScreenAnchor,
+  Button,
   ScriptComponent,
 ];
 

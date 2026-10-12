@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   BoxCollider2D,
+  Button,
   Camera,
   CircleCollider2D,
   decodeImageHeadless,
@@ -13,6 +14,7 @@ import {
   Rect,
   Rigidbody2D,
   Scene,
+  ScreenAnchor,
   ScriptComponent,
   SpriteRenderer,
   TextRenderer,
@@ -34,6 +36,7 @@ import {
 } from './gizmos';
 import { drawOverlay, getGizmoLayout } from './overlay';
 import {
+  getButtonCorners,
   getEntityBounds,
   getSpriteCorners,
   getTextCorners,
@@ -615,6 +618,23 @@ describe('EditorSession project', () => {
     expect(new EditorSession(stored).scene.findByName('Unsaved Entity')).not.toBeNull();
   });
 
+  it('measures the screen of every scene it opens by the project resolution', () => {
+    const session = createSession();
+    expect(session.scene.screenSize.toArray()).toEqual([1280, 720]);
+    session.updateSettings((settings) => {
+      settings.rendering.width = 800;
+      settings.rendering.height = 600;
+    });
+    expect(session.scene.screenSize.toArray()).toEqual([800, 600]);
+
+    // An undo puts another scene object in place, which must fit the project as well.
+    session.createEntity('sprite');
+    session.undo();
+    expect(session.scene.screenSize.toArray()).toEqual([800, 600]);
+    session.createScene('Second');
+    expect(session.scene.screenSize.toArray()).toEqual([800, 600]);
+  });
+
   it('stops listening to the project when disposed', () => {
     const session = createSession();
     session.dispose();
@@ -806,6 +826,8 @@ describe('entity presets', () => {
       'static-box': [SpriteRenderer, BoxCollider2D],
       trigger: [BoxCollider2D],
       audio: [],
+      'screen-text': [ScreenAnchor, TextRenderer],
+      button: [ScreenAnchor, Button, TextRenderer],
     };
     for (const preset of ENTITY_PRESETS) {
       const entity = createPresetEntity(scene, project.assets, preset.id, null);
@@ -815,6 +837,38 @@ describe('entity presets', () => {
       expect(entity.name).toBe(preset.id === 'empty' ? 'Entity' : preset.label);
     }
     expect(scene.findByName('Trigger Zone')!.requireComponent(BoxCollider2D).isTrigger).toBe(true);
+  });
+
+  it('builds a button whose background fills its clickable area without stretching the label', () => {
+    const session = new EditorSession(new Project());
+    const { scene, project } = session;
+    const button = createPresetEntity(scene, project.assets, 'button', null);
+    const size = button.requireComponent(Button).size;
+    const [background] = button.children;
+
+    expect(button.transform.scale.toArray()).toEqual([1, 1]);
+    expect(background!.name).toBe('Background');
+    expect(background!.transform.scale.toArray()).toEqual(size.toArray());
+    expect(
+      getSpriteCorners(background!, project.assets)!.map((corner) => corner.toArray()),
+    ).toEqual(getButtonCorners(button)!.map((corner) => corner.toArray()));
+    // In the middle of the screen, where the camera looks.
+    expect(button.worldPosition.toArray()).toEqual([0, 0]);
+    expect(scene.isOnScreen(background!)).toBe(true);
+  });
+
+  it('puts new screen text into the top-left corner of the screen', () => {
+    const session = new EditorSession(new Project());
+    const { scene, project } = session;
+    // A new project's scene comes with a camera.
+    scene.findPrimaryCamera()!.requireComponent(Camera).orthographicSize = 3.6;
+    const text = createPresetEntity(scene, project.assets, 'screen-text', null);
+    // 720 pixels show 7.2 units, so the corner (-6.4, 3.6) plus 24 pixels each way.
+    const position = text.worldPosition;
+    expect([position.x, position.y].map((value) => Math.round(value * 1000) / 1000)).toEqual([
+      -6.16, 3.36,
+    ]);
+    expect(text.requireComponent(TextRenderer).fontSize).toBe(32);
   });
 
   it('marks only the first camera of a scene as primary', () => {
@@ -1007,6 +1061,16 @@ describe('picking', () => {
     text.text = '';
     // An entity with a text is picked by its text only, like one with a sprite.
     expect(pickEntity(scene, sources, new Vec2(), 5)).toBeNull();
+  });
+
+  it('includes the area of a button in the bounds of an entity', () => {
+    const { scene, sources } = createScene();
+    const entity = scene.createEntity('Button');
+    entity.transform.position.set(10, 0);
+    entity.addComponent(Button, { size: new Vec2(4, 2) });
+    const bounds = getEntityBounds(entity, sources);
+    expect([bounds.minX, bounds.minY, bounds.maxX, bounds.maxY]).toEqual([8, -1, 12, 1]);
+    expect(getButtonCorners(scene.createEntity('Plain'))).toBeNull();
   });
 
   it('includes texts in the bounds of an entity', () => {

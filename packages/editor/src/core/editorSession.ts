@@ -533,6 +533,8 @@ export class EditorSession {
 
   updateSettings(mutate: (settings: ProjectSettings) => void): void {
     mutate(this.project.settings);
+    // The resolution may have changed, and with it where things on the screen are.
+    this.fitToProject(this.scene);
     this.dirty = true;
     this.notify();
   }
@@ -571,19 +573,28 @@ export class EditorSession {
   }
 
   private restore(snapshot: string): void {
-    this.scene = deserializeScene(JSON.parse(snapshot));
+    this.scene = this.fitToProject(deserializeScene(JSON.parse(snapshot)));
+  }
+
+  /** Gives a scene the screen of this project, which is what screen anchors are measured on. */
+  private fitToProject(scene: Scene): Scene {
+    const { width, height } = this.project.settings.rendering;
+    scene.screenSize.set(width, height);
+    return scene;
   }
 
   /** Loads a scene asset. A scene that cannot be read is reported and opened empty. */
   private loadScene(record: AssetRecord): Scene {
     try {
       const data: unknown = JSON.parse(this.project.assets.getText(record.id));
-      return deserializeScene(data, {
-        onWarning: (message) => this.logger.warn(message, record.name),
-      });
+      return this.fitToProject(
+        deserializeScene(data, {
+          onWarning: (message) => this.logger.warn(message, record.name),
+        }),
+      );
     } catch (error) {
       this.logger.error(`Could not open "${record.name}": ${describeError(error)}`);
-      return createEmptyScene(getNameWithoutExtension(record.name));
+      return this.fitToProject(createEmptyScene(getNameWithoutExtension(record.name)));
     }
   }
 }

@@ -45,7 +45,30 @@ export interface ScriptLifecycle {
   onTriggerEnter?(other: Entity): void;
   /** Called when an overlap reported by `onTriggerEnter` ends. */
   onTriggerExit?(other: Entity): void;
+  /** Called when the pointer moves onto the entity's `Button`. */
+  onPointerEnter?(): void;
+  /**
+   * Called when the pointer leaves the entity's `Button`, or when the button stops being
+   * interactable while the pointer is on it.
+   */
+  onPointerExit?(): void;
+  /**
+   * Called when the entity's `Button` is pressed: the left mouse button goes down on it, or
+   * a finger touches it.
+   */
+  onPointerDown?(): void;
+  /** Called when a press that began on the entity's `Button` ends, wherever the pointer is. */
+  onPointerUp?(): void;
+  /**
+   * Called after `onPointerUp` when the press ended on the button it began on. This is the
+   * callback for "the player chose this".
+   */
+  onClick?(): void;
 }
+
+/** The callbacks a `Button` raises on the scripts of its entity. */
+export type PointerCallback =
+  'onPointerEnter' | 'onPointerExit' | 'onPointerDown' | 'onPointerUp' | 'onClick';
 
 /**
  * A script class: any class that extends `Behaviour`. Where a function takes one, pass the

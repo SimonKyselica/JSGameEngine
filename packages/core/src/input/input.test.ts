@@ -83,6 +83,20 @@ describe('Input mouse', () => {
     expect(input.mousePosition.x).toBe(150);
   });
 
+  it('knows whether the pointer is over the game', () => {
+    const { state } = createInput();
+    expect(state.pointerInside).toBe(false);
+    state.handlePointerMove(150, 25, 200, 100);
+    expect(state.pointerInside).toBe(true);
+    state.handlePointerLeave();
+    expect(state.pointerInside).toBe(false);
+    // Where it was last seen is kept.
+    expect(state.pointer.toArray()).toEqual([150, 25]);
+    state.handlePointerMove(10, 10, 200, 100);
+    state.reset();
+    expect(state.pointerInside).toBe(false);
+  });
+
   it('reports the origin as world position when there is no camera', () => {
     const { state, input } = createInput(null);
     state.handlePointerMove(150, 25, 200, 100);
@@ -175,6 +189,19 @@ describe('attachDomInput', () => {
     window.dispatchEvent(new PointerEvent('pointerup', { button: 2 }));
     expect(state.buttonsDown.has(2)).toBe(false);
     detach();
+  });
+
+  it('notices the pointer leaving the viewport, which is also what lifting a finger does', () => {
+    const { state, viewport, detach } = setup();
+    viewport.dispatchEvent(new PointerEvent('pointermove', { clientX: 300, clientY: 150 }));
+    expect(state.pointerInside).toBe(true);
+    viewport.dispatchEvent(new PointerEvent('pointerleave'));
+    expect(state.pointerInside).toBe(false);
+    viewport.dispatchEvent(new PointerEvent('pointerdown', { clientX: 110, clientY: 60 }));
+    expect(state.pointerInside).toBe(true);
+    detach();
+    viewport.dispatchEvent(new PointerEvent('pointerleave'));
+    expect(state.pointerInside).toBe(true);
   });
 
   it('captures the wheel and suppresses the context menu', () => {

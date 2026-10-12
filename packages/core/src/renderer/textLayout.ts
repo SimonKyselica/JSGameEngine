@@ -18,6 +18,12 @@ const MAX_PIXELS_PER_EM = 512;
 const EXACT_PIXELS_PER_EM = 32;
 /** Above it, sizes are rounded up to this many steps per doubling. */
 const RASTER_STEPS_PER_OCTAVE = 8;
+/**
+ * A size this little above a whole number of pixels is taken to be that number. The size
+ * on screen is the product of several factors, and 28 pixels can arrive as 28.000000000004,
+ * which must not be rounded up to 29.
+ */
+const RASTER_TOLERANCE = 1e-3;
 
 /** The part of a text's appearance that decides the shape of its letters, and so its width. */
 export interface TextStyle {
@@ -143,7 +149,7 @@ export function getRasterPixelsPerEm(
     : Math.min(desiredPixelsPerEm, MAX_PIXELS_PER_EM);
   const quantized =
     clamped <= EXACT_PIXELS_PER_EM
-      ? Math.ceil(clamped)
+      ? Math.ceil(clamped - RASTER_TOLERANCE)
       : Math.ceil(
           2 ** (Math.ceil(Math.log2(clamped) * RASTER_STEPS_PER_OCTAVE) / RASTER_STEPS_PER_OCTAVE),
         );

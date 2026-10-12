@@ -489,6 +489,65 @@
       ]
     },
     {
+      "name": "Button",
+      "summary": "Makes the entity react to the pointer: the mouse, or a finger on a touch screen. The scripts of the entity get `onPointerEnter`, `onPointerExit`, `onPointerDown`, `onPointerUp` and `onClick`.\n\nA button has no look of its own. What is seen are the sprites and texts of the entity and of its children, and the button tints all of them while it is hovered, pressed or disabled. It works in the world as well as on the screen.",
+      "typeParameters": "",
+      "definition": "",
+      "kind": "class",
+      "members": [
+        {
+          "name": "size",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "size: Vec2"
+          ],
+          "summary": "Width and height of the area that reacts to the pointer. It is centered on the entity, in the entity's own units before its scale is applied: world units, or pixels on the screen."
+        },
+        {
+          "name": "interactable",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "interactable: boolean"
+          ],
+          "summary": "A button that is not interactable gets no pointer callbacks and is drawn in `disabledColor`. It still covers the buttons behind it."
+        },
+        {
+          "name": "hoverColor",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "hoverColor: Color"
+          ],
+          "summary": "The tint while the pointer is over the button. It is multiplied with the colors drawn."
+        },
+        {
+          "name": "pressedColor",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "pressedColor: Color"
+          ],
+          "summary": "The tint while the button is held down."
+        },
+        {
+          "name": "disabledColor",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "disabledColor: Color"
+          ],
+          "summary": "The tint while the button is not interactable."
+        }
+      ]
+    },
+    {
       "name": "Camera",
       "summary": "An orthographic camera. The scene is drawn from the first active primary camera.",
       "typeParameters": "",
@@ -1122,6 +1181,14 @@
       "summary": "A number that identifies an entity while its scene runs. Ids are never reused within one scene, but they differ from run to run.",
       "typeParameters": "",
       "definition": "number",
+      "kind": "type",
+      "members": []
+    },
+    {
+      "name": "HorizontalAnchor",
+      "summary": "The side of the screen an entity is placed from. See `ScreenAnchor.horizontal`.",
+      "typeParameters": "",
+      "definition": "'left' | 'center' | 'right'",
       "kind": "type",
       "members": []
     },
@@ -1808,6 +1875,35 @@
       ]
     },
     {
+      "name": "ScreenAnchor",
+      "summary": "Places the entity on the screen instead of in the world, for scores, menus and everything else that has to stay put while the camera moves.\n\nWith this component the position of the entity's Transform is measured in pixels from a corner, an edge or the center of the screen: X to the right and Y up, so `(16, -16)` from the top-left corner is 16 pixels in from both edges. A pixel here is a pixel of the resolution in the project settings; the picture is scaled as a whole to the window the game runs in. Sizes follow suit: on the screen a `fontSize` of 32 is 32 pixels.\n\nThe children of the entity are on the screen with it. The entity itself ignores the position of its own parent. Everything on the screen is drawn over the world.",
+      "typeParameters": "",
+      "definition": "",
+      "kind": "class",
+      "members": [
+        {
+          "name": "horizontal",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "horizontal: HorizontalAnchor"
+          ],
+          "summary": "Whether the position is measured from the left edge, the center or the right edge."
+        },
+        {
+          "name": "vertical",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "vertical: VerticalAnchor"
+          ],
+          "summary": "Whether the position is measured from the top edge, the middle or the bottom edge."
+        }
+      ]
+    },
+    {
       "name": "ScriptBinding",
       "summary": "One script attached to an entity, with the property values set in the inspector.",
       "typeParameters": "",
@@ -1961,6 +2057,56 @@
             "onTriggerExit?(other: Entity): void"
           ],
           "summary": "Called when an overlap reported by `onTriggerEnter` ends."
+        },
+        {
+          "name": "onPointerEnter",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "onPointerEnter?(): void"
+          ],
+          "summary": "Called when the pointer moves onto the entity's `Button`."
+        },
+        {
+          "name": "onPointerExit",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "onPointerExit?(): void"
+          ],
+          "summary": "Called when the pointer leaves the entity's `Button`, or when the button stops being interactable while the pointer is on it."
+        },
+        {
+          "name": "onPointerDown",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "onPointerDown?(): void"
+          ],
+          "summary": "Called when the entity's `Button` is pressed: the left mouse button goes down on it, or a finger touches it."
+        },
+        {
+          "name": "onPointerUp",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "onPointerUp?(): void"
+          ],
+          "summary": "Called when a press that began on the entity's `Button` ends, wherever the pointer is."
+        },
+        {
+          "name": "onClick",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "onClick?(): void"
+          ],
+          "summary": "Called after `onPointerUp` when the press ended on the button it began on. This is the callback for \"the player chose this\"."
         }
       ]
     },
@@ -2740,6 +2886,14 @@
       "summary": "A vector written as an array, `[x, y]`. See `Vec2.toArray` and `Vec2.fromArray`.",
       "typeParameters": "",
       "definition": "[x: number, y: number]",
+      "kind": "type",
+      "members": []
+    },
+    {
+      "name": "VerticalAnchor",
+      "summary": "The edge of the screen an entity is placed from. See `ScreenAnchor.vertical`.",
+      "typeParameters": "",
+      "definition": "'top' | 'middle' | 'bottom'",
       "kind": "type",
       "members": []
     }

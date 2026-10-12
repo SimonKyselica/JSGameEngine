@@ -12,6 +12,7 @@ import type { Scene } from '../scene/scene';
 import { instantiatePrefab } from '../scene/serializer';
 import type { ScriptModuleLoader } from '../scripting/scriptModuleLoader';
 import { ScriptSystem } from '../scripting/scriptSystem';
+import { ButtonSystem } from '../ui/buttonSystem';
 import {
   AssetsApi,
   SceneApi,
@@ -44,10 +45,11 @@ interface PendingDestroy {
   fresh: boolean;
 }
 
-/** Runs one scene: owns its physics and scripts and steps them in the right order. */
+/** Runs one scene: owns its physics, buttons and scripts and steps them in the right order. */
 export class SceneRuntime implements SceneHost {
   readonly physics: PhysicsSystem;
   readonly scripts: ScriptSystem;
+  readonly buttons: ButtonSystem;
 
   private destroyQueue: PendingDestroy[] = [];
   private readonly prefabCache = new Map<string, unknown>();
@@ -75,6 +77,12 @@ export class SceneRuntime implements SceneHost {
       },
       context.logger,
     );
+    this.buttons = new ButtonSystem(
+      scene,
+      context.input,
+      () => context.getCameraView(),
+      (entity, callback) => this.scripts.dispatchPointerEvent(entity, callback),
+    );
   }
 
   get isRunning(): boolean {
@@ -95,8 +103,9 @@ export class SceneRuntime implements SceneHost {
     this.scripts.dispatchContacts(contacts);
   }
 
-  /** One rendered frame: updates, late updates, then deferred destruction. */
+  /** One rendered frame: pointer callbacks, updates, late updates, then deferred destruction. */
   update(deltaTime: number): void {
+    this.buttons.update();
     this.scripts.update(deltaTime);
     this.scripts.lateUpdate(deltaTime);
     this.flushDestroyQueue(deltaTime);
@@ -108,6 +117,7 @@ export class SceneRuntime implements SceneHost {
       return;
     }
     this.running = false;
+    this.buttons.stop();
     this.scripts.stop();
     this.context.audio.stopScene();
     this.physics.stop();
