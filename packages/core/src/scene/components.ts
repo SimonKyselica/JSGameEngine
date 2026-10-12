@@ -20,6 +20,7 @@ export class Identity {
 
   /** Stable id used for serialization and cross-references. Assigned by the scene. */
   uuid = '';
+  /** The name of the entity, as shown in the editor's hierarchy. */
   name = 'Entity';
   /** A free-form label for finding groups of entities from scripts. */
   tag = '';
@@ -41,9 +42,11 @@ export class Transform {
     },
   };
 
+  /** Position relative to the parent, in world units. World Y points up. */
   position = new Vec2(0, 0);
   /** Counter-clockwise rotation in radians. */
   rotation = 0;
+  /** Scale relative to the parent. 1 is the original size; a negative value mirrors. */
   scale = new Vec2(1, 1);
 }
 
@@ -78,12 +81,15 @@ export class SpriteRenderer {
   texture: string | null = null;
   /** Tint multiplied with the texture. */
   color = Color.white();
+  /** Mirrors the sprite horizontally. */
   flipX = false;
+  /** Mirrors the sprite vertically. */
   flipY = false;
   /** Sprites with a higher order are drawn on top. */
   sortingOrder = 0;
   /** How many texture pixels cover one world unit. */
   pixelsPerUnit = 100;
+  /** A sprite that is not visible is not drawn. The rest of the entity keeps working. */
   visible = true;
 }
 
@@ -103,11 +109,16 @@ export class Camera {
 
   /** Half of the visible height in world units. */
   orthographicSize = 5;
+  /**
+   * Marks the camera the game is drawn from. When several are marked, the first active one is used.
+   */
   primary = true;
+  /** The color the view is cleared to before the sprites are drawn. */
   backgroundColor = new Color(0.12, 0.13, 0.17, 1);
 }
 
 export const BODY_TYPES = ['static', 'kinematic', 'dynamic'] as const;
+/** How a physics body moves. See `Rigidbody2D.bodyType`. */
 export type BodyType = (typeof BODY_TYPES)[number];
 
 /** Makes the entity a physics body. */
@@ -129,9 +140,19 @@ export class Rigidbody2D {
     },
   };
 
+  /**
+   * `dynamic` bodies are moved by forces and collisions, `kinematic` bodies move only by their
+   * velocity, and `static` bodies never move.
+   */
   bodyType: BodyType = 'dynamic';
+  /**
+   * How strongly gravity pulls on the body. 0 switches gravity off for it; a negative value makes
+   * it rise.
+   */
   gravityScale = 1;
+  /** Slows movement down over time, like air resistance. 0 never slows the body. */
   linearDamping = 0;
+  /** Slows spinning down over time. 0 never slows the spin. */
   angularDamping = 0.05;
   /** Prevents collisions and torques from rotating the body. */
   fixedRotation = false;
@@ -167,7 +188,9 @@ export class BoxCollider2D {
   offset = new Vec2(0, 0);
   /** Full width and height in local units, before the entity's scale is applied. */
   size = new Vec2(1, 1);
+  /** Mass per unit of area. Together with the size it gives a dynamic body its mass. */
   density = 1;
+  /** How much the surface resists sliding. 0 is as slippery as ice. */
   friction = 0.4;
   /** Bounciness. 0 does not bounce, 1 keeps all energy. */
   restitution = 0;
@@ -192,12 +215,17 @@ export class CircleCollider2D {
     },
   };
 
+  /** Center of the circle relative to the entity, in local units. */
   offset = new Vec2(0, 0);
   /** Radius in local units. The larger of the entity's scale axes is applied to it. */
   radius = 0.5;
+  /** Mass per unit of area. Together with the radius it gives a dynamic body its mass. */
   density = 1;
+  /** How much the surface resists sliding. 0 is as slippery as ice. */
   friction = 0.4;
+  /** Bounciness. 0 does not bounce, 1 keeps all energy. */
   restitution = 0;
+  /** Triggers detect overlaps and raise trigger events but do not collide. */
   isTrigger = false;
 }
 
@@ -219,9 +247,11 @@ export class AudioSource {
 
   /** Audio asset id. */
   clip: string | null = null;
+  /** Loudness, from 0 (silent) to 1 (full). */
   volume = 1;
   /** Playback rate. 1 is the original pitch. */
   pitch = 1;
+  /** Starts the clip over when it ends, until it is stopped. */
   loop = false;
   /** Starts playing as soon as the scene starts. */
   playOnStart = true;
@@ -234,7 +264,12 @@ export type ScriptPropertyValue = number | boolean | string | number[] | null;
 export interface ScriptBinding {
   /** Script asset id. */
   script: string | null;
+  /**
+   * Whether the script starts out enabled. A script that starts disabled is not started, and gets
+   * no callbacks, until its `enabled` is set to `true`.
+   */
   enabled: boolean;
+  /** The values set in the inspector, by property name. Vectors and colors are stored as arrays. */
   properties: Record<string, ScriptPropertyValue>;
 }
 
@@ -250,6 +285,7 @@ export class ScriptComponent {
     },
   };
 
+  /** The scripts attached to the entity, in the order they run. */
   scripts: ScriptBinding[] = [];
 }
 

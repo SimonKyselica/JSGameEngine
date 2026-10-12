@@ -15,6 +15,7 @@ export const SCRIPT_PROPERTY_TYPES = [
   'prefab',
 ] as const;
 
+/** The kinds of property a script can declare in its `static properties`. */
 export type ScriptPropertyType = (typeof SCRIPT_PROPERTY_TYPES)[number];
 
 /**
@@ -22,15 +23,21 @@ export type ScriptPropertyType = (typeof SCRIPT_PROPERTY_TYPES)[number];
  * them in a static `properties` object keyed by field name.
  */
 export interface ScriptPropertyDefinition {
+  /** What kind of value the property holds, which decides the control the inspector shows. */
   readonly type: ScriptPropertyType;
   /** Value used when the inspector has not set one. Vectors and colors are arrays. */
   readonly default?: ScriptPropertyValue;
+  /** The name shown in the inspector. Defaults to the property name in title case. */
   readonly label?: string;
+  /** The smallest value the inspector accepts, for `number` properties. */
   readonly min?: number;
+  /** The largest value the inspector accepts, for `number` properties. */
   readonly max?: number;
+  /** The amount the inspector's arrows change a `number` or `vec2` property by. */
   readonly step?: number;
 }
 
+/** The shape of a script's `static properties`: one definition for each property name. */
 export type ScriptPropertyDefinitions = Record<string, ScriptPropertyDefinition>;
 
 const ASSET_PROPERTY_TYPES: Partial<Record<ScriptPropertyType, AssetType>> = {

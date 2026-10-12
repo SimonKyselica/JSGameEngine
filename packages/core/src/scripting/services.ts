@@ -25,12 +25,18 @@ export class Time {
   timeScale = 1;
 }
 
+/** Where and how `Behaviour.instantiate` places the new entity. Every option can be left out. */
 export interface SpawnOptions {
   /** World-space position of the new entity. */
   readonly position?: Readonly<Vec2>;
   /** World-space rotation in radians. */
   readonly rotation?: number;
+  /**
+   * The entity the new one becomes a child of. Without it the new entity is added at the top level
+   * of the scene.
+   */
   readonly parent?: Entity | null;
+  /** A name for the new entity. Defaults to the name stored in the prefab. */
   readonly name?: string;
 }
 
@@ -45,6 +51,7 @@ export interface SceneHost {
 export class SceneApi {
   constructor(private readonly host: SceneHost) {}
 
+  /** The name of the scene that is running. */
   get name(): string {
     return this.host.scene.name;
   }
@@ -59,6 +66,10 @@ export class SceneApi {
     return this.host.scene.entitiesInHierarchyOrder();
   }
 
+  /**
+   * Adds a new, empty entity to the scene, optionally as a child of `parent`. Give it components
+   * with `addComponent`.
+   */
   createEntity(name?: string, parent?: Entity | null): Entity {
     return this.host.scene.createEntity(name, { parent });
   }
@@ -68,6 +79,7 @@ export class SceneApi {
     return this.host.scene.findByName(name);
   }
 
+  /** Every entity with this tag, parents before their children. */
   findByTag(tag: string): Entity[] {
     return this.host.scene.findByTag(tag);
   }
@@ -90,6 +102,7 @@ export class AssetsApi {
     return this.assets.findByName(name, type)?.id ?? null;
   }
 
+  /** True when the project has an asset with this name, and of this type when one is given. */
   exists(name: string, type?: AssetType): boolean {
     return this.assets.findByName(name, type) !== undefined;
   }

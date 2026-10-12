@@ -191,10 +191,12 @@ export class AudioApi {
     return this.system.play(entity);
   }
 
+  /** Stops the entity's AudioSource. Does nothing when it is not playing. */
   stop(entity: Entity): void {
     this.system.stop(entity);
   }
 
+  /** True while the entity's AudioSource is playing. */
   isPlaying(entity: Entity): boolean {
     return this.system.isPlaying(entity);
   }

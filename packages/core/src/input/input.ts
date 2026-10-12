@@ -3,11 +3,15 @@ import type { CameraView } from '../renderer/cameraView';
 
 /** Mouse button numbers as reported by the browser. */
 export const MouseButton = {
+  /** The main button, usually the left one. */
   Left: 0,
+  /** The wheel button. */
   Middle: 1,
+  /** The secondary button, usually the right one. */
   Right: 2,
 } as const;
 
+/** The axes `Input.getAxis` knows. */
 export type AxisName = 'horizontal' | 'vertical';
 
 const AXIS_KEYS: Readonly<Record<AxisName, { negative: string[]; positive: string[] }>> = {
@@ -130,10 +134,12 @@ export class Input {
     return this.state.buttonsDown.has(button);
   }
 
+  /** True only during the frame in which the mouse button went down. */
   wasMouseButtonPressed(button: number): boolean {
     return this.state.buttonsPressed.has(button);
   }
 
+  /** True only during the frame in which the mouse button was let go. */
   wasMouseButtonReleased(button: number): boolean {
     return this.state.buttonsReleased.has(button);
   }

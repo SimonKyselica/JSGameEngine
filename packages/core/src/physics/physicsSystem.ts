@@ -40,7 +40,9 @@ export interface ContactEvent {
   readonly normal: Vec2 | null;
 }
 
+/** What a ray hit. Returned by `Physics2D.raycast` and `Physics2D.raycastAll`. */
 export interface RaycastHit {
+  /** The entity whose collider was hit. */
   readonly entity: Entity;
   /** World-space point where the ray hit. */
   readonly point: Vec2;
@@ -708,10 +710,12 @@ export class Physics2D {
     return this.system.hasBody(entity);
   }
 
+  /** The body's velocity in world units per second. Returns a copy. */
   getVelocity(entity: Entity): Vec2 {
     return this.system.getLinearVelocity(entity);
   }
 
+  /** Sets the body's velocity in world units per second. */
   setVelocity(entity: Entity, velocity: Readonly<Vec2>): void {
     this.system.setLinearVelocity(entity, velocity);
   }
@@ -721,6 +725,7 @@ export class Physics2D {
     return this.system.getAngularVelocity(entity);
   }
 
+  /** Sets the body's spin in radians per second, counter-clockwise. */
   setAngularVelocity(entity: Entity, radiansPerSecond: number): void {
     this.system.setAngularVelocity(entity, radiansPerSecond);
   }
@@ -735,10 +740,15 @@ export class Physics2D {
     this.system.applyImpulse(entity, impulse);
   }
 
+  /** Applies a continuous turning force. Positive values turn the body counter-clockwise. */
   applyTorque(entity: Entity, torque: number): void {
     this.system.applyTorque(entity, torque);
   }
 
+  /**
+   * The body's mass, which follows from the size and density of its colliders. Static and kinematic
+   * bodies report 0.
+   */
   getMass(entity: Entity): number {
     return this.system.getMass(entity);
   }

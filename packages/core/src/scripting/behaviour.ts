@@ -34,12 +34,23 @@ export interface ScriptLifecycle {
   onLateUpdate?(deltaTime: number): void;
   /** Called when the entity is destroyed or the scene stops. */
   onDestroy?(): void;
+  /** Called when one of the entity's solid colliders starts touching another solid collider. */
   onCollisionEnter?(collision: Collision): void;
+  /** Called when the entity stops touching `other`. */
   onCollisionExit?(other: Entity): void;
+  /**
+   * Called when the entity starts overlapping `other` and at least one of the two colliders is a
+   * trigger.
+   */
   onTriggerEnter?(other: Entity): void;
+  /** Called when an overlap reported by `onTriggerEnter` ends. */
   onTriggerExit?(other: Entity): void;
 }
 
+/**
+ * A script class: any class that extends `Behaviour`. Where a function takes one, pass the
+ * class itself: `getScript(Health)`.
+ */
 export type BehaviourClass<T extends Behaviour = Behaviour> = new () => T;
 
 /** Stops a timer started with `after` or `every`. Calling it again does nothing. */
@@ -107,30 +118,37 @@ export abstract class Behaviour {
     return attachmentOf(this).entity.transform;
   }
 
+  /** The running scene: find and create entities, or load another scene. */
   get scene(): SceneApi {
     return attachmentOf(this).services.scene;
   }
 
+  /** Keyboard and mouse input. */
   get input(): Input {
     return attachmentOf(this).services.input;
   }
 
+  /** Velocities, forces, raycasts and other physics queries. */
   get physics(): Physics2D {
     return attachmentOf(this).services.physics;
   }
 
+  /** Sound playback. */
   get audio(): AudioApi {
     return attachmentOf(this).services.audio;
   }
 
+  /** Frame timing, such as the time since the previous frame. */
   get time(): Time {
     return attachmentOf(this).services.time;
   }
 
+  /** Looks up the project's assets by name. */
   get assets(): AssetsApi {
     return attachmentOf(this).services.assets;
   }
 
+  /** The entity's component of this type, or `undefined` when it has none. */
   getComponent<T extends object>(type: ComponentClass<T>): T | undefined {
     return this.entity.getComponent(type);
   }
@@ -140,14 +158,19 @@ export abstract class Behaviour {
     return this.entity.requireComponent(type);
   }
 
+  /** True when the entity has a component of this type. */
   hasComponent(type: ComponentClass): boolean {
     return this.entity.hasComponent(type);
   }
 
+  /**
+   * Attaches a new component to the entity, optionally overriding some of its default field values.
+   */
   addComponent<T extends object>(type: ComponentClass<T>, init?: Partial<T>): T {
     return this.entity.addComponent(type, init);
   }
 
+  /** Detaches a component from the entity. Returns `false` when the entity did not have one. */
   removeComponent(type: ComponentClass): boolean {
     return this.entity.removeComponent(type);
   }
@@ -204,11 +227,13 @@ export abstract class Behaviour {
     services.logger.info(formatLogArguments(values), scriptName);
   }
 
+  /** Writes a warning to the console. */
   warn(...values: unknown[]): void {
     const { services, scriptName } = attachmentOf(this);
     services.logger.warn(formatLogArguments(values), scriptName);
   }
 
+  /** Writes an error to the console. */
   error(...values: unknown[]): void {
     const { services, scriptName } = attachmentOf(this);
     services.logger.error(formatLogArguments(values), scriptName);

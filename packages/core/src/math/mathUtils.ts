@@ -1,8 +1,10 @@
+/** The tolerance that `approximately` and the `equals` methods use by default: one millionth. */
 const EPSILON: number = 1e-6;
 const DEG_TO_RAD = Math.PI / 180;
 const RAD_TO_DEG = 180 / Math.PI;
 const TWO_PI = Math.PI * 2;
 
+/** Limits `value` to the range from `min` to `max`. */
 function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
 }
@@ -17,14 +19,20 @@ function inverseLerp(a: number, b: number, value: number): number {
   return a === b ? 0 : (value - a) / (b - a);
 }
 
+/** Converts degrees to radians. */
 function degToRad(degrees: number): number {
   return degrees * DEG_TO_RAD;
 }
 
+/** Converts radians to degrees. */
 function radToDeg(radians: number): number {
   return radians * RAD_TO_DEG;
 }
 
+/**
+ * True when `a` and `b` differ by at most `epsilon`. Use it instead of `===` for numbers that were
+ * computed.
+ */
 function approximately(a: number, b: number, epsilon = EPSILON): boolean {
   return Math.abs(a - b) <= epsilon;
 }

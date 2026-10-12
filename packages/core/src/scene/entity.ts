@@ -10,7 +10,14 @@ import type { Scene } from './scene';
  */
 export class Entity {
   constructor(
+    /**
+     * The engine's scene object that owns the entity. Scripts normally use `this.scene` instead.
+     */
     readonly scene: Scene,
+    /**
+     * A number that identifies the entity while the scene runs. It differs between runs; use `uuid`
+     * for anything that is saved.
+     */
     readonly id: EntityId,
   ) {}
 
@@ -19,10 +26,12 @@ export class Entity {
     return this.scene.registry.isAlive(this.id);
   }
 
+  /** A unique id that stays the same when the scene is saved and loaded. */
   get uuid(): string {
     return this.identity.uuid;
   }
 
+  /** The name of the entity. Names do not have to be unique. */
   get name(): string {
     return this.identity.name;
   }
@@ -31,6 +40,7 @@ export class Entity {
     this.identity.name = value;
   }
 
+  /** A free-form label for finding groups of entities with `scene.findByTag`. */
   get tag(): string {
     return this.identity.tag;
   }
@@ -53,15 +63,18 @@ export class Entity {
     return this.scene.isActiveInHierarchy(this);
   }
 
+  /** The entity's Transform component: position, rotation and scale relative to its parent. */
   get transform(): Transform {
     return this.requireComponent(Transform);
   }
 
+  /** The entity this one is attached to, or `null` at the top level of the scene. */
   get parent(): Entity | null {
     const parent = this.requireComponent(Hierarchy).parent;
     return parent === null ? null : this.scene.getEntity(parent);
   }
 
+  /** The entities attached to this one, in hierarchy order. The array is a copy. */
   get children(): Entity[] {
     return this.requireComponent(Hierarchy).children.map((child) => this.scene.getEntity(child));
   }
@@ -76,10 +89,12 @@ export class Entity {
     return this.scene.getWorldRotation(this);
   }
 
+  /** Moves the entity to a position in world space, whatever its parents' transforms are. */
   setWorldPosition(position: Readonly<Vec2>): void {
     this.scene.setWorldPosition(this, position);
   }
 
+  /** Turns the entity to a rotation in world space, in radians. */
   setWorldRotation(radians: number): void {
     this.scene.setWorldRotation(this, radians);
   }
@@ -98,6 +113,7 @@ export class Entity {
     return this.scene.registry.add(this.id, type, component);
   }
 
+  /** The component of this type, or `undefined` when the entity has none. */
   getComponent<T extends object>(type: ComponentClass<T>): T | undefined {
     return this.scene.registry.get(this.id, type);
   }
@@ -115,6 +131,7 @@ export class Entity {
     return component;
   }
 
+  /** True when the entity has a component of this type. */
   hasComponent(type: ComponentClass): boolean {
     return this.scene.registry.has(this.id, type);
   }
@@ -178,6 +195,7 @@ export class Entity {
     this.scene.destroyEntity(this);
   }
 
+  /** A readable form such as `Entity(Player)`, handy for logging. */
   toString(): string {
     return this.isValid ? `Entity(${this.name})` : `Entity(destroyed #${this.id})`;
   }

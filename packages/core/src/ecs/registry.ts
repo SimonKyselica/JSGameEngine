@@ -1,10 +1,16 @@
 import { assert } from '../core/assert';
 import { Signal } from '../core/signal';
 
-/** An opaque entity identifier. Ids are never reused within one registry. */
+/**
+ * A number that identifies an entity while its scene runs. Ids are never reused within one
+ * scene, but they differ from run to run.
+ */
 export type EntityId = number;
 
-/** A component type. Components are plain data classes with a zero-argument constructor. */
+/**
+ * A component type. Components are plain data classes with a zero-argument constructor. Where
+ * a function takes one, pass the class itself: `getComponent(SpriteRenderer)`.
+ */
 export type ComponentClass<T extends object = object> = new () => T;
 
 /**
