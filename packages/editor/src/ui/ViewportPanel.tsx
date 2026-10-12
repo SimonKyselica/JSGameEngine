@@ -16,6 +16,7 @@ import {
 import {
   applyGizmoDrag,
   hitTestGizmo,
+  isSnapActive,
   type GizmoDragStart,
   type GizmoHandle,
 } from '../core/gizmos';
@@ -274,7 +275,8 @@ export function ViewportPanel({
     if (interaction.kind !== 'gizmo' || !entity) {
       return;
     }
-    const result = applyGizmoDrag(interaction.start, screen, world, event.ctrlKey || event.metaKey);
+    const snap = isSnapActive(session.snapping, event.ctrlKey || event.metaKey);
+    const result = applyGizmoDrag(interaction.start, screen, world, snap);
     if (result.position) {
       entity.setWorldPosition(result.position);
     }

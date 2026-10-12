@@ -58,6 +58,25 @@ const ScriptEditor = lazy(() =>
 );
 
 const LAST_PROJECT_KEY = 'rowan:lastProject';
+const SNAPPING_KEY = 'rowan:snapping';
+
+/** Reads a preference kept in the browser. Returns `null` when storage is unavailable. */
+function readPreference(key: string): string | null {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+/** Stores a preference in the browser. Preferences are a convenience, so failures are ignored. */
+function writePreference(key: string, value: string): void {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    // Storage can be disabled or full; the editor works the same without it.
+  }
+}
 
 /** One open project together with the objects that live exactly as long as it is open. */
 interface Workspace {
@@ -67,8 +86,10 @@ interface Workspace {
 }
 
 function createWorkspace(project: Project): Workspace {
+  const session = new EditorSession(project);
+  session.snapping = readPreference(SNAPPING_KEY) === 'on';
   return {
-    session: new EditorSession(project),
+    session,
     assetUrls: new AssetUrlCache(project.assets),
     viewport: { camera: new EditorCamera(), aspect: 16 / 9 },
   };
@@ -83,14 +104,6 @@ function createStore(): ProjectStore {
   return typeof indexedDB === 'undefined' ? new MemoryProjectStore() : new IndexedDbProjectStore();
 }
 
-function rememberProject(id: string): void {
-  try {
-    localStorage.setItem(LAST_PROJECT_KEY, id);
-  } catch {
-    // Storage can be disabled; remembering the last project is only a convenience.
-  }
-}
-
 interface InitialProject {
   readonly project: Project;
   /** Set when stored projects could not be read and the editor fell back to a new one. */
@@ -100,13 +113,7 @@ interface InitialProject {
 /** Opens the project the user worked on last, or creates the starter project. */
 async function loadInitialProject(store: ProjectStore): Promise<InitialProject> {
   try {
-    let lastId: string | null = null;
-    try {
-      lastId = localStorage.getItem(LAST_PROJECT_KEY);
-    } catch {
-      // See rememberProject.
-    }
-    const id = lastId ?? (await store.list())[0]?.id;
+    const id = readPreference(LAST_PROJECT_KEY) ?? (await store.list())[0]?.id;
     const archive = id ? await store.load(id) : null;
     if (archive) {
       return { project: Project.fromArchive(archive), problem: null };
@@ -135,7 +142,7 @@ export function App(): ReactElement {
     }
     const next = createWorkspace(project);
     if (stored) {
-      rememberProject(project.id);
+      writePreference(LAST_PROJECT_KEY, project.id);
     } else {
       // A project that exists only in memory has, by definition, unsaved changes.
       next.session.dirty = true;
@@ -358,6 +365,10 @@ function Editor({ workspace, store, onReplaceProject }: EditorProps): ReactEleme
         if (entity) {
           viewport.camera.focus(getEntityBounds(entity, session.project.assets), viewport.aspect);
         }
+      },
+      toggleSnapping: () => {
+        session.setSnapping(!session.snapping);
+        writePreference(SNAPPING_KEY, session.snapping ? 'on' : 'off');
       },
       showAbout: () => setDialog({ kind: 'about' }),
     };

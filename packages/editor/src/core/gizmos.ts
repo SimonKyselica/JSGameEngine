@@ -26,7 +26,7 @@ export interface GizmoLayout {
   readonly rotation: number;
 }
 
-/** Snap increments used while the snap modifier is held. */
+/** The increments a gizmo drag snaps to: world units, radians and scale factor. */
 export const SNAP = { move: 0.25, rotate: Math.PI / 12, scale: 0.1 } as const;
 
 /** Unit vectors of the gizmo's X and Y axes on screen, where Y points down. */
@@ -101,6 +101,14 @@ export interface GizmoDragResult {
   position?: Vec2;
   rotation?: number;
   scale?: Vec2;
+}
+
+/**
+ * Whether a gizmo drag snaps. Snap mode makes snapping the normal behaviour; holding the
+ * modifier key (Ctrl, or Command on a Mac) does the opposite of the mode while it is held.
+ */
+export function isSnapActive(snapMode: boolean, modifierHeld: boolean): boolean {
+  return snapMode !== modifierHeld;
 }
 
 function snapTo(value: number, step: number, enabled: boolean): number {

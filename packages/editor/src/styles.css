@@ -171,6 +171,10 @@ code {
   color: #fff;
 }
 
+.tool-button.snap {
+  margin-left: 8px;
+}
+
 .tool-button.play.active {
   background: #2e6f3e;
   border-color: #1d4a28;

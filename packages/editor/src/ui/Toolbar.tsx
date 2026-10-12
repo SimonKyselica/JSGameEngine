@@ -1,6 +1,9 @@
 import type { ReactElement } from 'react';
+import { MathUtils } from '@rowan/core';
 import type { Tool } from '../core/editorSession';
+import { SNAP } from '../core/gizmos';
 import { useEditor } from './editorContext';
+import { MOD } from './shortcuts';
 import { Icon, type IconName } from './widgets';
 
 const TOOLS: readonly { tool: Tool; icon: IconName; label: string; key: string }[] = [
@@ -9,6 +12,12 @@ const TOOLS: readonly { tool: Tool; icon: IconName; label: string; key: string }
   { tool: 'rotate', icon: 'rotate', label: 'Rotate', key: 'E' },
   { tool: 'scale', icon: 'scale', label: 'Scale', key: 'R' },
 ];
+
+const MODIFIER_NAME = MOD.replace('+', '');
+const SNAP_HINT =
+  `Snap: gizmos move in steps of ${SNAP.move}, rotate in steps of ` +
+  `${Math.round(MathUtils.radToDeg(SNAP.rotate))}° and scale in steps of ${SNAP.scale}. ` +
+  `Hold ${MODIFIER_NAME} while dragging to do the opposite.`;
 
 /** Transform tools on the left, play controls in the middle, project state on the right. */
 export function Toolbar({ onPlayToggle }: { onPlayToggle: () => void }): ReactElement {
@@ -32,6 +41,16 @@ export function Toolbar({ onPlayToggle }: { onPlayToggle: () => void }): ReactEl
             <Icon name={icon} />
           </button>
         ))}
+        <button
+          type="button"
+          className={session.snapping ? 'tool-button snap active' : 'tool-button snap'}
+          aria-label="Snap"
+          aria-pressed={session.snapping}
+          title={SNAP_HINT}
+          onClick={commands.toggleSnapping}
+        >
+          <Icon name="magnet" />
+        </button>
       </div>
 
       <div className="toolbar-group play-controls">

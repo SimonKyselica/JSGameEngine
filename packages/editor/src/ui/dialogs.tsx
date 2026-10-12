@@ -401,7 +401,8 @@ export function AboutDialog({ onClose }: { onClose: () => void }): ReactElement 
       </p>
       <p className="dialog-message">
         Scene view: drag with the middle or right mouse button to pan, scroll to zoom, press F to
-        frame the selection. Q, W, E and R switch tools. Hold Ctrl while dragging a gizmo to snap.
+        frame the selection. Q, W, E and R switch tools. Turn on Snap in the toolbar to move, rotate
+        and scale in fixed steps; holding Ctrl while dragging does the opposite.
       </p>
     </Modal>
   );

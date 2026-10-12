@@ -13,6 +13,7 @@ const ICON_PATHS = {
   move: 'M12 3v18M3 12h18M12 3l-3 3m3-3 3 3M12 21l-3-3m3 3 3-3M3 12l3-3m-3 3 3 3M21 12l-3-3m3 3-3 3',
   rotate: 'M20 12a8 8 0 1 1-2.6-5.9M20 4v5h-5',
   scale: 'M4 20h7M4 20v-7M4 20 20 4m0 0h-7m7 0v7',
+  magnet: 'M6 4v7a6 6 0 0 0 12 0V4h-4v7a2 2 0 0 1-4 0V4zM6 8h4M14 8h4',
   play: 'M7 4.5v15l12-7.5z',
   stop: 'M6 6h12v12H6z',
   pause: 'M8 5v14M16 5v14',

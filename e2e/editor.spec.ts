@@ -187,6 +187,53 @@ test.describe('editor', () => {
     await expect(page.getByText('Select an entity or an asset')).toBeVisible();
   });
 
+  test('snaps gizmo drags in snap mode and remembers the mode', async ({ page }) => {
+    await openEditor(page);
+    const snap = page.getByRole('button', { name: 'Snap', exact: true });
+    await expect(snap).toHaveAttribute('aria-pressed', 'false');
+    await snap.click();
+    await expect(snap).toHaveAttribute('aria-pressed', 'true');
+
+    const scene = page.getByLabel('Scene view');
+    const box = (await scene.boundingBox())!;
+    const centerX = box.x + box.width / 2;
+    const centerY = box.y + box.height / 2;
+    // The scene view shows 12 world units from top to bottom.
+    const pixelsPerUnit = box.height / 12;
+    const isOnGrid = (value: number): boolean => Math.abs(value * 4 - Math.round(value * 4)) < 1e-6;
+
+    // Select the player at the origin and drag its X arrow by an odd distance.
+    await page.mouse.click(centerX, centerY);
+    await page.mouse.move(centerX + 50, centerY);
+    await page.mouse.down();
+    await page.mouse.move(centerX + 187, centerY, { steps: 5 });
+    await page.mouse.up();
+    const snapped = await readNumber(page, 'Position X');
+    expect(snapped).toBeGreaterThan(1);
+    expect(isOnGrid(snapped)).toBe(true);
+
+    // In snap mode the modifier key does the opposite: the drag moves freely.
+    const arrowX = centerX + snapped * pixelsPerUnit + 50;
+    await page.mouse.move(arrowX, centerY);
+    await page.mouse.down();
+    await page.keyboard.down('Control');
+    await page.mouse.move(arrowX + 91, centerY, { steps: 5 });
+    await page.mouse.up();
+    await page.keyboard.up('Control');
+    const free = await readNumber(page, 'Position X');
+    expect(free).toBeGreaterThan(snapped);
+    expect(isOnGrid(free)).toBe(false);
+
+    // The mode is an editor preference and survives a reload.
+    await page.keyboard.press('ControlOrMeta+S');
+    await expect(page.getByRole('button', { name: 'Saved' })).toBeVisible();
+    await page.reload();
+    await expect(page.getByRole('button', { name: 'Snap', exact: true })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+  });
+
   test('plays the scene, simulates physics, and restores the scene on stop', async ({ page }) => {
     await openEditor(page);
     await hierarchyRow(page, 'Player').click();

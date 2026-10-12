@@ -22,7 +22,14 @@ import { EditorCamera } from './editorCamera';
 import { EditorSession } from './editorSession';
 import { createPresetEntity, ENTITY_PRESETS } from './entityPresets';
 import { filterEntitiesByName } from './hierarchyFilter';
-import { applyGizmoDrag, getGizmoAxes, GIZMO, hitTestGizmo, type GizmoDragStart } from './gizmos';
+import {
+  applyGizmoDrag,
+  getGizmoAxes,
+  GIZMO,
+  type GizmoDragStart,
+  hitTestGizmo,
+  isSnapActive,
+} from './gizmos';
 import { drawOverlay, getGizmoLayout } from './overlay';
 import { getEntityBounds, getSpriteCorners, pickEntity } from './picking';
 import type { PlayDependencies } from './playController';
@@ -114,6 +121,24 @@ describe('EditorSession selection and tools', () => {
     expect(session.tool).toBe('rotate');
     expect(changed).toHaveBeenCalledTimes(4);
     expect(session.getVersion()).toBe(4);
+  });
+});
+
+describe('EditorSession snap mode', () => {
+  it('is off at first and switches as a preference, outside the project and its history', () => {
+    const session = createSession();
+    const changed = vi.fn();
+    session.subscribe(changed);
+    expect(session.snapping).toBe(false);
+
+    session.setSnapping(true);
+    session.setSnapping(true);
+    expect(session.snapping).toBe(true);
+    expect(changed).toHaveBeenCalledOnce();
+    expect([session.dirty, session.canUndo]).toEqual([false, false]);
+
+    session.setSnapping(false);
+    expect(session.snapping).toBe(false);
   });
 });
 
@@ -926,6 +951,13 @@ describe('gizmos', () => {
     const turned = getGizmoAxes(Math.PI / 2);
     expect(turned.x.equals(new Vec2(0, -1))).toBe(true);
     expect(turned.y.equals(new Vec2(-1, 0))).toBe(true);
+  });
+
+  it('snaps in snap mode or with the modifier key, and not with both', () => {
+    expect(isSnapActive(false, false)).toBe(false);
+    expect(isSnapActive(true, false)).toBe(true);
+    expect(isSnapActive(false, true)).toBe(true);
+    expect(isSnapActive(true, true)).toBe(false);
   });
 
   it('finds the move handles under the pointer', () => {

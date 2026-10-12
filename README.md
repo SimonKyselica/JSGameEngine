@@ -25,7 +25,8 @@ A/D and make jump with Space, a ground and a few crates. Press Play in the toolb
 
 - Hierarchy, Inspector, Project and Console panels, and Scene and Game views, laid out like Unity.
 - Scene view with pan and zoom, click-to-select, and move, rotate and scale gizmos (Q, W, E, R;
-  hold Ctrl to snap; F frames the selection).
+  F frames the selection). Snap mode in the toolbar makes the gizmos work in fixed steps;
+  holding Ctrl while dragging does the opposite of the mode.
 - Play, Pause and Step. The game runs on a copy of the scene, so Stop restores it exactly.
 - Undo and redo for every scene edit.
 - Copy, cut and paste entities (Ctrl+C, X, V), also from one scene into another, and a search

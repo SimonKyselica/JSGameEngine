@@ -70,6 +70,8 @@ export class EditorSession {
   sceneAssetId: string;
   selection: Selection = null;
   tool: Tool = 'move';
+  /** Snap mode: gizmo drags snap to fixed increments unless the modifier key is held. */
+  snapping = false;
   /** True when the project has changes that are not in the project store yet. */
   dirty = false;
 
@@ -167,6 +169,14 @@ export class EditorSession {
   setTool(tool: Tool): void {
     this.tool = tool;
     this.notify();
+  }
+
+  /** Turns snap mode on or off. It is an editor preference, not part of the project. */
+  setSnapping(enabled: boolean): void {
+    if (this.snapping !== enabled) {
+      this.snapping = enabled;
+      this.notify();
+    }
   }
 
   // --- Editing with undo -----------------------------------------------------------------

@@ -45,6 +45,8 @@ export interface EditorCommands {
   readonly createScript: (folder: string) => void;
   readonly createScene: () => void;
   readonly focusSelection: () => void;
+  /** Switches snap mode and remembers the choice for the next session. */
+  readonly toggleSnapping: () => void;
   readonly showAbout: () => void;
 }
 
