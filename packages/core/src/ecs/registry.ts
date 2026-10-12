@@ -7,6 +7,16 @@ export type EntityId = number;
 /** A component type. Components are plain data classes with a zero-argument constructor. */
 export type ComponentClass<T extends object = object> = new () => T;
 
+/**
+ * A readable name for a component type, for error messages. Production builds minify
+ * class names, so a type's own `name` cannot be trusted; component types therefore carry
+ * their name in a static `schema`, and that is what this returns when it exists.
+ */
+export function getComponentTypeName(type: ComponentClass): string {
+  const schema = (type as { schema?: { name?: unknown } }).schema;
+  return typeof schema?.name === 'string' ? schema.name : type.name;
+}
+
 export interface ComponentEvent {
   readonly entity: EntityId;
   readonly type: ComponentClass;
@@ -60,13 +70,19 @@ export class Registry {
   }
 
   add<T extends object>(entity: EntityId, type: ComponentClass<T>, component: T): T {
-    assert(this.alive.has(entity), `Cannot add ${type.name} to destroyed entity ${entity}`);
+    assert(
+      this.alive.has(entity),
+      `Cannot add ${getComponentTypeName(type)} to destroyed entity ${entity}`,
+    );
     let store = this.stores.get(type);
     if (!store) {
       store = new Map();
       this.stores.set(type, store);
     }
-    assert(!store.has(entity), `Entity ${entity} already has a ${type.name} component`);
+    assert(
+      !store.has(entity),
+      `Entity ${entity} already has a ${getComponentTypeName(type)} component`,
+    );
     store.set(entity, component);
     this.onComponentAdded.emit({ entity, type, component });
     return component;

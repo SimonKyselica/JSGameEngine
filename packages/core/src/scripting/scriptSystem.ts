@@ -135,7 +135,10 @@ export class ScriptSystem {
     return (this.byEntity.get(entity.id) ?? []).map((instance) => instance.behaviour);
   }
 
-  /** Finds a script on an entity by its class, its class name or its asset name. */
+  /**
+   * Finds a script on an entity by its class, its class name or its asset name.
+   * Class names work because scripts are compiled without minification.
+   */
   getScript<T extends Behaviour>(entity: Entity, type: BehaviourClass<T> | string): T | undefined {
     this.createEntityInstances(entity);
     const match = this.byEntity

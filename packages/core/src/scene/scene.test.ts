@@ -64,6 +64,22 @@ describe('Scene entities', () => {
     expect(entity.removeComponent(SpriteRenderer)).toBe(false);
   });
 
+  it('names components by their schema in errors, not by their class name', () => {
+    const entity = new Scene().createEntity('Hero');
+    // Stands in for a minified build, where the class is no longer called SpriteRenderer.
+    const Minified = { q: class extends SpriteRenderer {} }.q;
+    expect(Minified.name).toBe('q');
+    expect(() => entity.requireComponent(Minified)).toThrow(
+      'Entity "Hero" has no SpriteRenderer component',
+    );
+    expect(() => entity.removeComponent(Transform)).toThrow(
+      'The Transform component cannot be removed',
+    );
+    expect(() => entity.removeComponent(Hierarchy)).toThrow(
+      'The Hierarchy component cannot be removed',
+    );
+  });
+
   it('protects the built-in components from removal', () => {
     const entity = new Scene().createEntity();
     expect(() => entity.removeComponent(Transform)).toThrow(RowanError);

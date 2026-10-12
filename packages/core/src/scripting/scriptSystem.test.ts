@@ -482,7 +482,7 @@ describe('script API', () => {
              const now = this.scene.findByName('Now');
              this.destroy(now);
              this.destroy(now);
-             this.destroy(this.scene.findByName('Later'), 0.05);
+             this.destroy(this.scene.findByName('Later'), 0.04);
              this.log('still valid this frame:', now.isValid);
            }
          }`,
@@ -497,10 +497,37 @@ describe('script API', () => {
     expect(game.messages()).toEqual(['still valid this frame: true']);
     expect(scene.findByName('Now')).toBeNull();
     expect(scene.findByName('Later')).not.toBeNull();
+    // The delay starts after frame 1 and is used up 2.4 frames later, during frame 4.
     game.step(2);
     expect(scene.findByName('Later')).not.toBeNull();
     game.step(1);
     expect(scene.findByName('Later')).toBeNull();
+  });
+
+  it('counts a destroy delay from the request, even when frames are long', async () => {
+    const project = createTestProject((scene, { assets }) => {
+      const script = addScript(
+        assets,
+        'Slow.ts',
+        `import { Behaviour } from 'rowan';
+         export default class Slow extends Behaviour {
+           onUpdate() {
+             if (this.time.frameCount === 2) this.destroy(this.scene.findByName('Target'), 0.1);
+           }
+         }`,
+      );
+      scene.createEntity('Target');
+      attachScript(scene.createEntity('Slow'), script);
+    });
+    const game = await startTestGame(project);
+    const { scene } = game.game;
+    // Each frame is 0.2 seconds long, twice the delay.
+    game.game.update(0.2);
+    game.game.update(0.2);
+    // The 0.2 seconds of frame 2 had passed before the request, so the target survives it.
+    expect(scene.findByName('Target')).not.toBeNull();
+    game.game.update(0.2);
+    expect(scene.findByName('Target')).toBeNull();
   });
 
   it('lets a script destroy its own entity', async () => {

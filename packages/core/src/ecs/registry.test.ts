@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { RowanError } from '../core/assert';
-import { Registry } from './registry';
+import { getComponentTypeName, Registry } from './registry';
 
 class Position {
   x = 0;
@@ -11,6 +11,20 @@ class Velocity {
 class Health {
   points = 100;
 }
+
+describe('getComponentTypeName', () => {
+  it('prefers the schema name, which survives minification, over the class name', () => {
+    // A minifier turns "class SpriteRenderer" into something like "class e".
+    const minified = {
+      e: class {
+        static schema = { name: 'SpriteRenderer' };
+      },
+    }.e;
+    expect(minified.name).toBe('e');
+    expect(getComponentTypeName(minified)).toBe('SpriteRenderer');
+    expect(getComponentTypeName(Position)).toBe('Position');
+  });
+});
 
 describe('Registry', () => {
   it('creates distinct entities and tracks whether they are alive', () => {

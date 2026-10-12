@@ -1,5 +1,5 @@
 import { RowanError } from '../core/assert';
-import type { ComponentClass, EntityId } from '../ecs/registry';
+import { getComponentTypeName, type ComponentClass, type EntityId } from '../ecs/registry';
 import type { Vec2 } from '../math/vec2';
 import { Hierarchy, Identity, Transform } from './components';
 import type { Scene } from './scene';
@@ -108,7 +108,7 @@ export class Entity {
     if (component === undefined) {
       throw new RowanError(
         this.isValid
-          ? `Entity "${this.name}" has no ${type.name} component`
+          ? `Entity "${this.name}" has no ${getComponentTypeName(type)} component`
           : `Entity ${this.id} has been destroyed`,
       );
     }
@@ -121,8 +121,11 @@ export class Entity {
 
   /** Detaches a component. Returns `false` when the entity did not have one. */
   removeComponent(type: ComponentClass): boolean {
-    if (type === Identity || type === Transform || type === Hierarchy) {
-      throw new RowanError(`The ${type.name} component cannot be removed`);
+    if (type === Hierarchy) {
+      throw new RowanError('The Hierarchy component cannot be removed');
+    }
+    if (type === Identity || type === Transform) {
+      throw new RowanError(`The ${getComponentTypeName(type)} component cannot be removed`);
     }
     return this.scene.registry.remove(this.id, type);
   }

@@ -37,6 +37,11 @@ export interface SceneRuntimeContext {
 interface PendingDestroy {
   readonly entity: Entity;
   remaining: number;
+  /**
+   * True until the end of the frame the destruction was requested in. That frame's time
+   * had already passed when the request was made, so it must not count against the delay.
+   */
+  fresh: boolean;
 }
 
 /** Runs one scene: owns its physics and scripts and steps them in the right order. */
@@ -132,7 +137,7 @@ export class SceneRuntime implements SceneHost {
 
   /** Schedules an entity for destruction at the end of a frame. */
   queueDestroy(entity: Entity, delaySeconds = 0): void {
-    this.destroyQueue.push({ entity, remaining: Math.max(0, delaySeconds) });
+    this.destroyQueue.push({ entity, remaining: Math.max(0, delaySeconds), fresh: true });
   }
 
   getMainCamera(): Entity | null {
@@ -151,7 +156,11 @@ export class SceneRuntime implements SceneHost {
     const queue = this.destroyQueue;
     this.destroyQueue = [];
     for (const item of queue) {
-      item.remaining -= deltaTime;
+      if (item.fresh) {
+        item.fresh = false;
+      } else {
+        item.remaining -= deltaTime;
+      }
       if (item.remaining > 0) {
         this.destroyQueue.push(item);
       } else {

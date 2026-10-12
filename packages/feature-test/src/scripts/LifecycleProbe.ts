@@ -55,11 +55,15 @@ export default class LifecycleProbe extends Behaviour implements ScriptLifecycle
 
     switch (frame) {
       case 1:
-        test.check('Time.elapsed', time.elapsed > 0 && time.elapsed === deltaTime);
+        // The very first frame can have a duration of zero, so only later frames must be longer.
+        test.check('Time.elapsed starts with the first frame', time.elapsed === deltaTime);
         test.check(
           'Time.unscaledDeltaTime',
           time.unscaledDeltaTime === deltaTime && time.timeScale === 1,
         );
+        break;
+      case 2:
+        test.check('Time.elapsed grows', time.elapsed > 0 && deltaTime > 0);
         break;
       case 3:
         this.counter.enabled = false;
