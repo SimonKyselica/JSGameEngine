@@ -1,0 +1,14 @@
+{
+  "name": "@rowan/feature-test",
+  "version": "0.1.0",
+  "private": true,
+  "description": "The Rowan feature-test project: one scene that exercises every component and the whole scripting API.",
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@rowan/core": "0.1.0"
+  }
+}

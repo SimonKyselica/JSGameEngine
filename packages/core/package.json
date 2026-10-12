@@ -1,0 +1,27 @@
+{
+  "name": "@rowan/core",
+  "version": "0.1.0",
+  "description": "Rowan core engine library: ECS, scenes, rendering, audio, physics, input and scripting.",
+  "type": "module",
+  "license": "MIT",
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/types/index.d.ts",
+      "default": "./dist/rowan-core.js"
+    },
+    "./compiler": {
+      "types": "./dist/types/compiler.d.ts",
+      "default": "./dist/rowan-compiler.js"
+    }
+  },
+  "scripts": {
+    "build": "vite build && tsc -p tsconfig.build.json"
+  },
+  "dependencies": {
+    "planck": "^1.5.1",
+    "sucrase": "^3.35.1"
+  }
+}

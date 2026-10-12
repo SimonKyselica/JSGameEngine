@@ -1,0 +1,16 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": ["node", "vite/client"],
+    "paths": {
+      "@rowan/core": ["./packages/core/src/index.ts"],
+      "@rowan/core/compiler": ["./packages/core/src/compiler.ts"],
+      "@rowan/runtime": ["./packages/runtime/src/index.ts"],
+      "@rowan/feature-test": ["./packages/feature-test/src/index.ts"],
+      "rowan": ["./packages/core/src/scripting/api.ts"]
+    }
+  },
+  "include": ["packages/*/src", "packages/*/*.ts", "e2e", "*.ts"],
+  "exclude": ["**/dist", "**/node_modules"]
+}
