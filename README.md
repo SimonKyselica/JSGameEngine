@@ -120,12 +120,13 @@ seconds, colors are floats from 0 to 1, and keys are named by their `KeyboardEve
 
 ```sh
 npm run check       # typecheck, lint, format check and unit tests
-npm run test:e2e    # build, then run the browser tests (Chromium via Playwright)
+npm run test:e2e    # build, then run the browser tests (Chromium and WebKit via Playwright)
 npm run build       # build the core library, the player and the editor into dist/ folders
 npm run preview     # serve the built editor at http://localhost:4173
 ```
 
-The first time, install the browser the end-to-end tests use: `npx playwright install chromium`.
+The first time, install the browsers the end-to-end tests use:
+`npx playwright install chromium webkit`.
 
 To deploy the editor, run `npm run build` and host `packages/editor/dist` as static files.
 
@@ -140,7 +141,8 @@ Contribution rules, code style and the reasoning behind the architecture are in
 ## Good to know
 
 - **Browser support:** WebGL2 is required, which every current desktop and mobile browser has.
-  The automated browser tests run on Chromium.
+  The automated browser tests run on Chromium and on WebKit, the engine of Safari. Firefox is
+  not part of the automated runs.
 - **Projects live in your browser's storage.** Clearing site data deletes them. Use
   File → Export Project File for backups.
 - **Scripts are code.** Opening a project runs its scripts in your browser, so only open

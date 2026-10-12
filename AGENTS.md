@@ -28,7 +28,7 @@ Dependencies only point upwards in this table. In particular:
 npm install            # once
 npm run dev            # build the player, then start the editor at http://localhost:5173
 npm run check          # typecheck + lint + format check + unit tests (run before every commit)
-npm run test:e2e       # build everything, then run the browser tests
+npm run test:e2e       # build everything, then run the browser tests (Chromium and WebKit)
 npm run test:coverage  # unit tests with a coverage report in coverage/
 npm run build          # build the core library, the player and the editor
 npm run format         # apply Prettier
@@ -130,6 +130,10 @@ Step-by-step versions of these live in `.claude/skills/`.
 
 ## Traps that have already cost time
 
+- **Chromium is not every browser.** WebKit kept the caret in a script editor that had been
+  hidden, so keys meant for the game were typed into the script. The browser tests run in
+  WebKit as well for that reason. An element that is hidden while it has the focus must give
+  the focus up explicitly.
 - **Minification changes behaviour.** Unit tests run unminified source; only the browser tests
   run what users get. The feature test caught an error message built from a mangled class name.
 - **`destroy(entity, delay)` counts from the call.** The frame's own delta has already passed
@@ -137,7 +141,7 @@ Step-by-step versions of these live in `.claude/skills/`.
 - **Unused imports are dropped** by the script compiler, as TypeScript does. A script that
   imports a module only for its side effects will not load it.
 - **Literal U+2028/U+2029 in source** end a line inside string and regex literals. Write them as
-  ` ` escapes.
+  `\u2028` escapes.
 - **`Instructions.md` is the owner's file.** Do not reformat or edit it; it is in `.prettierignore`.
 - **Reading the WebGL canvas** only works inside an animation frame, right after drawing; the
   drawing buffer is cleared after it is presented (`e2e/support.ts` shows how).

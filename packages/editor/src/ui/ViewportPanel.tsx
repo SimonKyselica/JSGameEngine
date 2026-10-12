@@ -77,6 +77,15 @@ export function ViewportPanel({
 
   const pixelArt = session.project.settings.rendering.pixelArt;
 
+  // A game reads the keyboard, so when one starts, resumes or comes into view it takes the
+  // focus from wherever the user was typing, typically a script or an inspector field.
+  const playState = session.play.state;
+  useEffect(() => {
+    if (playState === 'playing' && mode === 'game' && !hidden) {
+      glCanvasRef.current?.focus();
+    }
+  }, [playState, mode, hidden]);
+
   useEffect(() => {
     const container = containerRef.current;
     const glCanvas = glCanvasRef.current;

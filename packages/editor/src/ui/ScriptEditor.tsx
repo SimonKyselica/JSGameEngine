@@ -84,6 +84,24 @@ export function ScriptEditor({
     // The editor owns the text while it is open, so it is created once per script.
   }, [session, assetId, name]);
 
+  // A hidden editor must not keep the keyboard. Some browsers leave the caret inside an
+  // element that is no longer displayed, and whatever is typed next, game controls after
+  // pressing Play for example, would still be inserted into the script.
+  useEffect(() => {
+    const host = hostRef.current;
+    if (!hidden || !host) {
+      return;
+    }
+    const focused = document.activeElement;
+    if (focused instanceof HTMLElement && host.contains(focused)) {
+      focused.blur();
+    }
+    const selection = window.getSelection();
+    if (selection?.anchorNode && host.contains(selection.anchorNode)) {
+      selection.removeAllRanges();
+    }
+  }, [hidden]);
+
   return (
     <div className="script-editor" style={{ display: hidden ? 'none' : undefined }}>
       <div ref={hostRef} className="script-editor-code" />

@@ -261,6 +261,37 @@ test.describe('editor', () => {
     await expect(page.getByRole('button', { name: 'Stop', exact: true })).toBeVisible();
   });
 
+  test('gives the keyboard to the game when Play starts while a script is being edited', async ({
+    page,
+  }) => {
+    await openEditor(page);
+    await page
+      .getByRole('region', { name: 'Project' })
+      .getByRole('button', { name: 'PlayerController.ts' })
+      .dblclick();
+    const code = page.locator('.cm-content');
+    await expect(code).toBeVisible();
+    await hierarchyRow(page, 'Player').click();
+
+    // Leave the caret in the script, then start the game from the keyboard.
+    await code.click();
+    const source = await code.innerText();
+    await page.keyboard.press('ControlOrMeta+P');
+    await expect(page.getByRole('button', { name: 'Stop', exact: true })).toBeVisible();
+
+    // The game must receive the keys: the script moves the player while D is held.
+    await page.keyboard.down('KeyD');
+    await expect.poll(async () => readNumber(page, 'Position X')).toBeGreaterThan(0.5);
+    await page.keyboard.up('KeyD');
+    await page.keyboard.press('KeyA');
+    await page.keyboard.press('KeyD');
+
+    // And none of them may end up as text in the script.
+    await page.keyboard.press('ControlOrMeta+P');
+    await page.getByRole('tab', { name: 'PlayerController.ts' }).click();
+    expect(await code.innerText()).toBe(source);
+  });
+
   test('saves the project and restores it after a reload', async ({ page }) => {
     await openEditor(page);
     await chooseMenu(page, 'Entity', 'Camera');
