@@ -6,13 +6,14 @@ it that way. Read it before changing anything; `Instructions.md` is the product 
 
 ## Layout
 
-| Path                    | What it is                                                                                         | May depend on                     |
-| ----------------------- | -------------------------------------------------------------------------------------------------- | --------------------------------- |
-| `packages/core`         | The engine library: math, ECS, scenes, assets, renderer, audio, input, physics, scripting, `Game`. | `planck`, `sucrase` only          |
-| `packages/runtime`      | The player: the stripped runtime that exported games ship with (`rowan-player.js`).                | `core` (never the compiler)       |
-| `packages/feature-test` | One project that uses every component and the whole scripting API, and checks itself.              | `core`                            |
-| `packages/editor`       | The Unity-style editor (React). `src/core` is plain logic, `src/ui` is React.                      | `core`, `runtime`, `feature-test` |
-| `e2e`                   | Playwright tests that drive the built editor and exported games in a real browser.                 | everything, through the browser   |
+| Path                    | What it is                                                                                                               | May depend on                     |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------ | --------------------------------- |
+| `packages/core`         | The engine library: math, ECS, scenes, assets, renderer, audio, input, physics, scripting, `Game`.                       | `planck`, `sucrase` only          |
+| `packages/runtime`      | The player: the stripped runtime that exported games ship with (`rowan-player.js`).                                      | `core` (never the compiler)       |
+| `packages/feature-test` | One project that uses every component and the whole scripting API, and checks itself.                                    | `core`                            |
+| `packages/editor`       | The Unity-style editor (React). `src/core` is plain logic, `src/ui` is React, `src/docs` is the scripting documentation. | `core`, `runtime`, `feature-test` |
+| `scripts`               | Build-time tools run with Node: the generator of the scripting reference.                                                | `core` sources, `typescript`      |
+| `e2e`                   | Playwright tests that drive the built editor and exported games in a real browser.                                       | everything, through the browser   |
 
 Dependencies only point upwards in this table. In particular:
 
@@ -32,6 +33,7 @@ npm run test:e2e       # build everything, then run the browser tests (Chromium 
 npm run test:coverage  # unit tests with a coverage report in coverage/
 npm run build          # build the core library, the player and the editor
 npm run format         # apply Prettier
+npm run docs:generate  # rebuild the scripting reference from the doc comments in core
 ```
 
 Run one unit test file with `npx vitest run packages/core/src/physics`, one browser test with
@@ -47,8 +49,10 @@ A change is done when all of this is true:
 2. If it adds or changes a component or anything scripts can call, the feature-test project
    exercises it (see "The feature test" below). A unit test enforces this.
 3. If it touches the renderer, the player, the exporter or the editor UI, the browser tests pass.
-4. `npm run check` passes with no warnings.
-5. You have read your own diff as a reviewer would, and fixed what you found. Review happens
+4. If it adds or changes anything scripts can call, it has a doc comment written for game
+   developers and the scripting reference is regenerated (see "The scripting documentation").
+5. `npm run check` passes with no warnings.
+6. You have read your own diff as a reviewer would, and fixed what you found. Review happens
    **before** the commit, never after.
 
 Then commit with a message that says what changed and why, and push to `main`.
@@ -115,6 +119,25 @@ field, add a check for it to the matching probe script, or the build goes red.
 The scripts are ordinary TypeScript files, type-checked against the real API through the `rowan`
 path alias, and loaded as text because the engine compiles scripts itself.
 
+### The scripting documentation
+
+The editor's Help → Scripting Reference opens `docs.html`, a second page of the editor build
+(`packages/editor/src/docs`). It has two parts:
+
+- **The API reference is generated.** `scripts/generateScriptDocs.ts` reads everything
+  `scripting/api.ts` exports with the TypeScript compiler and writes signatures and doc comments
+  to `apiReference.generated.json`. The doc comments in `packages/core` are therefore what game
+  developers read: write them for someone who has never seen the engine's source, state units,
+  and say what happens in the edge cases. After changing the API run `npm run docs:generate` and
+  commit the result; `docs.test.ts` fails when the file is stale or a member has no comment.
+  A new exported type must also be added to a group in `REFERENCE_GROUPS` (`docsModel.ts`), and
+  every type a signature names must itself be exported from `scripting/api.ts`, so a reader can
+  look it up.
+- **The guides are written by hand** in `guides.ts`. Their example scripts are real files in
+  `docs/examples/`, type-checked against the API and loaded by a test, so an example cannot rot.
+  Inline code that names an API member (`` `Vec2.add` ``) becomes a link by itself, and a test
+  fails on a link that leads nowhere.
+
 ## Recipes
 
 Step-by-step versions of these live in `.claude/skills/`.
@@ -123,7 +146,8 @@ Step-by-step versions of these live in `.claude/skills/`.
   `COMPONENT_TYPES`, export it from `scripting/api.ts`, give it behaviour in a system, and cover
   it in the feature test. Serialization, cloning, prefabs and the inspector follow from the schema.
 - **New scripting API:** add it to the facade class the script reaches (`Behaviour`, `SceneApi`,
-  `Input`, `Physics2D`, `AudioApi`, `AssetsApi`, `Time`) and exercise it in a probe script.
+  `Input`, `Physics2D`, `AudioApi`, `AssetsApi`, `Time`) with a doc comment, exercise it in a
+  probe script, and run `npm run docs:generate`.
 - **New asset type:** extend `AssetType` and the extension table in `assets/asset.ts`, handle it
   in `editor/src/core/assetImport.ts` and in the Project panel, and in the bundle code if the
   player needs it.

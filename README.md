@@ -32,6 +32,8 @@ A/D and make jump with Space, a ground and a few crates. Press Play in the toolb
 - Copy, cut and paste entities (Ctrl+C, X, V), also from one scene into another, and a search
   box that filters the hierarchy by name.
 - A built-in code editor for scripts, with syntax checking as you type.
+- Scripting documentation under Help → Scripting Reference (F1): guides with example scripts,
+  a searchable reference of everything a script can use.
 - Import by menu or drag and drop: PNG, JPEG, WebP, GIF, BMP, AVIF and SVG images; WAV, MP3, OGG,
   M4A, AAC, FLAC and WebA audio; TypeScript and JavaScript scripts.
 - Prefabs: save any entity with its children and spawn copies from the editor or from scripts.
@@ -107,6 +109,9 @@ Conventions: world Y points up, angles are in radians (the inspector shows degre
 seconds, colors are floats from 0 to 1, and keys are named by their `KeyboardEvent.code`
 (`'KeyW'`, `'Space'`, `'ArrowLeft'`).
 
+The full documentation is part of the editor: Help → Scripting Reference, or F1. It opens in its
+own tab and has guides for each topic and a reference of every class, method and property.
+
 ## Repository layout
 
 | Package                 | Contents                                                             |
@@ -123,6 +128,7 @@ seconds, colors are floats from 0 to 1, and keys are named by their `KeyboardEve
 npm run check       # typecheck, lint, format check and unit tests
 npm run test:e2e    # build, then run the browser tests (Chromium and WebKit via Playwright)
 npm run build       # build the core library, the player and the editor into dist/ folders
+npm run docs:generate  # rebuild the scripting reference after changing the scripting API
 npm run preview     # serve the built editor at http://localhost:4173
 ```
 

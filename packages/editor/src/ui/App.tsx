@@ -370,6 +370,10 @@ function Editor({ workspace, store, onReplaceProject }: EditorProps): ReactEleme
         session.setSnapping(!session.snapping);
         writePreference(SNAPPING_KEY, session.snapping ? 'on' : 'off');
       },
+      openDocs: () => {
+        // A separate tab, so the documentation can stay open next to the editor.
+        window.open(new URL('docs.html', document.baseURI), '_blank', 'noopener');
+      },
       showAbout: () => setDialog({ kind: 'about' }),
     };
 
@@ -432,6 +436,11 @@ function Editor({ workspace, store, onReplaceProject }: EditorProps): ReactEleme
       if (modifier && key === 'b') {
         event.preventDefault();
         api.commands.openBuild();
+        return;
+      }
+      if (event.key === 'F1') {
+        event.preventDefault();
+        api.commands.openDocs();
         return;
       }
 

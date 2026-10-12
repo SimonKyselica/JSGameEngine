@@ -5,3 +5,4 @@ test-results
 playwright-report
 package-lock.json
 Instructions.md
+packages/editor/src/docs/apiReference.generated.json

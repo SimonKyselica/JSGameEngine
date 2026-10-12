@@ -16,6 +16,9 @@ read every changed line as a reviewer who did not write it. Check against `AGENT
 - Does each change have a unit test next to it that would fail without the change?
 - New or changed component field or scripting API member: is it exercised by a probe script in
   `packages/feature-test/src/scripts/`?
+- New or changed scripting API member or component field: does it have a doc comment a game
+  developer can read, and was `npm run docs:generate` run so the reference in the editor's
+  Help menu matches?
 - Are errors actionable `RowanError`s? Is anything swallowed silently?
 - Does anything rely on a class or function name at runtime (`type.name`, `constructor.name`)?
   Minified builds break that.

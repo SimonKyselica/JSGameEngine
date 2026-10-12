@@ -76,7 +76,14 @@ export default defineConfig(
   },
 
   {
-    files: ['**/*.js', '*.config.ts', 'packages/*/*.config.ts', 'e2e/**/*.ts'],
+    // Example scripts are shown in the documentation as a game developer would write
+    // them, so they leave out the return types the engine's own code spells out.
+    files: ['packages/editor/src/docs/examples/**/*.ts'],
+    rules: { '@typescript-eslint/explicit-function-return-type': 'off' },
+  },
+
+  {
+    files: ['**/*.js', '*.config.ts', 'packages/*/*.config.ts', 'e2e/**/*.ts', 'scripts/**/*.ts'],
     languageOptions: { globals: { ...globals.node } },
   },
 

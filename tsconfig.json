@@ -12,6 +12,6 @@
     },
     "allowImportingTsExtensions": true
   },
-  "include": ["packages/*/src", "packages/*/*.ts", "e2e", "*.ts"],
+  "include": ["packages/*/src", "packages/*/*.ts", "e2e", "*.ts", "scripts"],
   "exclude": ["**/dist", "**/node_modules"]
 }

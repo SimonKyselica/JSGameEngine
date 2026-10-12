@@ -55,9 +55,24 @@ one-line forwarder in the facade.
    `SpawnOptions`, `ScriptPropertyDefinition`) also add the name to the matching list in that
    test; the compiler tells you when one is missing.
 
-6. **Check the whole run:** `npx vitest run packages/feature-test`, then `npm run test:e2e`
+6. **Document it.** The doc comment on the member is the text of the scripting reference
+   (Help → Scripting Reference in the editor), so write it for a game developer: what the member
+   does, its units, what it returns in the edge cases. Then regenerate the reference and commit
+   the changed JSON:
+
+   ```sh
+   npm run docs:generate
+   npx vitest run packages/editor/src/docs
+   ```
+
+   The test fails when the reference is stale, when a member has no comment, and when a new
+   exported type is missing from `REFERENCE_GROUPS` in `packages/editor/src/docs/docsModel.ts`.
+   If the feature deserves an explanation or an example, add it to the matching guide in
+   `packages/editor/src/docs/guides.ts`; example scripts go in `docs/examples/` as real files.
+
+7. **Check the whole run:** `npx vitest run packages/feature-test`, then `npm run test:e2e`
    because the same scripts must pass in the minified player.
-7. Run the `verify-changes` skill.
+8. Run the `verify-changes` skill.
 
 ## Rules
 

@@ -47,6 +47,8 @@ export interface EditorCommands {
   readonly focusSelection: () => void;
   /** Switches snap mode and remembers the choice for the next session. */
   readonly toggleSnapping: () => void;
+  /** Opens the scripting documentation in a new browser tab. */
+  readonly openDocs: () => void;
   readonly showAbout: () => void;
 }
 

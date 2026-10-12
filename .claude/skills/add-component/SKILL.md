@@ -70,11 +70,17 @@ correctly. Behaviour lives in a system, never in the component.
    create, add a preset to `packages/editor/src/core/entityPresets.ts`. If it has a shape worth
    seeing in the scene view, draw it in `packages/editor/src/core/overlay.ts`.
 
-8. Run the `verify-changes` skill.
+8. **Documentation.** Components are part of the scripting reference, which is generated from
+   the doc comments on the class and its fields. Run `npm run docs:generate`, and add a new
+   component to the `Components` group of `REFERENCE_GROUPS` in
+   `packages/editor/src/docs/docsModel.ts`. `npx vitest run packages/editor/src/docs` tells you
+   what is missing.
+
+9. Run the `verify-changes` skill.
 
 ## Adding a field to an existing component
 
-Do steps 1 (field, default, schema entry), 5 and 6. Old scenes keep working because missing
+Do steps 1 (field, default, schema entry), 5, 6 and 8. Old scenes keep working because missing
 fields keep their defaults when a scene is loaded. Changing the meaning or type of an existing
 field is a format change: bump `SCENE_VERSION` in `scene/serializer.ts` and migrate old data in
 `parseEntities`.

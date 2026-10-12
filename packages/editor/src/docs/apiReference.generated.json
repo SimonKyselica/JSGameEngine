@@ -1,0 +1,2604 @@
+{
+  "engineVersion": "0.1.0",
+  "types": [
+    {
+      "name": "AssetsApi",
+      "summary": "Asset lookups available to scripts as `this.assets`.",
+      "typeParameters": "",
+      "definition": "",
+      "kind": "class",
+      "members": [
+        {
+          "name": "find",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "find(name: string, type?: AssetType): string | null"
+          ],
+          "summary": "Finds an asset by name and returns its id, or `null`. The id can be assigned to component fields such as `SpriteRenderer.texture` or passed to `instantiate`."
+        },
+        {
+          "name": "exists",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "exists(name: string, type?: AssetType): boolean"
+          ],
+          "summary": "True when the project has an asset with this name, and of this type when one is given."
+        },
+        {
+          "name": "getName",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "getName(id: string): string | null"
+          ],
+          "summary": "The name of the asset with this id, or `null` when there is none."
+        }
+      ]
+    },
+    {
+      "name": "AssetType",
+      "summary": "The kinds of asset a project can contain.",
+      "typeParameters": "",
+      "definition": "'texture' | 'audio' | 'script' | 'scene' | 'prefab'",
+      "kind": "type",
+      "members": []
+    },
+    {
+      "name": "AudioApi",
+      "summary": "The audio functions available to scripts as `this.audio`.",
+      "typeParameters": "",
+      "definition": "",
+      "kind": "class",
+      "members": [
+        {
+          "name": "masterVolume",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "masterVolume: number"
+          ],
+          "summary": "Overall volume from 0 to 1."
+        },
+        {
+          "name": "play",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "play(entity: Entity): boolean"
+          ],
+          "summary": "Plays the entity's AudioSource from the beginning. Returns `false` if it cannot play."
+        },
+        {
+          "name": "stop",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "stop(entity: Entity): void"
+          ],
+          "summary": "Stops the entity's AudioSource. Does nothing when it is not playing."
+        },
+        {
+          "name": "isPlaying",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "isPlaying(entity: Entity): boolean"
+          ],
+          "summary": "True while the entity's AudioSource is playing."
+        },
+        {
+          "name": "playOneShot",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "playOneShot(clip: string, volume?: number, pitch?: number): boolean"
+          ],
+          "summary": "Plays an audio clip once. `clip` is an audio asset's name or id."
+        }
+      ]
+    },
+    {
+      "name": "AudioSource",
+      "summary": "Plays an audio clip.",
+      "typeParameters": "",
+      "definition": "",
+      "kind": "class",
+      "members": [
+        {
+          "name": "clip",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "clip: string | null"
+          ],
+          "summary": "Audio asset id."
+        },
+        {
+          "name": "volume",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "volume: number"
+          ],
+          "summary": "Loudness, from 0 (silent) to 1 (full)."
+        },
+        {
+          "name": "pitch",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "pitch: number"
+          ],
+          "summary": "Playback rate. 1 is the original pitch."
+        },
+        {
+          "name": "loop",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "loop: boolean"
+          ],
+          "summary": "Starts the clip over when it ends, until it is stopped."
+        },
+        {
+          "name": "playOnStart",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "playOnStart: boolean"
+          ],
+          "summary": "Starts playing as soon as the scene starts."
+        }
+      ]
+    },
+    {
+      "name": "AxisName",
+      "summary": "The axes `Input.getAxis` knows.",
+      "typeParameters": "",
+      "definition": "'horizontal' | 'vertical'",
+      "kind": "type",
+      "members": []
+    },
+    {
+      "name": "Behaviour",
+      "summary": "The base class of every script. A script file default-exports a subclass:\n\n```ts\nimport { Behaviour, Vec2 } from 'rowan';\n\nexport default class Mover extends Behaviour {\n  static properties = { speed: { type: 'number', default: 2 } };\n  speed = 2;\n\n  onUpdate(deltaTime: number) {\n    this.transform.position.x += this.speed * deltaTime;\n  }\n}\n```\n\nSee `ScriptLifecycle` for the callbacks the engine calls.",
+      "typeParameters": "",
+      "definition": "",
+      "kind": "class",
+      "members": [
+        {
+          "name": "enabled",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "enabled: boolean"
+          ],
+          "summary": "Disabled scripts receive no update or physics callbacks."
+        },
+        {
+          "name": "entity",
+          "kind": "property",
+          "static": false,
+          "readonly": true,
+          "signatures": [
+            "entity: Entity"
+          ],
+          "summary": "The entity this script is attached to."
+        },
+        {
+          "name": "transform",
+          "kind": "property",
+          "static": false,
+          "readonly": true,
+          "signatures": [
+            "transform: Transform"
+          ],
+          "summary": "Shortcut for the entity's Transform component."
+        },
+        {
+          "name": "scene",
+          "kind": "property",
+          "static": false,
+          "readonly": true,
+          "signatures": [
+            "scene: SceneApi"
+          ],
+          "summary": "The running scene: find and create entities, or load another scene."
+        },
+        {
+          "name": "input",
+          "kind": "property",
+          "static": false,
+          "readonly": true,
+          "signatures": [
+            "input: Input"
+          ],
+          "summary": "Keyboard and mouse input."
+        },
+        {
+          "name": "physics",
+          "kind": "property",
+          "static": false,
+          "readonly": true,
+          "signatures": [
+            "physics: Physics2D"
+          ],
+          "summary": "Velocities, forces, raycasts and other physics queries."
+        },
+        {
+          "name": "audio",
+          "kind": "property",
+          "static": false,
+          "readonly": true,
+          "signatures": [
+            "audio: AudioApi"
+          ],
+          "summary": "Sound playback."
+        },
+        {
+          "name": "time",
+          "kind": "property",
+          "static": false,
+          "readonly": true,
+          "signatures": [
+            "time: Time"
+          ],
+          "summary": "Frame timing, such as the time since the previous frame."
+        },
+        {
+          "name": "assets",
+          "kind": "property",
+          "static": false,
+          "readonly": true,
+          "signatures": [
+            "assets: AssetsApi"
+          ],
+          "summary": "Looks up the project's assets by name."
+        },
+        {
+          "name": "getComponent",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "getComponent<T extends object>(type: ComponentClass<T>): T | undefined"
+          ],
+          "summary": "The entity's component of this type, or `undefined` when it has none."
+        },
+        {
+          "name": "requireComponent",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "requireComponent<T extends object>(type: ComponentClass<T>): T"
+          ],
+          "summary": "Like `Behaviour.getComponent` but throws when the component is missing."
+        },
+        {
+          "name": "hasComponent",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "hasComponent(type: ComponentClass): boolean"
+          ],
+          "summary": "True when the entity has a component of this type."
+        },
+        {
+          "name": "addComponent",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "addComponent<T extends object>(type: ComponentClass<T>, init?: Partial<T>): T"
+          ],
+          "summary": "Attaches a new component to the entity, optionally overriding some of its default field values."
+        },
+        {
+          "name": "removeComponent",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "removeComponent(type: ComponentClass): boolean"
+          ],
+          "summary": "Detaches a component from the entity. Returns `false` when the entity did not have one."
+        },
+        {
+          "name": "getScript",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "getScript<T extends Behaviour>(type: BehaviourClass<T> | string, entity?: Entity): T | undefined"
+          ],
+          "summary": "Finds another script by class or by name, on this entity or on `entity`. Scripts created this frame are available right away."
+        },
+        {
+          "name": "instantiate",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "instantiate(prefab: string, options?: SpawnOptions): Entity"
+          ],
+          "summary": "Adds a copy of a prefab to the scene. `prefab` is a prefab asset's name or id."
+        },
+        {
+          "name": "destroy",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "destroy(target?: Entity, delaySeconds?: number): void"
+          ],
+          "summary": "Destroys an entity (this script's entity by default) and its children at the end of the frame, or after `delaySeconds` of game time."
+        },
+        {
+          "name": "after",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "after(seconds: number, callback: () => void): CancelTimer"
+          ],
+          "summary": "Calls `callback` once, after `seconds` of game time, and returns a function that cancels it.\n\nTimers follow `Time.timeScale`, pause while the script is disabled or its entity is inactive, and are cancelled when the entity is destroyed or the scene ends. Callbacks run once per frame, after every script's `onUpdate`."
+        },
+        {
+          "name": "every",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "every(seconds: number, callback: () => void): CancelTimer"
+          ],
+          "summary": "Calls `callback` every `seconds` of game time until it is cancelled, and returns the function that cancels it. The interval must be at least 0.001 seconds. It does not drift: when a frame is longer than the interval, the calls that were missed are made in that frame. Otherwise it behaves like `Behaviour.after`."
+        },
+        {
+          "name": "log",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "log(...values: unknown[]): void"
+          ],
+          "summary": "Writes a message to the console."
+        },
+        {
+          "name": "warn",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "warn(...values: unknown[]): void"
+          ],
+          "summary": "Writes a warning to the console."
+        },
+        {
+          "name": "error",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "error(...values: unknown[]): void"
+          ],
+          "summary": "Writes an error to the console."
+        }
+      ]
+    },
+    {
+      "name": "BehaviourClass",
+      "summary": "A script class: any class that extends `Behaviour`. Where a function takes one, pass the class itself: `getScript(Health)`.",
+      "typeParameters": "<T extends Behaviour = Behaviour>",
+      "definition": "new () => T",
+      "kind": "type",
+      "members": []
+    },
+    {
+      "name": "BodyType",
+      "summary": "How a physics body moves. See `Rigidbody2D.bodyType`.",
+      "typeParameters": "",
+      "definition": "'static' | 'kinematic' | 'dynamic'",
+      "kind": "type",
+      "members": []
+    },
+    {
+      "name": "BoxCollider2D",
+      "summary": "A box collision shape. Without a `Rigidbody2D` the entity acts as a static body.",
+      "typeParameters": "",
+      "definition": "",
+      "kind": "class",
+      "members": [
+        {
+          "name": "offset",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "offset: Vec2"
+          ],
+          "summary": "Center of the box relative to the entity, in local units."
+        },
+        {
+          "name": "size",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "size: Vec2"
+          ],
+          "summary": "Full width and height in local units, before the entity's scale is applied."
+        },
+        {
+          "name": "density",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "density: number"
+          ],
+          "summary": "Mass per unit of area. Together with the size it gives a dynamic body its mass."
+        },
+        {
+          "name": "friction",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "friction: number"
+          ],
+          "summary": "How much the surface resists sliding. 0 is as slippery as ice."
+        },
+        {
+          "name": "restitution",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "restitution: number"
+          ],
+          "summary": "Bounciness. 0 does not bounce, 1 keeps all energy."
+        },
+        {
+          "name": "isTrigger",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "isTrigger: boolean"
+          ],
+          "summary": "Triggers detect overlaps and raise trigger events but do not collide."
+        }
+      ]
+    },
+    {
+      "name": "Camera",
+      "summary": "An orthographic camera. The scene is drawn from the first active primary camera.",
+      "typeParameters": "",
+      "definition": "",
+      "kind": "class",
+      "members": [
+        {
+          "name": "orthographicSize",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "orthographicSize: number"
+          ],
+          "summary": "Half of the visible height in world units."
+        },
+        {
+          "name": "primary",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "primary: boolean"
+          ],
+          "summary": "Marks the camera the game is drawn from. When several are marked, the first active one is used."
+        },
+        {
+          "name": "backgroundColor",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "backgroundColor: Color"
+          ],
+          "summary": "The color the view is cleared to before the sprites are drawn."
+        }
+      ]
+    },
+    {
+      "name": "CancelTimer",
+      "summary": "Stops a timer started with `after` or `every`. Calling it again does nothing.",
+      "typeParameters": "",
+      "definition": "() => void",
+      "kind": "type",
+      "members": []
+    },
+    {
+      "name": "CircleCollider2D",
+      "summary": "A circle collision shape. Without a `Rigidbody2D` the entity acts as a static body.",
+      "typeParameters": "",
+      "definition": "",
+      "kind": "class",
+      "members": [
+        {
+          "name": "offset",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "offset: Vec2"
+          ],
+          "summary": "Center of the circle relative to the entity, in local units."
+        },
+        {
+          "name": "radius",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "radius: number"
+          ],
+          "summary": "Radius in local units. The larger of the entity's scale axes is applied to it."
+        },
+        {
+          "name": "density",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "density: number"
+          ],
+          "summary": "Mass per unit of area. Together with the radius it gives a dynamic body its mass."
+        },
+        {
+          "name": "friction",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "friction: number"
+          ],
+          "summary": "How much the surface resists sliding. 0 is as slippery as ice."
+        },
+        {
+          "name": "restitution",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "restitution: number"
+          ],
+          "summary": "Bounciness. 0 does not bounce, 1 keeps all energy."
+        },
+        {
+          "name": "isTrigger",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "isTrigger: boolean"
+          ],
+          "summary": "Triggers detect overlaps and raise trigger events but do not collide."
+        }
+      ]
+    },
+    {
+      "name": "Collision",
+      "summary": "Details of a collision between two solid colliders.",
+      "typeParameters": "",
+      "definition": "",
+      "kind": "interface",
+      "members": [
+        {
+          "name": "other",
+          "kind": "property",
+          "static": false,
+          "readonly": true,
+          "signatures": [
+            "other: Entity"
+          ],
+          "summary": "The entity that was hit."
+        },
+        {
+          "name": "point",
+          "kind": "property",
+          "static": false,
+          "readonly": true,
+          "signatures": [
+            "point: Vec2"
+          ],
+          "summary": "World-space contact point."
+        },
+        {
+          "name": "normal",
+          "kind": "property",
+          "static": false,
+          "readonly": true,
+          "signatures": [
+            "normal: Vec2"
+          ],
+          "summary": "Unit vector pointing from this entity towards the other one."
+        }
+      ]
+    },
+    {
+      "name": "Color",
+      "summary": "An RGBA color with straight (non-premultiplied) alpha. Channels range from 0 to 1.",
+      "typeParameters": "",
+      "definition": "",
+      "kind": "class",
+      "members": [
+        {
+          "name": "constructor",
+          "kind": "constructor",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "new Color(r?: number, g?: number, b?: number, a?: number)"
+          ],
+          "summary": "Creates a color from its channels. Without arguments it is opaque white."
+        },
+        {
+          "name": "white",
+          "kind": "method",
+          "static": true,
+          "readonly": false,
+          "signatures": [
+            "white(): Color"
+          ],
+          "summary": "Opaque white. As a sprite tint it leaves the texture's own colors unchanged."
+        },
+        {
+          "name": "black",
+          "kind": "method",
+          "static": true,
+          "readonly": false,
+          "signatures": [
+            "black(): Color"
+          ],
+          "summary": "Opaque black."
+        },
+        {
+          "name": "transparent",
+          "kind": "method",
+          "static": true,
+          "readonly": false,
+          "signatures": [
+            "transparent(): Color"
+          ],
+          "summary": "Fully transparent black."
+        },
+        {
+          "name": "fromHex",
+          "kind": "method",
+          "static": true,
+          "readonly": false,
+          "signatures": [
+            "fromHex(hex: string): Color"
+          ],
+          "summary": "Parses `#rgb`, `#rgba`, `#rrggbb` or `#rrggbbaa`. The leading `#` is optional."
+        },
+        {
+          "name": "fromArray",
+          "kind": "method",
+          "static": true,
+          "readonly": false,
+          "signatures": [
+            "fromArray(values: readonly number[]): Color"
+          ],
+          "summary": "Creates a color from `[r, g, b]` or `[r, g, b, a]`. Missing channels default to 1."
+        },
+        {
+          "name": "r",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "r: number"
+          ],
+          "summary": "Red, from 0 to 1."
+        },
+        {
+          "name": "g",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "g: number"
+          ],
+          "summary": "Green, from 0 to 1."
+        },
+        {
+          "name": "b",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "b: number"
+          ],
+          "summary": "Blue, from 0 to 1."
+        },
+        {
+          "name": "a",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "a: number"
+          ],
+          "summary": "Alpha, from 0 (fully transparent) to 1 (opaque)."
+        },
+        {
+          "name": "set",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "set(r: number, g: number, b: number, a?: number): Color"
+          ],
+          "summary": "Sets all channels at once. Alpha defaults to 1."
+        },
+        {
+          "name": "copy",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "copy(other: Readonly<Color>): Color"
+          ],
+          "summary": "Copies the channels of another color into this one."
+        },
+        {
+          "name": "clone",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "clone(): Color"
+          ],
+          "summary": "A new color with the same channels."
+        },
+        {
+          "name": "lerp",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "lerp(target: Readonly<Color>, t: number): Color"
+          ],
+          "summary": "Moves the color towards `target` by the fraction `t`."
+        },
+        {
+          "name": "equals",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "equals(other: Readonly<Color>, epsilon?: number): boolean"
+          ],
+          "summary": "True when all channels are within `epsilon` of the other color's."
+        },
+        {
+          "name": "toHex",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "toHex(includeAlpha?: boolean): string"
+          ],
+          "summary": "Formats as `#rrggbb`, or `#rrggbbaa` when `includeAlpha` is set."
+        },
+        {
+          "name": "toArray",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "toArray(): ColorTuple"
+          ],
+          "summary": "The channels as `[r, g, b, a]`."
+        },
+        {
+          "name": "toString",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "toString(): string"
+          ],
+          "summary": "A readable form such as `Color(1, 0.5, 0, 1)`, handy for logging."
+        }
+      ]
+    },
+    {
+      "name": "ColorTuple",
+      "summary": "A color written as an array, `[r, g, b, a]`. See `Color.toArray` and `Color.fromArray`.",
+      "typeParameters": "",
+      "definition": "[r: number, g: number, b: number, a: number]",
+      "kind": "type",
+      "members": []
+    },
+    {
+      "name": "ComponentClass",
+      "summary": "A component type. Components are plain data classes with a zero-argument constructor. Where a function takes one, pass the class itself: `getComponent(SpriteRenderer)`.",
+      "typeParameters": "<T extends object = object>",
+      "definition": "new () => T",
+      "kind": "type",
+      "members": []
+    },
+    {
+      "name": "Entity",
+      "summary": "A handle to one entity in a scene. Handles are cheap, and a scene always returns the same handle for the same entity, so they can be compared with `===`.",
+      "typeParameters": "",
+      "definition": "",
+      "kind": "class",
+      "members": [
+        {
+          "name": "scene",
+          "kind": "property",
+          "static": false,
+          "readonly": true,
+          "signatures": [
+            "scene: Scene"
+          ],
+          "summary": "The engine's scene object that owns the entity. Scripts normally use `this.scene` instead."
+        },
+        {
+          "name": "id",
+          "kind": "property",
+          "static": false,
+          "readonly": true,
+          "signatures": [
+            "id: EntityId"
+          ],
+          "summary": "A number that identifies the entity while the scene runs. It differs between runs; use `uuid` for anything that is saved."
+        },
+        {
+          "name": "isValid",
+          "kind": "property",
+          "static": false,
+          "readonly": true,
+          "signatures": [
+            "isValid: boolean"
+          ],
+          "summary": "False once the entity has been destroyed."
+        },
+        {
+          "name": "uuid",
+          "kind": "property",
+          "static": false,
+          "readonly": true,
+          "signatures": [
+            "uuid: string"
+          ],
+          "summary": "A unique id that stays the same when the scene is saved and loaded."
+        },
+        {
+          "name": "name",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "name: string"
+          ],
+          "summary": "The name of the entity. Names do not have to be unique."
+        },
+        {
+          "name": "tag",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "tag: string"
+          ],
+          "summary": "A free-form label for finding groups of entities with `scene.findByTag`."
+        },
+        {
+          "name": "active",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "active: boolean"
+          ],
+          "summary": "Whether this entity itself is switched on. See `Entity.activeInHierarchy`."
+        },
+        {
+          "name": "activeInHierarchy",
+          "kind": "property",
+          "static": false,
+          "readonly": true,
+          "signatures": [
+            "activeInHierarchy: boolean"
+          ],
+          "summary": "True when this entity and all of its ancestors are active."
+        },
+        {
+          "name": "transform",
+          "kind": "property",
+          "static": false,
+          "readonly": true,
+          "signatures": [
+            "transform: Transform"
+          ],
+          "summary": "The entity's Transform component: position, rotation and scale relative to its parent."
+        },
+        {
+          "name": "parent",
+          "kind": "property",
+          "static": false,
+          "readonly": true,
+          "signatures": [
+            "parent: Entity | null"
+          ],
+          "summary": "The entity this one is attached to, or `null` at the top level of the scene."
+        },
+        {
+          "name": "children",
+          "kind": "property",
+          "static": false,
+          "readonly": true,
+          "signatures": [
+            "children: Entity[]"
+          ],
+          "summary": "The entities attached to this one, in hierarchy order. The array is a copy."
+        },
+        {
+          "name": "worldPosition",
+          "kind": "property",
+          "static": false,
+          "readonly": true,
+          "signatures": [
+            "worldPosition: Vec2"
+          ],
+          "summary": "The position in world space. Returns a copy; use `Entity.setWorldPosition` to move."
+        },
+        {
+          "name": "worldRotation",
+          "kind": "property",
+          "static": false,
+          "readonly": true,
+          "signatures": [
+            "worldRotation: number"
+          ],
+          "summary": "The rotation in world space, in radians."
+        },
+        {
+          "name": "setWorldPosition",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "setWorldPosition(position: Readonly<Vec2>): void"
+          ],
+          "summary": "Moves the entity to a position in world space, whatever its parents' transforms are."
+        },
+        {
+          "name": "setWorldRotation",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "setWorldRotation(radians: number): void"
+          ],
+          "summary": "Turns the entity to a rotation in world space, in radians."
+        },
+        {
+          "name": "setParent",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "setParent(parent: Entity | null, keepWorldTransform?: boolean): void"
+          ],
+          "summary": "Re-parents the entity. Pass `null` to move it to the scene root."
+        },
+        {
+          "name": "addComponent",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "addComponent<T extends object>(type: ComponentClass<T>, init?: Partial<T>): T"
+          ],
+          "summary": "Attaches a new component, optionally overriding some of its default field values."
+        },
+        {
+          "name": "getComponent",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "getComponent<T extends object>(type: ComponentClass<T>): T | undefined"
+          ],
+          "summary": "The component of this type, or `undefined` when the entity has none."
+        },
+        {
+          "name": "requireComponent",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "requireComponent<T extends object>(type: ComponentClass<T>): T"
+          ],
+          "summary": "Like `Entity.getComponent` but throws when the component is missing."
+        },
+        {
+          "name": "hasComponent",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "hasComponent(type: ComponentClass): boolean"
+          ],
+          "summary": "True when the entity has a component of this type."
+        },
+        {
+          "name": "findChild",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "findChild(name: string): Entity | null"
+          ],
+          "summary": "The first descendant with this name, or `null`. Descendants are searched in hierarchy order, the order the editor lists them in: each child, then that child's own children."
+        },
+        {
+          "name": "getComponentInChildren",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "getComponentInChildren<T extends object>(type: ComponentClass<T>): T | undefined"
+          ],
+          "summary": "The component of this type on this entity or, failing that, on its first descendant that has one, searched in hierarchy order."
+        },
+        {
+          "name": "getComponentInParent",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "getComponentInParent<T extends object>(type: ComponentClass<T>): T | undefined"
+          ],
+          "summary": "The component of this type on this entity or, failing that, on its nearest ancestor."
+        },
+        {
+          "name": "removeComponent",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "removeComponent(type: ComponentClass): boolean"
+          ],
+          "summary": "Detaches a component. Returns `false` when the entity did not have one."
+        },
+        {
+          "name": "destroy",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "destroy(): void"
+          ],
+          "summary": "Destroys this entity and its descendants immediately. Scripts should normally call `Behaviour.destroy`, which waits until the end of the frame."
+        },
+        {
+          "name": "toString",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "toString(): string"
+          ],
+          "summary": "A readable form such as `Entity(Player)`, handy for logging."
+        }
+      ]
+    },
+    {
+      "name": "EntityId",
+      "summary": "A number that identifies an entity while its scene runs. Ids are never reused within one scene, but they differ from run to run.",
+      "typeParameters": "",
+      "definition": "number",
+      "kind": "type",
+      "members": []
+    },
+    {
+      "name": "Identity",
+      "summary": "Name, tag and active flag. Every entity has exactly one.",
+      "typeParameters": "",
+      "definition": "",
+      "kind": "class",
+      "members": [
+        {
+          "name": "uuid",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "uuid: string"
+          ],
+          "summary": "Stable id used for serialization and cross-references. Assigned by the scene."
+        },
+        {
+          "name": "name",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "name: string"
+          ],
+          "summary": "The name of the entity, as shown in the editor's hierarchy."
+        },
+        {
+          "name": "tag",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "tag: string"
+          ],
+          "summary": "A free-form label for finding groups of entities from scripts."
+        },
+        {
+          "name": "active",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "active: boolean"
+          ],
+          "summary": "Inactive entities, and all of their descendants, are not updated, simulated or drawn."
+        }
+      ]
+    },
+    {
+      "name": "Input",
+      "summary": "Keyboard and mouse input as seen by scripts (`this.input`). Keys are identified by their `KeyboardEvent.code`, for example `KeyW`, `Space`, `ArrowLeft`.",
+      "typeParameters": "",
+      "definition": "",
+      "kind": "class",
+      "members": [
+        {
+          "name": "isKeyDown",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "isKeyDown(code: string): boolean"
+          ],
+          "summary": "True while the key is held down."
+        },
+        {
+          "name": "wasKeyPressed",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "wasKeyPressed(code: string): boolean"
+          ],
+          "summary": "True only during the frame in which the key went down."
+        },
+        {
+          "name": "wasKeyReleased",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "wasKeyReleased(code: string): boolean"
+          ],
+          "summary": "True only during the frame in which the key was let go."
+        },
+        {
+          "name": "isMouseButtonDown",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "isMouseButtonDown(button: number): boolean"
+          ],
+          "summary": "True while the mouse button is held down. See `MouseButton`."
+        },
+        {
+          "name": "wasMouseButtonPressed",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "wasMouseButtonPressed(button: number): boolean"
+          ],
+          "summary": "True only during the frame in which the mouse button went down."
+        },
+        {
+          "name": "wasMouseButtonReleased",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "wasMouseButtonReleased(button: number): boolean"
+          ],
+          "summary": "True only during the frame in which the mouse button was let go."
+        },
+        {
+          "name": "mousePosition",
+          "kind": "property",
+          "static": false,
+          "readonly": true,
+          "signatures": [
+            "mousePosition: Vec2"
+          ],
+          "summary": "Pointer position in pixels from the top-left corner of the game view."
+        },
+        {
+          "name": "mouseWorldPosition",
+          "kind": "property",
+          "static": false,
+          "readonly": true,
+          "signatures": [
+            "mouseWorldPosition: Vec2"
+          ],
+          "summary": "Pointer position in world space, as seen through the primary camera."
+        },
+        {
+          "name": "scrollDelta",
+          "kind": "property",
+          "static": false,
+          "readonly": true,
+          "signatures": [
+            "scrollDelta: number"
+          ],
+          "summary": "Mouse wheel movement during this frame; positive scrolls down."
+        },
+        {
+          "name": "getAxis",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "getAxis(axis: AxisName): number"
+          ],
+          "summary": "A value from -1 to 1 for a pair of opposing keys. `horizontal` uses A/D and the left/right arrows, `vertical` uses S/W and down/up."
+        }
+      ]
+    },
+    {
+      "name": "MathUtils",
+      "summary": "Common scalar math helpers, available to scripts as `MathUtils`.",
+      "typeParameters": "",
+      "definition": "",
+      "kind": "object",
+      "members": [
+        {
+          "name": "EPSILON",
+          "kind": "property",
+          "static": true,
+          "readonly": false,
+          "signatures": [
+            "EPSILON: number"
+          ],
+          "summary": "The tolerance that `approximately` and the `equals` methods use by default: one millionth."
+        },
+        {
+          "name": "clamp",
+          "kind": "method",
+          "static": true,
+          "readonly": false,
+          "signatures": [
+            "clamp(value: number, min: number, max: number): number"
+          ],
+          "summary": "Limits `value` to the range from `min` to `max`."
+        },
+        {
+          "name": "lerp",
+          "kind": "method",
+          "static": true,
+          "readonly": false,
+          "signatures": [
+            "lerp(a: number, b: number, t: number): number"
+          ],
+          "summary": "Linear interpolation from `a` to `b`. `t` is not clamped."
+        },
+        {
+          "name": "inverseLerp",
+          "kind": "method",
+          "static": true,
+          "readonly": false,
+          "signatures": [
+            "inverseLerp(a: number, b: number, value: number): number"
+          ],
+          "summary": "The `t` for which `lerp(a, b, t) === value`. Returns 0 when `a` equals `b`."
+        },
+        {
+          "name": "degToRad",
+          "kind": "method",
+          "static": true,
+          "readonly": false,
+          "signatures": [
+            "degToRad(degrees: number): number"
+          ],
+          "summary": "Converts degrees to radians."
+        },
+        {
+          "name": "radToDeg",
+          "kind": "method",
+          "static": true,
+          "readonly": false,
+          "signatures": [
+            "radToDeg(radians: number): number"
+          ],
+          "summary": "Converts radians to degrees."
+        },
+        {
+          "name": "approximately",
+          "kind": "method",
+          "static": true,
+          "readonly": false,
+          "signatures": [
+            "approximately(a: number, b: number, epsilon?: number): boolean"
+          ],
+          "summary": "True when `a` and `b` differ by at most `epsilon`. Use it instead of `===` for numbers that were computed."
+        },
+        {
+          "name": "wrapAngle",
+          "kind": "method",
+          "static": true,
+          "readonly": false,
+          "signatures": [
+            "wrapAngle(radians: number): number"
+          ],
+          "summary": "Wraps an angle in radians into the range (-PI, PI]."
+        },
+        {
+          "name": "moveTowards",
+          "kind": "method",
+          "static": true,
+          "readonly": false,
+          "signatures": [
+            "moveTowards(current: number, target: number, maxDelta: number): number"
+          ],
+          "summary": "Moves `current` towards `target` by at most `maxDelta`, never overshooting."
+        },
+        {
+          "name": "smoothStep",
+          "kind": "method",
+          "static": true,
+          "readonly": false,
+          "signatures": [
+            "smoothStep(edge0: number, edge1: number, value: number): number"
+          ],
+          "summary": "Hermite interpolation between 0 and 1 as `value` goes from `edge0` to `edge1`."
+        },
+        {
+          "name": "randomRange",
+          "kind": "method",
+          "static": true,
+          "readonly": false,
+          "signatures": [
+            "randomRange(min: number, max: number): number"
+          ],
+          "summary": "A random number in the range [min, max)."
+        }
+      ]
+    },
+    {
+      "name": "MouseButton",
+      "summary": "Mouse button numbers as reported by the browser.",
+      "typeParameters": "",
+      "definition": "",
+      "kind": "object",
+      "members": [
+        {
+          "name": "Left",
+          "kind": "property",
+          "static": true,
+          "readonly": false,
+          "signatures": [
+            "Left: 0"
+          ],
+          "summary": "The main button, usually the left one."
+        },
+        {
+          "name": "Middle",
+          "kind": "property",
+          "static": true,
+          "readonly": false,
+          "signatures": [
+            "Middle: 1"
+          ],
+          "summary": "The wheel button."
+        },
+        {
+          "name": "Right",
+          "kind": "property",
+          "static": true,
+          "readonly": false,
+          "signatures": [
+            "Right: 2"
+          ],
+          "summary": "The secondary button, usually the right one."
+        }
+      ]
+    },
+    {
+      "name": "Physics2D",
+      "summary": "The physics functions available to scripts as `this.physics`.",
+      "typeParameters": "",
+      "definition": "",
+      "kind": "class",
+      "members": [
+        {
+          "name": "gravity",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "gravity: Vec2"
+          ],
+          "summary": "World gravity in units per second squared. Assign a new vector to change it."
+        },
+        {
+          "name": "hasBody",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "hasBody(entity: Entity): boolean"
+          ],
+          "summary": "True when the entity has a rigidbody or collider."
+        },
+        {
+          "name": "getVelocity",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "getVelocity(entity: Entity): Vec2"
+          ],
+          "summary": "The body's velocity in world units per second. Returns a copy."
+        },
+        {
+          "name": "setVelocity",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "setVelocity(entity: Entity, velocity: Readonly<Vec2>): void"
+          ],
+          "summary": "Sets the body's velocity in world units per second."
+        },
+        {
+          "name": "getAngularVelocity",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "getAngularVelocity(entity: Entity): number"
+          ],
+          "summary": "Angular velocity in radians per second, counter-clockwise."
+        },
+        {
+          "name": "setAngularVelocity",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "setAngularVelocity(entity: Entity, radiansPerSecond: number): void"
+          ],
+          "summary": "Sets the body's spin in radians per second, counter-clockwise."
+        },
+        {
+          "name": "applyForce",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "applyForce(entity: Entity, force: Readonly<Vec2>): void"
+          ],
+          "summary": "Applies a continuous force. Call it every fixed update while the force acts."
+        },
+        {
+          "name": "applyImpulse",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "applyImpulse(entity: Entity, impulse: Readonly<Vec2>): void"
+          ],
+          "summary": "Applies an instant push, for example a jump."
+        },
+        {
+          "name": "applyTorque",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "applyTorque(entity: Entity, torque: number): void"
+          ],
+          "summary": "Applies a continuous turning force. Positive values turn the body counter-clockwise."
+        },
+        {
+          "name": "getMass",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "getMass(entity: Entity): number"
+          ],
+          "summary": "The body's mass, which follows from the size and density of its colliders. Static and kinematic bodies report 0."
+        },
+        {
+          "name": "raycast",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "raycast(origin: Readonly<Vec2>, direction: Readonly<Vec2>, maxDistance?: number): RaycastHit | null"
+          ],
+          "summary": "Finds the closest solid collider along a ray, or `null` when nothing is hit."
+        },
+        {
+          "name": "raycastAll",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "raycastAll(origin: Readonly<Vec2>, direction: Readonly<Vec2>, maxDistance?: number): RaycastHit[]"
+          ],
+          "summary": "Finds every solid collider along a ray, nearest first. Each entity is reported once. Use it when the first hit is not enough, for example for a shot that pierces."
+        },
+        {
+          "name": "overlapPoint",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "overlapPoint(point: Readonly<Vec2>): Entity[]"
+          ],
+          "summary": "Every entity with a collider that contains the point."
+        },
+        {
+          "name": "overlapCircle",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "overlapCircle(center: Readonly<Vec2>, radius: number): Entity[]"
+          ],
+          "summary": "Every entity with a collider, solid or trigger, that touches the circle."
+        }
+      ]
+    },
+    {
+      "name": "RaycastHit",
+      "summary": "What a ray hit. Returned by `Physics2D.raycast` and `Physics2D.raycastAll`.",
+      "typeParameters": "",
+      "definition": "",
+      "kind": "interface",
+      "members": [
+        {
+          "name": "entity",
+          "kind": "property",
+          "static": false,
+          "readonly": true,
+          "signatures": [
+            "entity: Entity"
+          ],
+          "summary": "The entity whose collider was hit."
+        },
+        {
+          "name": "point",
+          "kind": "property",
+          "static": false,
+          "readonly": true,
+          "signatures": [
+            "point: Vec2"
+          ],
+          "summary": "World-space point where the ray hit."
+        },
+        {
+          "name": "normal",
+          "kind": "property",
+          "static": false,
+          "readonly": true,
+          "signatures": [
+            "normal: Vec2"
+          ],
+          "summary": "Surface normal at the hit point."
+        },
+        {
+          "name": "distance",
+          "kind": "property",
+          "static": false,
+          "readonly": true,
+          "signatures": [
+            "distance: number"
+          ],
+          "summary": "Distance from the ray origin to the hit point."
+        }
+      ]
+    },
+    {
+      "name": "Rigidbody2D",
+      "summary": "Makes the entity a physics body.",
+      "typeParameters": "",
+      "definition": "",
+      "kind": "class",
+      "members": [
+        {
+          "name": "bodyType",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "bodyType: BodyType"
+          ],
+          "summary": "`dynamic` bodies are moved by forces and collisions, `kinematic` bodies move only by their velocity, and `static` bodies never move."
+        },
+        {
+          "name": "gravityScale",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "gravityScale: number"
+          ],
+          "summary": "How strongly gravity pulls on the body. 0 switches gravity off for it; a negative value makes it rise."
+        },
+        {
+          "name": "linearDamping",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "linearDamping: number"
+          ],
+          "summary": "Slows movement down over time, like air resistance. 0 never slows the body."
+        },
+        {
+          "name": "angularDamping",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "angularDamping: number"
+          ],
+          "summary": "Slows spinning down over time. 0 never slows the spin."
+        },
+        {
+          "name": "fixedRotation",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "fixedRotation: boolean"
+          ],
+          "summary": "Prevents collisions and torques from rotating the body."
+        },
+        {
+          "name": "continuous",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "continuous: boolean"
+          ],
+          "summary": "Enables continuous collision detection for fast-moving bodies."
+        },
+        {
+          "name": "initialVelocity",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "initialVelocity: Vec2"
+          ],
+          "summary": "The velocity the body starts with, in world units per second. It is applied once, when the rigidbody starts to exist; afterwards use `physics.setVelocity`."
+        },
+        {
+          "name": "initialAngularVelocity",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "initialAngularVelocity: number"
+          ],
+          "summary": "The spin the body starts with, in radians per second, counter-clockwise."
+        }
+      ]
+    },
+    {
+      "name": "SceneApi",
+      "summary": "The scene functions available to scripts as `this.scene`.",
+      "typeParameters": "",
+      "definition": "",
+      "kind": "class",
+      "members": [
+        {
+          "name": "name",
+          "kind": "property",
+          "static": false,
+          "readonly": true,
+          "signatures": [
+            "name: string"
+          ],
+          "summary": "The name of the scene that is running."
+        },
+        {
+          "name": "mainCamera",
+          "kind": "property",
+          "static": false,
+          "readonly": true,
+          "signatures": [
+            "mainCamera: Entity | null"
+          ],
+          "summary": "The entity whose camera the game is currently drawn from."
+        },
+        {
+          "name": "entities",
+          "kind": "property",
+          "static": false,
+          "readonly": true,
+          "signatures": [
+            "entities: Entity[]"
+          ],
+          "summary": "Every entity in the scene, parents before their children."
+        },
+        {
+          "name": "createEntity",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "createEntity(name?: string, parent?: Entity | null): Entity"
+          ],
+          "summary": "Adds a new, empty entity to the scene, optionally as a child of `parent`. Give it components with `addComponent`."
+        },
+        {
+          "name": "findByName",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "findByName(name: string): Entity | null"
+          ],
+          "summary": "The first entity with this name, or `null`."
+        },
+        {
+          "name": "findByTag",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "findByTag(tag: string): Entity[]"
+          ],
+          "summary": "Every entity with this tag, parents before their children."
+        },
+        {
+          "name": "load",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "load(scene: string): void"
+          ],
+          "summary": "Switches to another scene, by name or asset id, once the current frame has finished."
+        }
+      ]
+    },
+    {
+      "name": "ScriptBinding",
+      "summary": "One script attached to an entity, with the property values set in the inspector.",
+      "typeParameters": "",
+      "definition": "",
+      "kind": "interface",
+      "members": [
+        {
+          "name": "script",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "script: string | null"
+          ],
+          "summary": "Script asset id."
+        },
+        {
+          "name": "enabled",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "enabled: boolean"
+          ],
+          "summary": "Whether the script starts out enabled. A script that starts disabled is not started, and gets no callbacks, until its `enabled` is set to `true`."
+        },
+        {
+          "name": "properties",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "properties: Record<string, ScriptPropertyValue>"
+          ],
+          "summary": "The values set in the inspector, by property name. Vectors and colors are stored as arrays."
+        }
+      ]
+    },
+    {
+      "name": "ScriptComponent",
+      "summary": "Attaches behaviour scripts to an entity.",
+      "typeParameters": "",
+      "definition": "",
+      "kind": "class",
+      "members": [
+        {
+          "name": "scripts",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "scripts: ScriptBinding[]"
+          ],
+          "summary": "The scripts attached to the entity, in the order they run."
+        }
+      ]
+    },
+    {
+      "name": "ScriptLifecycle",
+      "summary": "The callbacks a script may define. All of them are optional; the engine calls the ones that exist. Implement this interface to have TypeScript check their signatures.",
+      "typeParameters": "",
+      "definition": "",
+      "kind": "interface",
+      "members": [
+        {
+          "name": "onStart",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "onStart?(): void"
+          ],
+          "summary": "Called once, before the script's first update."
+        },
+        {
+          "name": "onUpdate",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "onUpdate?(deltaTime: number): void"
+          ],
+          "summary": "Called every frame."
+        },
+        {
+          "name": "onFixedUpdate",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "onFixedUpdate?(fixedDeltaTime: number): void"
+          ],
+          "summary": "Called at the fixed physics rate, just before each physics step."
+        },
+        {
+          "name": "onLateUpdate",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "onLateUpdate?(deltaTime: number): void"
+          ],
+          "summary": "Called every frame after all `onUpdate` calls."
+        },
+        {
+          "name": "onDestroy",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "onDestroy?(): void"
+          ],
+          "summary": "Called when the entity is destroyed or the scene stops."
+        },
+        {
+          "name": "onCollisionEnter",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "onCollisionEnter?(collision: Collision): void"
+          ],
+          "summary": "Called when one of the entity's solid colliders starts touching another solid collider."
+        },
+        {
+          "name": "onCollisionExit",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "onCollisionExit?(other: Entity): void"
+          ],
+          "summary": "Called when the entity stops touching `other`."
+        },
+        {
+          "name": "onTriggerEnter",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "onTriggerEnter?(other: Entity): void"
+          ],
+          "summary": "Called when the entity starts overlapping `other` and at least one of the two colliders is a trigger."
+        },
+        {
+          "name": "onTriggerExit",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "onTriggerExit?(other: Entity): void"
+          ],
+          "summary": "Called when an overlap reported by `onTriggerEnter` ends."
+        }
+      ]
+    },
+    {
+      "name": "ScriptPropertyDefinition",
+      "summary": "Describes one script property that can be edited in the inspector. Scripts declare them in a static `properties` object keyed by field name.",
+      "typeParameters": "",
+      "definition": "",
+      "kind": "interface",
+      "members": [
+        {
+          "name": "type",
+          "kind": "property",
+          "static": false,
+          "readonly": true,
+          "signatures": [
+            "type: ScriptPropertyType"
+          ],
+          "summary": "What kind of value the property holds, which decides the control the inspector shows."
+        },
+        {
+          "name": "default",
+          "kind": "property",
+          "static": false,
+          "readonly": true,
+          "signatures": [
+            "default?: ScriptPropertyValue"
+          ],
+          "summary": "Value used when the inspector has not set one. Vectors and colors are arrays."
+        },
+        {
+          "name": "label",
+          "kind": "property",
+          "static": false,
+          "readonly": true,
+          "signatures": [
+            "label?: string"
+          ],
+          "summary": "The name shown in the inspector. Defaults to the property name in title case."
+        },
+        {
+          "name": "min",
+          "kind": "property",
+          "static": false,
+          "readonly": true,
+          "signatures": [
+            "min?: number"
+          ],
+          "summary": "The smallest value the inspector accepts, for `number` properties."
+        },
+        {
+          "name": "max",
+          "kind": "property",
+          "static": false,
+          "readonly": true,
+          "signatures": [
+            "max?: number"
+          ],
+          "summary": "The largest value the inspector accepts, for `number` properties."
+        },
+        {
+          "name": "step",
+          "kind": "property",
+          "static": false,
+          "readonly": true,
+          "signatures": [
+            "step?: number"
+          ],
+          "summary": "The amount the inspector's arrows change a `number` or `vec2` property by."
+        }
+      ]
+    },
+    {
+      "name": "ScriptPropertyDefinitions",
+      "summary": "The shape of a script's `static properties`: one definition for each property name.",
+      "typeParameters": "",
+      "definition": "Record<string, ScriptPropertyDefinition>",
+      "kind": "type",
+      "members": []
+    },
+    {
+      "name": "ScriptPropertyType",
+      "summary": "The kinds of property a script can declare in its `static properties`.",
+      "typeParameters": "",
+      "definition": "'string' | 'number' | 'boolean' | 'vec2' | 'color' | 'texture' | 'audio' | 'prefab'",
+      "kind": "type",
+      "members": []
+    },
+    {
+      "name": "ScriptPropertyValue",
+      "summary": "A value a script property can hold in a saved scene.",
+      "typeParameters": "",
+      "definition": "number | boolean | string | number[] | null",
+      "kind": "type",
+      "members": []
+    },
+    {
+      "name": "SpawnOptions",
+      "summary": "Where and how `Behaviour.instantiate` places the new entity. Every option can be left out.",
+      "typeParameters": "",
+      "definition": "",
+      "kind": "interface",
+      "members": [
+        {
+          "name": "position",
+          "kind": "property",
+          "static": false,
+          "readonly": true,
+          "signatures": [
+            "position?: Readonly<Vec2>"
+          ],
+          "summary": "World-space position of the new entity."
+        },
+        {
+          "name": "rotation",
+          "kind": "property",
+          "static": false,
+          "readonly": true,
+          "signatures": [
+            "rotation?: number"
+          ],
+          "summary": "World-space rotation in radians."
+        },
+        {
+          "name": "parent",
+          "kind": "property",
+          "static": false,
+          "readonly": true,
+          "signatures": [
+            "parent?: Entity | null"
+          ],
+          "summary": "The entity the new one becomes a child of. Without it the new entity is added at the top level of the scene."
+        },
+        {
+          "name": "name",
+          "kind": "property",
+          "static": false,
+          "readonly": true,
+          "signatures": [
+            "name?: string"
+          ],
+          "summary": "A name for the new entity. Defaults to the name stored in the prefab."
+        }
+      ]
+    },
+    {
+      "name": "SpriteRenderer",
+      "summary": "Draws a textured or solid-colored quad.",
+      "typeParameters": "",
+      "definition": "",
+      "kind": "class",
+      "members": [
+        {
+          "name": "texture",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "texture: string | null"
+          ],
+          "summary": "Texture asset id. Without a texture the sprite is a 1x1 unit square in `color`."
+        },
+        {
+          "name": "color",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "color: Color"
+          ],
+          "summary": "Tint multiplied with the texture."
+        },
+        {
+          "name": "flipX",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "flipX: boolean"
+          ],
+          "summary": "Mirrors the sprite horizontally."
+        },
+        {
+          "name": "flipY",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "flipY: boolean"
+          ],
+          "summary": "Mirrors the sprite vertically."
+        },
+        {
+          "name": "sortingOrder",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "sortingOrder: number"
+          ],
+          "summary": "Sprites with a higher order are drawn on top."
+        },
+        {
+          "name": "pixelsPerUnit",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "pixelsPerUnit: number"
+          ],
+          "summary": "How many texture pixels cover one world unit."
+        },
+        {
+          "name": "visible",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "visible: boolean"
+          ],
+          "summary": "A sprite that is not visible is not drawn. The rest of the entity keeps working."
+        }
+      ]
+    },
+    {
+      "name": "Time",
+      "summary": "Frame timing as seen by scripts (`this.time`). All durations are in seconds.",
+      "typeParameters": "",
+      "definition": "",
+      "kind": "class",
+      "members": [
+        {
+          "name": "deltaTime",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "deltaTime: number"
+          ],
+          "summary": "Time since the previous frame, scaled by `Time.timeScale`."
+        },
+        {
+          "name": "unscaledDeltaTime",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "unscaledDeltaTime: number"
+          ],
+          "summary": "Time since the previous frame, ignoring `Time.timeScale`."
+        },
+        {
+          "name": "fixedDeltaTime",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "fixedDeltaTime: number"
+          ],
+          "summary": "The fixed interval between physics steps and `onFixedUpdate` calls."
+        },
+        {
+          "name": "elapsed",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "elapsed: number"
+          ],
+          "summary": "Scaled time since the scene started."
+        },
+        {
+          "name": "frameCount",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "frameCount: number"
+          ],
+          "summary": "Number of frames since the scene started."
+        },
+        {
+          "name": "timeScale",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "timeScale: number"
+          ],
+          "summary": "Speed of game time. 1 is normal, 0.5 is slow motion, 0 freezes the game."
+        }
+      ]
+    },
+    {
+      "name": "Transform",
+      "summary": "Position, rotation and scale relative to the parent entity. Every entity has exactly one.",
+      "typeParameters": "",
+      "definition": "",
+      "kind": "class",
+      "members": [
+        {
+          "name": "position",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "position: Vec2"
+          ],
+          "summary": "Position relative to the parent, in world units. World Y points up."
+        },
+        {
+          "name": "rotation",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "rotation: number"
+          ],
+          "summary": "Counter-clockwise rotation in radians."
+        },
+        {
+          "name": "scale",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "scale: Vec2"
+          ],
+          "summary": "Scale relative to the parent. 1 is the original size; a negative value mirrors."
+        }
+      ]
+    },
+    {
+      "name": "Vec2",
+      "summary": "A mutable 2D vector. Methods that change the vector modify it in place and return `this` so calls can be chained; use `Vec2.clone` when a copy is needed.",
+      "typeParameters": "",
+      "definition": "",
+      "kind": "class",
+      "members": [
+        {
+          "name": "constructor",
+          "kind": "constructor",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "new Vec2(x?: number, y?: number)"
+          ],
+          "summary": "Creates a vector. Both components default to 0."
+        },
+        {
+          "name": "zero",
+          "kind": "method",
+          "static": true,
+          "readonly": false,
+          "signatures": [
+            "zero(): Vec2"
+          ],
+          "summary": "A new vector (0, 0)."
+        },
+        {
+          "name": "one",
+          "kind": "method",
+          "static": true,
+          "readonly": false,
+          "signatures": [
+            "one(): Vec2"
+          ],
+          "summary": "A new vector (1, 1)."
+        },
+        {
+          "name": "up",
+          "kind": "method",
+          "static": true,
+          "readonly": false,
+          "signatures": [
+            "up(): Vec2"
+          ],
+          "summary": "A new vector (0, 1), which is up in world space."
+        },
+        {
+          "name": "right",
+          "kind": "method",
+          "static": true,
+          "readonly": false,
+          "signatures": [
+            "right(): Vec2"
+          ],
+          "summary": "A new vector (1, 0)."
+        },
+        {
+          "name": "fromAngle",
+          "kind": "method",
+          "static": true,
+          "readonly": false,
+          "signatures": [
+            "fromAngle(radians: number): Vec2"
+          ],
+          "summary": "A unit vector pointing along `radians`, measured counter-clockwise from +X."
+        },
+        {
+          "name": "fromArray",
+          "kind": "method",
+          "static": true,
+          "readonly": false,
+          "signatures": [
+            "fromArray(values: readonly number[]): Vec2"
+          ],
+          "summary": "Creates a vector from `[x, y]`. Missing values default to 0."
+        },
+        {
+          "name": "x",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "x: number"
+          ],
+          "summary": "The horizontal component."
+        },
+        {
+          "name": "y",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "y: number"
+          ],
+          "summary": "The vertical component. In world space, Y points up."
+        },
+        {
+          "name": "set",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "set(x: number, y: number): Vec2"
+          ],
+          "summary": "Sets both components."
+        },
+        {
+          "name": "copy",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "copy(other: Readonly<Vec2>): Vec2"
+          ],
+          "summary": "Copies the components of another vector into this one."
+        },
+        {
+          "name": "clone",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "clone(): Vec2"
+          ],
+          "summary": "A new vector with the same components. Clone a vector before changing it when it belongs to something else."
+        },
+        {
+          "name": "add",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "add(other: Readonly<Vec2>): Vec2"
+          ],
+          "summary": "Adds another vector to this one."
+        },
+        {
+          "name": "sub",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "sub(other: Readonly<Vec2>): Vec2"
+          ],
+          "summary": "Subtracts another vector from this one."
+        },
+        {
+          "name": "scale",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "scale(scalar: number): Vec2"
+          ],
+          "summary": "Multiplies both components by a scalar."
+        },
+        {
+          "name": "multiply",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "multiply(other: Readonly<Vec2>): Vec2"
+          ],
+          "summary": "Component-wise multiplication."
+        },
+        {
+          "name": "negate",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "negate(): Vec2"
+          ],
+          "summary": "Reverses the direction of the vector."
+        },
+        {
+          "name": "dot",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "dot(other: Readonly<Vec2>): number"
+          ],
+          "summary": "The dot product: positive when the vectors point the same way, 0 when they are perpendicular."
+        },
+        {
+          "name": "cross",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "cross(other: Readonly<Vec2>): number"
+          ],
+          "summary": "The Z component of the 3D cross product, positive when `other` is counter-clockwise."
+        },
+        {
+          "name": "length",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "length(): number"
+          ],
+          "summary": "The length of the vector."
+        },
+        {
+          "name": "lengthSquared",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "lengthSquared(): number"
+          ],
+          "summary": "The length squared. It is cheaper to compute than the length and enough for comparing distances."
+        },
+        {
+          "name": "normalize",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "normalize(): Vec2"
+          ],
+          "summary": "Scales the vector to unit length. A zero vector is left unchanged."
+        },
+        {
+          "name": "distanceTo",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "distanceTo(other: Readonly<Vec2>): number"
+          ],
+          "summary": "The distance between this point and another."
+        },
+        {
+          "name": "angle",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "angle(): number"
+          ],
+          "summary": "The angle of the vector in radians, counter-clockwise from +X."
+        },
+        {
+          "name": "rotate",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "rotate(radians: number): Vec2"
+          ],
+          "summary": "Rotates the vector counter-clockwise around the origin."
+        },
+        {
+          "name": "lerp",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "lerp(target: Readonly<Vec2>, t: number): Vec2"
+          ],
+          "summary": "Moves the vector towards `target` by the fraction `t`."
+        },
+        {
+          "name": "equals",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "equals(other: Readonly<Vec2>, epsilon?: number): boolean"
+          ],
+          "summary": "True when both components are within `epsilon` of the other vector's."
+        },
+        {
+          "name": "toArray",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "toArray(): Vec2Tuple"
+          ],
+          "summary": "The components as `[x, y]`."
+        },
+        {
+          "name": "toString",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "toString(): string"
+          ],
+          "summary": "A readable form such as `Vec2(3, 4)`, handy for logging."
+        }
+      ]
+    },
+    {
+      "name": "Vec2Tuple",
+      "summary": "A vector written as an array, `[x, y]`. See `Vec2.toArray` and `Vec2.fromArray`.",
+      "typeParameters": "",
+      "definition": "[x: number, y: number]",
+      "kind": "type",
+      "members": []
+    }
+  ]
+}

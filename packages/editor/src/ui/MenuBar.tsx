@@ -97,6 +97,8 @@ export function MenuBar(): ReactElement {
       { label: 'New Scene…', onSelect: commands.createScene },
     ],
     Help: [
+      { label: 'Scripting Reference', shortcut: 'F1', onSelect: commands.openDocs },
+      'separator',
       { label: 'Open Feature Test Project', onSelect: commands.openFeatureTest },
       'separator',
       { label: 'About Rowan', onSelect: commands.showAbout },
