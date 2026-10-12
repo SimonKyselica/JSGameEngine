@@ -59,6 +59,13 @@ export class ScriptSystem {
   private timers: ScriptTimer[] = [];
   /** Scripts that failed to load or construct. Each one is reported only once. */
   private readonly failedScripts = new Set<string>();
+  /**
+   * Entities whose scripts are being destroyed at this moment, and whether all of them are.
+   * An `onDestroy` may ask for a script that has just been destroyed; it must find nothing,
+   * not a fresh instance that was constructed to answer the question.
+   */
+  private readonly goingDown = new Set<EntityId>();
+  private stopping = false;
   private readonly subscriptions: Unsubscribe[] = [];
   private readonly services: ScriptServices;
 
@@ -83,6 +90,7 @@ export class ScriptSystem {
 
   /** Instantiates the scripts already in the scene and calls their `onStart`. */
   start(): void {
+    this.stopping = false;
     this.subscriptions.push(
       this.scene.onEntityDestroyed.connect((entity) => this.destroyEntityInstances(entity.id)),
     );
@@ -95,6 +103,7 @@ export class ScriptSystem {
     for (const unsubscribe of this.subscriptions.splice(0)) {
       unsubscribe();
     }
+    this.stopping = true;
     for (const instance of this.instances) {
       this.destroyInstance(instance);
     }
@@ -258,6 +267,9 @@ export class ScriptSystem {
   }
 
   private createEntityInstances(entity: Entity): void {
+    if (this.stopping || this.goingDown.has(entity.id)) {
+      return;
+    }
     const component = entity.isValid ? entity.getComponent(ScriptComponent) : undefined;
     if (!component) {
       return;
@@ -314,8 +326,17 @@ export class ScriptSystem {
   }
 
   private destroyEntityInstances(id: EntityId): void {
-    for (const instance of [...(this.byEntity.get(id) ?? [])]) {
-      this.destroyInstance(instance);
+    // An onDestroy may destroy its own entity once more; the outer call finishes the job.
+    const nested = this.goingDown.has(id);
+    this.goingDown.add(id);
+    try {
+      for (const instance of [...(this.byEntity.get(id) ?? [])]) {
+        this.destroyInstance(instance);
+      }
+    } finally {
+      if (!nested) {
+        this.goingDown.delete(id);
+      }
     }
   }
 

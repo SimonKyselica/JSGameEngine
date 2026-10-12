@@ -608,6 +608,54 @@ describe('script API', () => {
     expect(game.messages()).toEqual(['5', 'true', 'undefined true']);
   });
 
+  it('does not bring a destroyed script back when another one asks for it while going down', async () => {
+    const globals = globalThis as Record<string, unknown>;
+    globals.__constructed = [];
+    const project = createTestProject((scene, { assets }) => {
+      const target = addScript(
+        assets,
+        'Target.ts',
+        `import { Behaviour } from 'rowan';
+         export default class Target extends Behaviour {
+           constructor() { super(); globalThis.__constructed.push('Target'); }
+           onDestroy() { this.log(this.entity.name + ': target destroyed'); }
+         }`,
+      );
+      const finder = addScript(
+        assets,
+        'Finder.ts',
+        `import { Behaviour } from 'rowan';
+         export default class Finder extends Behaviour {
+           static properties = { target: { type: 'string', default: '' } };
+           target = '';
+           onDestroy() {
+             const entity = this.target === '' ? this.entity : this.scene.findByName(this.target);
+             const found = this.getScript('Target', entity);
+             this.log(this.entity.name + ': finds ' + (found === undefined ? 'nothing' : 'a script'));
+           }
+         }`,
+      );
+      // Scripts are destroyed in the order they were created, so each Target goes first.
+      attachScript(scene.createEntity('Far'), target);
+      attachScript(scene.createEntity('Watcher'), finder, { target: 'Far' });
+      const both = scene.createEntity('Both');
+      attachScript(both, target);
+      attachScript(both, finder);
+    });
+    const game = await startTestGame(project);
+    game.step();
+    expect(globals.__constructed).toEqual(['Target', 'Target']);
+
+    // One entity is destroyed with both of its scripts; then the scene stops.
+    game.game.scene.findByName('Both')!.destroy();
+    expect(game.messages()).toEqual(['Both: target destroyed', 'Both: finds nothing']);
+    game.game.stop();
+    expect(game.messages().slice(2)).toEqual(['Far: target destroyed', 'Watcher: finds nothing']);
+    // Nothing was constructed again to answer those questions.
+    expect(globals.__constructed).toEqual(['Target', 'Target']);
+    delete globals.__constructed;
+  });
+
   it('instantiates prefabs whose scripts can be configured immediately', async () => {
     const project = createTestProject((scene, project) => {
       const { assets } = project;

@@ -200,7 +200,9 @@ export abstract class Behaviour {
 
   /**
    * Finds another script by class or by name, on this entity or on `entity`.
-   * Scripts created this frame are available right away.
+   * Scripts created this frame are available right away. A script that has been destroyed is
+   * not found any more, which matters in `onDestroy`: when a scene ends, the script you ask
+   * for may already be gone. Keep a reference from `onStart` if you need it then.
    */
   getScript<T extends Behaviour>(
     type: BehaviourClass<T> | string,
