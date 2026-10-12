@@ -76,6 +76,9 @@ test.describe('scripting documentation', () => {
 
     await after.locator('.docs-signature').getByRole('link', { name: 'CancelTimer' }).click();
     await expect(page).toHaveURL(/#\/api\/CancelTimer$/);
+    // The address changes before the page is drawn again, so wait for the new page itself:
+    // until then the locator below would still match every signature of the old one.
+    await expect(page.getByRole('heading', { level: 1 })).toContainText('CancelTimer');
     await expect(page.locator('.docs-signature')).toHaveText('type CancelTimer = () => void');
   });
 
