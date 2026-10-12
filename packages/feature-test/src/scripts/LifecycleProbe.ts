@@ -4,8 +4,8 @@ import { harnessOf } from './support';
 import type TestHarness from './TestHarness';
 
 /**
- * Exercises the lifecycle callbacks, frame timing, enabling and disabling scripts, and
- * attaching a script to an entity while the game runs.
+ * Exercises the lifecycle callbacks, frame timing, timers, enabling and disabling scripts,
+ * and attaching a script to an entity while the game runs.
  *
  * Expects an entity "Counter" with the Counter script.
  */
@@ -16,6 +16,7 @@ export default class LifecycleProbe extends Behaviour implements ScriptLifecycle
   private countWhenDisabled = 0;
   private elapsedBefore = 0;
   private sawFirstUpdate = false;
+  private cancelledFired = false;
 
   onStart(): void {
     this.test = harnessOf(this);
@@ -25,6 +26,8 @@ export default class LifecycleProbe extends Behaviour implements ScriptLifecycle
     const counterEntity = this.scene.findByName('Counter');
     this.counter = this.getScript(Counter, counterEntity ?? undefined)!;
     this.test.check('Behaviour.getScript on another entity', this.counter instanceof Counter);
+
+    this.startTimers();
 
     this.test.expectLater('onDestroy runs when an entity is destroyed');
     this.test.expectLater('a script attached at runtime starts');
@@ -113,6 +116,36 @@ export default class LifecycleProbe extends Behaviour implements ScriptLifecycle
         this.order.join(),
       );
     }
+  }
+
+  /** Starts a one-shot timer, a repeating timer that cancels itself, and one cancelled at once. */
+  private startTimers(): void {
+    const { test, time } = this;
+    test.expectLater('Behaviour.after calls back once its time has passed');
+    test.expectLater('Behaviour.every repeats until it is cancelled');
+
+    this.after(0.1, () => {
+      test.check('Behaviour.after waits for its time', time.elapsed >= 0.1);
+      test.pass('Behaviour.after calls back once its time has passed');
+    });
+
+    let ticks = 0;
+    const cancelRepeating = this.every(0.05, () => {
+      ticks++;
+      if (ticks === 3) {
+        cancelRepeating();
+        test.check('Behaviour.every keeps its interval', time.elapsed >= 0.15);
+        this.after(0.2, () => {
+          test.check('a cancelled timer stops calling back', ticks === 3 && !this.cancelledFired);
+          test.pass('Behaviour.every repeats until it is cancelled');
+        });
+      }
+    });
+
+    const cancelAtOnce = this.after(0.01, () => {
+      this.cancelledFired = true;
+    });
+    cancelAtOnce();
   }
 
   /** Adds the DestroyReporter script to a new entity, then destroys that entity. */

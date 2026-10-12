@@ -282,6 +282,190 @@ describe('ScriptSystem error handling', () => {
   });
 });
 
+describe('script timers', () => {
+  /** Builds a game with one script whose body is the given class members. */
+  async function startWith(members: string): Promise<Awaited<ReturnType<typeof startTestGame>>> {
+    const project = createTestProject((scene, { assets }) => {
+      const script = addScript(
+        assets,
+        'Timed.ts',
+        `import { Behaviour } from 'rowan';
+         export default class Timed extends Behaviour { ${members} }`,
+      );
+      attachScript(scene.createEntity('Clock'), script);
+    });
+    return startTestGame(project);
+  }
+
+  /** The frames in which the script logged "tick", with frames starting at 1. */
+  function tickFrames(game: Awaited<ReturnType<typeof startTestGame>>, frames: number): number[] {
+    const result: number[] = [];
+    for (let frame = 1; frame <= frames; frame++) {
+      const before = game.logs.length;
+      game.step();
+      if (game.logs.slice(before).some((entry) => entry.message === 'tick')) {
+        result.push(frame);
+      }
+    }
+    return result;
+  }
+
+  it('calls back once, in the first frame after the time has passed', async () => {
+    const game = await startWith(`onStart() { this.after(0.04, () => this.log('tick')); }`);
+    // 0.04 seconds is 2.4 frames, so the third frame is the first one past it.
+    expect(tickFrames(game, 10)).toEqual([3]);
+  });
+
+  it('repeats at its interval without drifting', async () => {
+    const game = await startWith(`onStart() { this.every(0.04, () => this.log('tick')); }`);
+    // Due at 0.04, 0.08, 0.12 and 0.16 seconds: frames 2.4, 4.8, 7.2 and 9.6.
+    expect(tickFrames(game, 10)).toEqual([3, 5, 8, 10]);
+  });
+
+  it('catches up within a frame that is longer than the interval', async () => {
+    const game = await startWith(
+      `count = 0; onStart() { this.every(0.03, () => { this.count++; }); }
+       onLateUpdate() { this.log(this.count); }`,
+    );
+    game.game.update(0.1);
+    expect(game.messages()).toEqual(['3']);
+  });
+
+  it('counts the time from the call, not from the start of the frame', async () => {
+    const game = await startWith(
+      `onUpdate() { if (this.time.frameCount === 2) this.after(0.1, () => this.log('tick')); }`,
+    );
+    game.game.update(0.2);
+    game.game.update(0.2);
+    // The 0.2 seconds of the second frame had passed before the timer was started.
+    expect(game.messages()).toEqual([]);
+    game.game.update(0.2);
+    expect(game.messages()).toEqual(['tick']);
+  });
+
+  it('fires a zero-delay timer in the same frame, after the updates', async () => {
+    const game = await startWith(
+      `onUpdate() {
+         if (this.time.frameCount === 1) this.after(0, () => this.log('timer'));
+         this.log('update');
+       }
+       onLateUpdate() { this.log('late'); }`,
+    );
+    game.step();
+    expect(game.messages()).toEqual(['update', 'timer', 'late']);
+  });
+
+  it('stops when cancelled, also from inside its own callback', async () => {
+    const game = await startWith(
+      `count = 0;
+       onStart() {
+         const never = this.after(0.01, () => this.log('never'));
+         never();
+         never();
+         const cancel = this.every(0.02, () => {
+           this.count++;
+           this.log('tick');
+           if (this.count === 2) cancel();
+         });
+       }`,
+    );
+    game.step(20);
+    expect(game.messages()).toEqual(['tick', 'tick']);
+  });
+
+  it('lets a timer callback start another timer, which waits for a later frame', async () => {
+    const game = await startWith(
+      `onStart() { this.after(0.01, () => { this.log('tick'); this.after(0, () => this.log('tick')); }); }`,
+    );
+    expect(tickFrames(game, 4)).toEqual([1, 2]);
+  });
+
+  it('follows the time scale', async () => {
+    const game = await startWith(`onStart() { this.after(0.04, () => this.log('tick')); }`);
+    game.game.time.timeScale = 0;
+    expect(tickFrames(game, 10)).toEqual([]);
+    game.game.time.timeScale = 0.5;
+    // At half speed the 2.4 frames of waiting take 4.8 frames.
+    expect(tickFrames(game, 10)).toEqual([5]);
+  });
+
+  it('pauses while the script is disabled or its entity inactive, keeping the time left', async () => {
+    const game = await startWith(`onStart() { this.after(0.04, () => this.log('tick')); }`);
+    const { scene, sceneRuntime } = game.game;
+    const clock = scene.findByName('Clock')!;
+    const script = sceneRuntime.scripts.getScripts(clock)[0]!;
+
+    game.step(); // one of the 2.4 frames has passed
+    script.enabled = false;
+    expect(tickFrames(game, 5)).toEqual([]);
+    script.enabled = true;
+    clock.active = false;
+    expect(tickFrames(game, 5)).toEqual([]);
+    clock.active = true;
+    // 1.4 frames are left, so it fires in the second frame after resuming.
+    expect(tickFrames(game, 5)).toEqual([2]);
+  });
+
+  it('is cancelled when the entity is destroyed or the scene stops', async () => {
+    const game = await startWith(`onStart() { this.every(0.02, () => this.log('tick')); }`);
+    game.step(3);
+    const ticks = game.messages().length;
+    expect(ticks).toBeGreaterThan(0);
+    game.game.scene.findByName('Clock')!.destroy();
+    game.step(10);
+    expect(game.messages()).toHaveLength(ticks);
+
+    const stopped = await startWith(`onStart() { this.every(0.02, () => this.log('tick')); }`);
+    stopped.game.stop();
+    expect(stopped.messages()).toEqual([]);
+  });
+
+  it('stops repeating when its own callback destroys the entity', async () => {
+    const game = await startWith(
+      `onStart() { this.every(0.01, () => { this.log('tick'); this.entity.destroy(); }); }`,
+    );
+    game.game.update(0.1);
+    game.step(3);
+    expect(game.messages()).toEqual(['tick']);
+  });
+
+  it('logs a failing callback and keeps the timer and the game running', async () => {
+    const game = await startWith(
+      `onStart() {
+         this.every(0.02, () => { throw new Error('bad timer'); });
+         this.after(0.04, () => this.log('still here'));
+       }`,
+    );
+    game.step(3);
+    // Due at 0.02 and 0.04 seconds: it fails in frame 2, and again in frame 3.
+    const failure = { message: 'A timer failed on "Clock": bad timer', source: 'Timed' };
+    expect(game.logs.filter((entry) => entry.level === 'error')).toMatchObject([failure, failure]);
+    expect(game.messages()).toContain('still here');
+  });
+
+  it.each([
+    ['this.after(-1, () => {})', 'A timer needs a time of zero or more seconds, but got -1'],
+    ['this.after(NaN, () => {})', 'A timer needs a time of zero or more seconds, but got NaN'],
+    ['this.every(0, () => {})', 'every() needs an interval of at least 0.001 seconds, but got 0'],
+    ['this.after(1, "soon")', 'A timer needs a function to call'],
+  ])('rejects %s with an explanation', async (call, message) => {
+    const game = await startWith(`onStart() { ${call}; }`);
+    expect(game.messages()).toEqual([expect.stringContaining(message)]);
+    expect(game.messages()[0]).toContain('onStart failed on "Clock"');
+  });
+
+  it('cannot be started by a script whose entity is gone', async () => {
+    const game = await startWith(`onUpdate() {}`);
+    const { scene, sceneRuntime } = game.game;
+    const clock = scene.findByName('Clock')!;
+    const script = sceneRuntime.scripts.getScripts(clock)[0]!;
+    clock.destroy();
+    expect(() => script.after(1, () => {})).toThrow(
+      'A timer can only be started by a script on a living entity',
+    );
+  });
+});
+
 describe('script API', () => {
   it('gives access to the entity and its components', async () => {
     const project = createTestProject((scene, { assets }) => {

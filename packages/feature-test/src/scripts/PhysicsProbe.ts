@@ -15,7 +15,7 @@ import type TestHarness from './TestHarness';
  *
  * Expects to sit on "Crate", a dynamic 1x1 box at (-6, 0) above the static "Ground".
  * It also drives "Floater" (dynamic, no gravity), "Platform" (kinematic) and "Wall"
- * (a static 1x1 box at (9, 0)). Everything runs in fixed updates, so the sequence is
+ * (a static 1x1 box at (9, 0)), and inspects "Launched", which has an initial velocity. Everything runs in fixed updates, so the sequence is
  * the same on every machine.
  */
 export default class PhysicsProbe extends Behaviour implements ScriptLifecycle {
@@ -81,6 +81,40 @@ export default class PhysicsProbe extends Behaviour implements ScriptLifecycle {
       'Physics2D.overlapPoint',
       physics.overlapPoint(new Vec2(-6, 0)).includes(entity) &&
         physics.overlapPoint(new Vec2(9, 1.5)).length === 0,
+    );
+
+    // Straight down from above the crate: the crate first, then the ground beneath it.
+    const hits = physics.raycastAll(new Vec2(-6, 5), new Vec2(0, -1));
+    test.check(
+      'Physics2D.raycastAll reports every collider, nearest first',
+      hits.length === 2 &&
+        hits[0]?.entity === entity &&
+        hits[1]?.entity.name === 'Ground' &&
+        hits[0].distance < hits[1].distance,
+    );
+    const nearby = physics.overlapCircle(new Vec2(-6, 0), 1);
+    test.check(
+      'Physics2D.overlapCircle finds the colliders within reach',
+      nearby.length === 1 &&
+        nearby[0] === entity &&
+        physics.overlapCircle(new Vec2(-6, 0), 3).length === 2 &&
+        physics.overlapCircle(new Vec2(-6, 3), 1).length === 0,
+    );
+
+    test.check(
+      'a Rigidbody2D starts at rest by default',
+      body.initialVelocity.equals(Vec2.zero()) && body.initialAngularVelocity === 0,
+    );
+    const launched = this.find('Launched');
+    const launchedBody = launched.requireComponent(Rigidbody2D);
+    test.check(
+      'Rigidbody2D.initialVelocity starts a body moving',
+      launchedBody.initialVelocity.equals(new Vec2(0, 2)) &&
+        physics.getVelocity(launched).equals(new Vec2(0, 2)),
+    );
+    test.check(
+      'Rigidbody2D.initialAngularVelocity starts a body spinning',
+      launchedBody.initialAngularVelocity === 1 && physics.getAngularVelocity(launched) === 1,
     );
 
     test.expectLater('onCollisionEnter reports the other entity and the contact');

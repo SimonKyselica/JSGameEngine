@@ -80,6 +80,39 @@ describe('Scene entities', () => {
     );
   });
 
+  it('finds a descendant by name in hierarchy order', () => {
+    const scene = new Scene();
+    const root = scene.createEntity('Root');
+    const arm = scene.createEntity('Arm', { parent: root });
+    const handOnArm = scene.createEntity('Hand', { parent: arm });
+    const leg = scene.createEntity('Leg', { parent: root });
+    scene.createEntity('Hand', { parent: root });
+
+    // The arm's subtree is listed before the later sibling that is also called "Hand".
+    expect(root.findChild('Hand')).toBe(handOnArm);
+    expect(root.findChild('Leg')).toBe(leg);
+    expect(root.findChild('Root')).toBeNull();
+    expect(leg.findChild('Hand')).toBeNull();
+  });
+
+  it('finds a component on the entity itself, then on descendants or ancestors', () => {
+    const scene = new Scene();
+    const root = scene.createEntity('Root');
+    const rootSprite = root.addComponent(SpriteRenderer);
+    const middle = scene.createEntity('Middle', { parent: root });
+    const first = scene.createEntity('First', { parent: middle });
+    const firstCamera = first.addComponent(Camera);
+    scene.createEntity('Second', { parent: middle }).addComponent(Camera);
+
+    expect(root.getComponentInChildren(SpriteRenderer)).toBe(rootSprite);
+    expect(root.getComponentInChildren(Camera)).toBe(firstCamera);
+    expect(first.getComponentInChildren(SpriteRenderer)).toBeUndefined();
+
+    expect(first.getComponentInParent(Camera)).toBe(firstCamera);
+    expect(first.getComponentInParent(SpriteRenderer)).toBe(rootSprite);
+    expect(root.getComponentInParent(Camera)).toBeUndefined();
+  });
+
   it('protects the built-in components from removal', () => {
     const entity = new Scene().createEntity();
     expect(() => entity.removeComponent(Transform)).toThrow(RowanError);

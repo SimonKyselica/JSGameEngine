@@ -7,7 +7,7 @@ import type { Vec2 } from '../math/vec2';
 import type { Physics2D } from '../physics/physicsSystem';
 import type { Entity } from '../scene/entity';
 import type { Scene } from '../scene/scene';
-import type { Behaviour, BehaviourClass } from './behaviour';
+import type { Behaviour, BehaviourClass, CancelTimer } from './behaviour';
 
 /** Frame timing as seen by scripts (`this.time`). All durations are in seconds. */
 export class Time {
@@ -112,4 +112,11 @@ export interface ScriptServices {
   instantiate(prefab: string, options?: SpawnOptions): Entity;
   destroy(entity: Entity, delaySeconds: number): void;
   getScript<T extends Behaviour>(entity: Entity, type: BehaviourClass<T> | string): T | undefined;
+  /** Starts a one-shot or repeating timer that belongs to a script. */
+  startTimer(
+    behaviour: Behaviour,
+    seconds: number,
+    repeat: boolean,
+    callback: () => void,
+  ): CancelTimer;
 }

@@ -15,6 +15,7 @@ import {
   ScriptComponent,
   serializeScene,
   SpriteRenderer,
+  Vec2,
   type Entity,
   type ScriptPropertyValue,
 } from '@rowan/core';
@@ -182,6 +183,13 @@ export function createFeatureTestProject(): Project {
   const platform = box(at('Platform', 7, -3), 1.5, 0.5, new Color(0.9, 0.9, 0.9, 1));
   platform.addComponent(Rigidbody2D, { bodyType: 'kinematic' });
   box(at('Wall', 9, 0), 1, 1, new Color(0.5, 0.5, 0.55, 1));
+  // Starts out moving and spinning, in a corner where nothing is in its way.
+  const launched = box(at('Launched', -9.5, -5), 0.5, 0.5, new Color(1, 0.8, 0.3, 1));
+  launched.addComponent(Rigidbody2D, {
+    gravityScale: 0,
+    initialVelocity: new Vec2(0, 2),
+    initialAngularVelocity: 1,
+  });
 
   at('Music', 0, 0).addComponent(AudioSource, { clip: music, loop: true, volume: 0.5 });
   const sfx = at('Sfx', 0, 0);

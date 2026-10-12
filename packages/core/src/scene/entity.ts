@@ -119,6 +119,46 @@ export class Entity {
     return this.scene.registry.has(this.id, type);
   }
 
+  /**
+   * The first descendant with this name, or `null`. Descendants are searched in hierarchy
+   * order, the order the editor lists them in: each child, then that child's own children.
+   */
+  findChild(name: string): Entity | null {
+    for (const child of this.children) {
+      if (child.name === name) {
+        return child;
+      }
+      const found = child.findChild(name);
+      if (found) {
+        return found;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * The component of this type on this entity or, failing that, on its first descendant
+   * that has one, searched in hierarchy order.
+   */
+  getComponentInChildren<T extends object>(type: ComponentClass<T>): T | undefined {
+    const own = this.getComponent(type);
+    if (own !== undefined) {
+      return own;
+    }
+    for (const child of this.children) {
+      const found = child.getComponentInChildren(type);
+      if (found !== undefined) {
+        return found;
+      }
+    }
+    return undefined;
+  }
+
+  /** The component of this type on this entity or, failing that, on its nearest ancestor. */
+  getComponentInParent<T extends object>(type: ComponentClass<T>): T | undefined {
+    return this.getComponent(type) ?? this.parent?.getComponentInParent(type);
+  }
+
   /** Detaches a component. Returns `false` when the entity did not have one. */
   removeComponent(type: ComponentClass): boolean {
     if (type === Hierarchy) {

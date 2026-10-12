@@ -418,6 +418,176 @@ describe('PhysicsSystem queries', () => {
   });
 });
 
+describe('PhysicsSystem area queries', () => {
+  it('finds the colliders a circle touches, triggers included', () => {
+    const { scene, physics, simulate } = createWorld(new Vec2());
+    const near = addBox(scene, 'Near', 1, 0, false);
+    const trigger = addBox(scene, 'Trigger', -1, 0, false);
+    trigger.requireComponent(BoxCollider2D).isTrigger = true;
+    addBox(scene, 'Far', 5, 0, false);
+    simulate(STEP);
+
+    expect(new Set(physics.overlapCircle(new Vec2(0, 0), 0.6))).toEqual(new Set([near, trigger]));
+    expect(physics.overlapCircle(new Vec2(0, 0), 0.4)).toEqual([]);
+    expect(physics.overlapCircle(new Vec2(0, 0), 10)).toHaveLength(3);
+  });
+
+  it('tests the real shapes, not just their bounding boxes', () => {
+    const { scene, physics, simulate } = createWorld(new Vec2());
+    const box = addBox(scene, 'Box', 0, 0, false);
+    const disc = scene.createEntity('Disc');
+    disc.transform.position.set(10, 0);
+    disc.addComponent(CircleCollider2D, { radius: 1 });
+    simulate(STEP);
+
+    // The circle's bounding box overlaps the box, but the circle stops short of its corner.
+    expect(physics.overlapCircle(new Vec2(1.2, 1.2), 0.9)).toEqual([]);
+    expect(physics.overlapCircle(new Vec2(1.2, 1.2), 1.1)).toEqual([box]);
+    // Circle against circle: 0.2 apart diagonally at this distance.
+    expect(physics.overlapCircle(new Vec2(11.5, 1.5), 1)).toEqual([]);
+    expect(physics.overlapCircle(new Vec2(11.5, 1.5), 1.2)).toEqual([disc]);
+  });
+
+  it('reports an entity with two colliders once, and nothing for an unusable radius', () => {
+    const { scene, physics, simulate } = createWorld(new Vec2());
+    const both = addBox(scene, 'Both', 0, 0, false);
+    both.addComponent(CircleCollider2D, { radius: 2 });
+    simulate(STEP);
+    expect(physics.overlapCircle(new Vec2(0, 0), 1)).toEqual([both]);
+    expect(physics.overlapCircle(new Vec2(0, 0), 0)).toEqual([]);
+    expect(physics.overlapCircle(new Vec2(0, 0), -1)).toEqual([]);
+    expect(physics.overlapCircle(new Vec2(0, 0), Number.NaN)).toEqual([]);
+    expect(physics.overlapCircle(new Vec2(0, 0), Infinity)).toEqual([]);
+  });
+
+  it('casts a ray through everything, nearest first', () => {
+    const { scene, physics, simulate } = createWorld(new Vec2());
+    const far = addBox(scene, 'Far', 9, 0, false);
+    const near = addBox(scene, 'Near', 3, 0, false);
+    const middle = addBox(scene, 'Middle', 6, 0, false);
+    addBox(scene, 'Behind', -3, 0, false);
+    simulate(STEP);
+
+    const hits = physics.raycastAll(new Vec2(0, 0), new Vec2(5, 0));
+    expect(hits.map((hit) => hit.entity)).toEqual([near, middle, far]);
+    expect(hits.map((hit) => hit.distance)).toEqual([
+      expect.closeTo(2.5),
+      expect.closeTo(5.5),
+      expect.closeTo(8.5),
+    ]);
+    expect(hits[0]!.point.equals(new Vec2(2.5, 0), 1e-3)).toBe(true);
+    expect(hits[0]!.normal.equals(new Vec2(-1, 0), 1e-3)).toBe(true);
+    expect(physics.raycastAll(new Vec2(0, 0), new Vec2(1, 0), 6).map((hit) => hit.entity)).toEqual([
+      near,
+      middle,
+    ]);
+  });
+
+  it('skips triggers unless asked, and reports each entity at its nearest collider', () => {
+    const { scene, physics, simulate } = createWorld(new Vec2());
+    const trigger = addBox(scene, 'Trigger', 2, 0, false);
+    trigger.requireComponent(BoxCollider2D).isTrigger = true;
+    const compound = addBox(scene, 'Compound', 6, 0, false);
+    compound.addComponent(CircleCollider2D, { radius: 2 });
+    simulate(STEP);
+
+    const solid = physics.raycastAll(new Vec2(0, 0), new Vec2(1, 0));
+    expect(solid.map((hit) => hit.entity)).toEqual([compound]);
+    // The circle of radius 2 is hit before the box inside it.
+    expect(solid[0]!.distance).toBeCloseTo(4);
+    expect(
+      physics.raycastAll(new Vec2(0, 0), new Vec2(1, 0), 100, true).map((hit) => hit.entity),
+    ).toEqual([trigger, compound]);
+  });
+
+  it('returns no hits for a ray without direction or length', () => {
+    const { scene, physics, simulate } = createWorld(new Vec2());
+    addBox(scene, 'Target', 3, 0, false);
+    simulate(STEP);
+    expect(physics.raycastAll(new Vec2(), new Vec2(0, 0))).toEqual([]);
+    expect(physics.raycastAll(new Vec2(), new Vec2(1, 0), 0)).toEqual([]);
+    expect(physics.raycastAll(new Vec2(), new Vec2(1, 0), Infinity)).toEqual([]);
+    expect(physics.raycastAll(new Vec2(), new Vec2(0, 1))).toEqual([]);
+  });
+});
+
+describe('PhysicsSystem initial velocity', () => {
+  it('starts a body with the velocity and spin its Rigidbody2D asks for', () => {
+    const { scene, physics, simulate } = createWorld(new Vec2());
+    const shot = addBox(scene, 'Shot', 0, 0, false);
+    shot.addComponent(Rigidbody2D, {
+      initialVelocity: new Vec2(3, -2),
+      initialAngularVelocity: 2,
+      angularDamping: 0,
+    });
+    simulate(1);
+    expect(shot.transform.position.x).toBeCloseTo(3, 1);
+    expect(shot.transform.position.y).toBeCloseTo(-2, 1);
+    expect(shot.transform.rotation).toBeCloseTo(2, 1);
+    expect(physics.getLinearVelocity(shot).toArray()).toEqual([3, -2]);
+  });
+
+  it('applies to bodies created while the game runs, before their first step', () => {
+    const { scene, physics, simulate } = createWorld(new Vec2());
+    simulate(STEP);
+    const spawned = addBox(scene, 'Spawned', 0, 0, false);
+    spawned.addComponent(Rigidbody2D, { initialVelocity: new Vec2(0, 4) });
+    expect(physics.getLinearVelocity(spawned).toArray()).toEqual([0, 4]);
+  });
+
+  it('moves kinematic bodies and leaves static ones alone', () => {
+    const { scene, simulate } = createWorld(new Vec2());
+    const kinematic = addBox(scene, 'Kinematic', 0, 0, false);
+    kinematic.addComponent(Rigidbody2D, {
+      bodyType: 'kinematic',
+      initialVelocity: new Vec2(2, 0),
+    });
+    const fixed = addBox(scene, 'Static', 0, 5, false);
+    fixed.addComponent(Rigidbody2D, { bodyType: 'static', initialVelocity: new Vec2(2, 0) });
+    simulate(1);
+    expect(kinematic.transform.position.x).toBeCloseTo(2, 1);
+    expect(fixed.transform.position.toArray()).toEqual([0, 5]);
+  });
+
+  it('is applied once: changing it later does not push the body again', () => {
+    const { scene, physics, simulate } = createWorld(new Vec2());
+    const body = addBox(scene, 'Body', 0, 0, false);
+    const rigidbody = body.addComponent(Rigidbody2D, { initialVelocity: new Vec2(1, 0) });
+    simulate(STEP);
+    rigidbody.initialVelocity.set(50, 0);
+    simulate(STEP);
+    expect(physics.getLinearVelocity(body).x).toBeCloseTo(1);
+  });
+
+  it('applies when a rigidbody is added to an entity that only had a collider', () => {
+    const { scene, physics, simulate } = createWorld(new Vec2());
+    const wall = addBox(scene, 'Wall', 0, 0, false);
+    simulate(STEP);
+    wall.addComponent(Rigidbody2D, { initialVelocity: new Vec2(0, 3) });
+    simulate(STEP);
+    expect(physics.getLinearVelocity(wall).y).toBeCloseTo(3);
+
+    // Removing the rigidbody and adding a new one launches the body again.
+    wall.removeComponent(Rigidbody2D);
+    simulate(STEP);
+    wall.addComponent(Rigidbody2D, { initialVelocity: new Vec2(-2, 0) });
+    simulate(STEP);
+    expect(physics.getLinearVelocity(wall).x).toBeCloseTo(-2);
+  });
+
+  it('ignores values that are not finite', () => {
+    const { scene, physics, simulate } = createWorld(new Vec2());
+    const body = addBox(scene, 'Body', 0, 0, false);
+    body.addComponent(Rigidbody2D, {
+      initialVelocity: new Vec2(Number.NaN, 1),
+      initialAngularVelocity: Infinity,
+    });
+    simulate(0.5);
+    expect(body.transform.position.toArray()).toEqual([0, 0]);
+    expect(physics.getAngularVelocity(body)).toBe(0);
+  });
+});
+
 describe('PhysicsSystem contacts', () => {
   it('reports collisions to both entities with opposite normals', () => {
     const { scene, simulate } = createWorld();
@@ -507,5 +677,11 @@ describe('Physics2D', () => {
     expect(api.raycast(new Vec2(0, 5), new Vec2(1, 0))).toBeNull();
     expect(api.raycast(new Vec2(2, 0), new Vec2(1, 0), 10)?.entity).toBe(wall);
     expect(api.overlapPoint(new Vec2(5, 0))).toEqual([wall]);
+    expect(api.overlapCircle(new Vec2(5, 0), 0.5)).toEqual([wall]);
+    expect(api.overlapCircle(new Vec2(5, 5), 0.5)).toEqual([]);
+    expect(api.raycastAll(new Vec2(2, 0), new Vec2(1, 0), 10).map((hit) => hit.entity)).toEqual([
+      wall,
+    ]);
+    expect(api.raycastAll(new Vec2(2, 0), new Vec2(1, 0), 1)).toEqual([]);
   });
 });

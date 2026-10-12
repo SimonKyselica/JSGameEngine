@@ -124,6 +124,8 @@ export class Rigidbody2D {
       angularDamping: { type: 'number', min: 0 },
       fixedRotation: { type: 'boolean' },
       continuous: { type: 'boolean', label: 'Continuous Collision' },
+      initialVelocity: { type: 'vec2' },
+      initialAngularVelocity: { type: 'angle' },
     },
   };
 
@@ -135,6 +137,13 @@ export class Rigidbody2D {
   fixedRotation = false;
   /** Enables continuous collision detection for fast-moving bodies. */
   continuous = false;
+  /**
+   * The velocity the body starts with, in world units per second. It is applied once,
+   * when the rigidbody starts to exist; afterwards use `physics.setVelocity`.
+   */
+  initialVelocity = new Vec2(0, 0);
+  /** The spin the body starts with, in radians per second, counter-clockwise. */
+  initialAngularVelocity = 0;
 }
 
 /** A box collision shape. Without a {@link Rigidbody2D} the entity acts as a static body. */

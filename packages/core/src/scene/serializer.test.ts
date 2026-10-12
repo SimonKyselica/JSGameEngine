@@ -52,7 +52,13 @@ function createFullScene(): Scene {
     sortingOrder: 4,
     pixelsPerUnit: 32,
   });
-  player.addComponent(Rigidbody2D, { bodyType: 'kinematic', gravityScale: 0, continuous: true });
+  player.addComponent(Rigidbody2D, {
+    bodyType: 'kinematic',
+    gravityScale: 0,
+    continuous: true,
+    initialVelocity: new Vec2(3, -1),
+    initialAngularVelocity: 0.5,
+  });
   player.addComponent(BoxCollider2D, { size: new Vec2(2, 1), offset: new Vec2(0, 0.5) });
   player.addComponent(CircleCollider2D, { radius: 0.25, isTrigger: true });
   player.addComponent(AudioSource, { clip: 'clip-id', volume: 0.5, loop: true });

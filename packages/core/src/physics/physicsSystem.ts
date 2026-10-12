@@ -1,4 +1,13 @@
-import { BoxShape, CircleShape, World, type Body, type Contact, type Fixture } from 'planck';
+import {
+  BoxShape,
+  CircleShape,
+  testOverlap,
+  Transform as PlanckTransform,
+  World,
+  type Body,
+  type Contact,
+  type Fixture,
+} from 'planck';
 import { RowanError } from '../core/assert';
 import type { Unsubscribe } from '../core/signal';
 import type { ComponentClass, EntityId } from '../ecs/registry';
@@ -54,6 +63,8 @@ interface BodyRecord {
   readonly body: Body;
   readonly box: ColliderState;
   readonly circle: ColliderState;
+  /** True once the Rigidbody2D's initial velocity has been given to the body. */
+  launched: boolean;
   /** The transform last exchanged with the body, used to detect moves made by game code. */
   lastX: number;
   lastY: number;
@@ -183,7 +194,8 @@ export class PhysicsSystem {
 
   /**
    * Finds the closest collider along a ray. Triggers are ignored unless `includeTriggers`
-   * is set. The ray sees bodies where they were after the most recent physics step.
+   * is set. The ray sees bodies where they were after the most recent physics step, and
+   * does not report a collider that contains its origin.
    */
   raycast(
     origin: Readonly<Vec2>,
@@ -191,14 +203,10 @@ export class PhysicsSystem {
     maxDistance = DEFAULT_RAYCAST_DISTANCE,
     includeTriggers = false,
   ): RaycastHit | null {
-    const length = Math.hypot(direction.x, direction.y);
-    if (length === 0 || !(maxDistance > 0) || !Number.isFinite(maxDistance)) {
+    const end = getRayEnd(origin, direction, maxDistance);
+    if (!end) {
       return null;
     }
-    const end = {
-      x: origin.x + (direction.x / length) * maxDistance,
-      y: origin.y + (direction.y / length) * maxDistance,
-    };
 
     let hitEntity: EntityId | null = null;
     let hitFraction = 1;
@@ -226,6 +234,52 @@ export class PhysicsSystem {
     };
   }
 
+  /**
+   * Finds every collider along a ray, nearest first. An entity with several colliders is
+   * reported once, at its nearest hit. Otherwise it behaves like {@link PhysicsSystem.raycast}.
+   */
+  raycastAll(
+    origin: Readonly<Vec2>,
+    direction: Readonly<Vec2>,
+    maxDistance = DEFAULT_RAYCAST_DISTANCE,
+    includeTriggers = false,
+  ): RaycastHit[] {
+    const end = getRayEnd(origin, direction, maxDistance);
+    if (!end) {
+      return [];
+    }
+
+    const nearest = new Map<EntityId, { fraction: number; point: Vec2; normal: Vec2 }>();
+    this.world.rayCast({ x: origin.x, y: origin.y }, end, (fixture, point, normal, fraction) => {
+      if (fixture.isSensor() && !includeTriggers) {
+        return -1;
+      }
+      const id = fixture.getBody().getUserData() as EntityId;
+      const known = nearest.get(id);
+      if (!known || fraction < known.fraction) {
+        nearest.set(id, {
+          fraction,
+          point: new Vec2(point.x, point.y),
+          normal: new Vec2(normal.x, normal.y),
+        });
+      }
+      return 1; // keep the ray at full length so fixtures behind this one are reported too
+    });
+
+    const hits: RaycastHit[] = [];
+    for (const [id, hit] of nearest) {
+      if (this.scene.registry.isAlive(id)) {
+        hits.push({
+          entity: this.scene.getEntity(id),
+          point: hit.point,
+          normal: hit.normal,
+          distance: hit.fraction * maxDistance,
+        });
+      }
+    }
+    return hits.sort((a, b) => a.distance - b.distance);
+  }
+
   /** Every entity that has a collider (including triggers) containing the point. */
   overlapPoint(point: Readonly<Vec2>): Entity[] {
     const target = { x: point.x, y: point.y };
@@ -236,7 +290,40 @@ export class PhysicsSystem {
       }
       return true;
     });
-    return [...found]
+    return this.toEntities(found);
+  }
+
+  /**
+   * Every entity that has a collider (including triggers) touching a circle, for example
+   * everything within the reach of an explosion. A radius that is not a positive, finite
+   * number finds nothing.
+   */
+  overlapCircle(center: Readonly<Vec2>, radius: number): Entity[] {
+    if (!(radius > 0) || !Number.isFinite(radius)) {
+      return [];
+    }
+    const circle = new CircleShape({ x: center.x, y: center.y }, radius);
+    const identity = PlanckTransform.identity();
+    const found = new Set<EntityId>();
+    this.world.queryAABB(
+      {
+        lowerBound: { x: center.x - radius, y: center.y - radius },
+        upperBound: { x: center.x + radius, y: center.y + radius },
+      },
+      (fixture) => {
+        // The broad phase only compares bounding boxes; this is the exact shape test.
+        const body = fixture.getBody();
+        if (testOverlap(circle, 0, fixture.getShape(), 0, identity, body.getTransform())) {
+          found.add(body.getUserData() as EntityId);
+        }
+        return true;
+      },
+    );
+    return this.toEntities(found);
+  }
+
+  private toEntities(ids: ReadonlySet<EntityId>): Entity[] {
+    return [...ids]
       .filter((id) => this.scene.registry.isAlive(id))
       .map((id) => this.scene.getEntity(id));
   }
@@ -293,6 +380,7 @@ export class PhysicsSystem {
       body,
       box: { fixture: null, synced: false, values: [] },
       circle: { fixture: null, synced: false, values: [] },
+      launched: false,
       lastX: position.x,
       lastY: position.y,
       lastRotation: rotation,
@@ -318,6 +406,20 @@ export class PhysicsSystem {
     const type = rigidbody?.bodyType ?? 'static';
     if (body.getType() !== type) {
       body.setType(type);
+    }
+    if (!rigidbody) {
+      record.launched = false;
+    } else if (!record.launched) {
+      // Applied once per rigidbody, whether it was there from the start or added later.
+      // A static body ignores velocities, and a non-finite one would corrupt the simulation.
+      record.launched = true;
+      const { initialVelocity, initialAngularVelocity } = rigidbody;
+      if (Number.isFinite(initialVelocity.x) && Number.isFinite(initialVelocity.y)) {
+        body.setLinearVelocity({ x: initialVelocity.x, y: initialVelocity.y });
+      }
+      if (Number.isFinite(initialAngularVelocity)) {
+        body.setAngularVelocity(initialAngularVelocity);
+      }
     }
     if (rigidbody) {
       if (body.getGravityScale() !== rigidbody.gravityScale) {
@@ -526,6 +628,22 @@ export class PhysicsSystem {
   }
 }
 
+/** The far end of a ray, or `null` when the ray has no direction or no usable length. */
+function getRayEnd(
+  origin: Readonly<Vec2>,
+  direction: Readonly<Vec2>,
+  maxDistance: number,
+): { x: number; y: number } | null {
+  const length = Math.hypot(direction.x, direction.y);
+  if (length === 0 || !(maxDistance > 0) || !Number.isFinite(maxDistance)) {
+    return null;
+  }
+  return {
+    x: origin.x + (direction.x / length) * maxDistance,
+    y: origin.y + (direction.y / length) * maxDistance,
+  };
+}
+
 /** True when a shape is large enough and finite, so the solver can work with it. */
 function isUsableShape(
   extentX: number,
@@ -634,8 +752,25 @@ export class Physics2D {
     return this.system.raycast(origin, direction, maxDistance);
   }
 
+  /**
+   * Finds every solid collider along a ray, nearest first. Each entity is reported once.
+   * Use it when the first hit is not enough, for example for a shot that pierces.
+   */
+  raycastAll(
+    origin: Readonly<Vec2>,
+    direction: Readonly<Vec2>,
+    maxDistance?: number,
+  ): RaycastHit[] {
+    return this.system.raycastAll(origin, direction, maxDistance);
+  }
+
   /** Every entity with a collider that contains the point. */
   overlapPoint(point: Readonly<Vec2>): Entity[] {
     return this.system.overlapPoint(point);
+  }
+
+  /** Every entity with a collider, solid or trigger, that touches the circle. */
+  overlapCircle(center: Readonly<Vec2>, radius: number): Entity[] {
+    return this.system.overlapCircle(center, radius);
   }
 }

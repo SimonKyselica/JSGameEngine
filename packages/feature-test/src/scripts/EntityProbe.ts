@@ -94,6 +94,25 @@ export default class EntityProbe extends Behaviour implements ScriptLifecycle {
     test.check('Entity.worldPosition', child.worldPosition.equals(new Vec2(2, 3)));
     test.near('Entity.worldRotation', child.worldRotation, Math.PI / 2);
 
+    test.check(
+      'Entity.findChild',
+      entity.findChild('Probe Child') === child && entity.findChild('Nobody') === null,
+    );
+    test.check(
+      'Entity.getComponentInParent',
+      child.getComponentInParent(ScriptComponent) === this.requireComponent(ScriptComponent) &&
+        child.getComponentInParent(SpriteRenderer) === undefined,
+    );
+    // "Sprites" has no sprite itself; its first child, "Checker", does.
+    const sprites = this.scene.findByName('Sprites');
+    test.check(
+      'Entity.getComponentInChildren',
+      sprites?.getComponentInChildren(SpriteRenderer) ===
+        sprites?.findChild('Checker')?.getComponent(SpriteRenderer) &&
+        sprites?.getComponentInChildren(SpriteRenderer) !== undefined &&
+        entity.getComponentInChildren(Transform) === entity.transform,
+    );
+
     child.setWorldPosition(new Vec2(2, 5));
     test.check('Entity.setWorldPosition', child.transform.position.equals(new Vec2(2, 0)));
     child.setWorldRotation(Math.PI);

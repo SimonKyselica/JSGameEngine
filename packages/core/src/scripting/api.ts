@@ -24,6 +24,6 @@ export {
   type BodyType,
 } from '../scene/components';
 export { Entity } from '../scene/entity';
-export { Behaviour, type Collision, type ScriptLifecycle } from './behaviour';
+export { Behaviour, type CancelTimer, type Collision, type ScriptLifecycle } from './behaviour';
 export type { ScriptPropertyDefinition, ScriptPropertyDefinitions } from './scriptProperties';
 export { AssetsApi, SceneApi, Time, type SpawnOptions } from './services';

@@ -42,6 +42,9 @@ export interface ScriptLifecycle {
 
 export type BehaviourClass<T extends Behaviour = Behaviour> = new () => T;
 
+/** Stops a timer started with `after` or `every`. Calling it again does nothing. */
+export type CancelTimer = () => void;
+
 interface Attachment {
   readonly entity: Entity;
   readonly services: ScriptServices;
@@ -171,6 +174,28 @@ export abstract class Behaviour {
    */
   destroy(target: Entity = this.entity, delaySeconds = 0): void {
     attachmentOf(this).services.destroy(target, delaySeconds);
+  }
+
+  /**
+   * Calls `callback` once, after `seconds` of game time, and returns a function that
+   * cancels it.
+   *
+   * Timers follow `Time.timeScale`, pause while the script is disabled or its entity is
+   * inactive, and are cancelled when the entity is destroyed or the scene ends. Callbacks
+   * run once per frame, after every script's `onUpdate`.
+   */
+  after(seconds: number, callback: () => void): CancelTimer {
+    return attachmentOf(this).services.startTimer(this, seconds, false, callback);
+  }
+
+  /**
+   * Calls `callback` every `seconds` of game time until it is cancelled, and returns the
+   * function that cancels it. The interval must be at least 0.001 seconds. It does not
+   * drift: when a frame is longer than the interval, the calls that were missed are made
+   * in that frame. Otherwise it behaves like {@link Behaviour.after}.
+   */
+  every(seconds: number, callback: () => void): CancelTimer {
+    return attachmentOf(this).services.startTimer(this, seconds, true, callback);
   }
 
   /** Writes a message to the console. */

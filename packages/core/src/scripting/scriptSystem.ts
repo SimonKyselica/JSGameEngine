@@ -1,5 +1,6 @@
 import { getNameWithoutExtension } from '../assets/asset';
 import type { AssetDatabase } from '../assets/assetDatabase';
+import { RowanError } from '../core/assert';
 import type { Logger } from '../core/logger';
 import type { Unsubscribe } from '../core/signal';
 import type { EntityId } from '../ecs/registry';
@@ -12,6 +13,7 @@ import {
   attachBehaviour,
   type Behaviour,
   type BehaviourClass,
+  type CancelTimer,
   type ScriptLifecycle,
 } from './behaviour';
 import type { ScriptModuleLoader } from './scriptModuleLoader';
@@ -19,6 +21,9 @@ import { getScriptProperties, toRuntimeValue } from './scriptProperties';
 import type { ScriptServices } from './services';
 
 type LifecycleHook = keyof ScriptLifecycle;
+
+/** The shortest interval of a repeating timer, so one frame cannot fire it without bound. */
+const MIN_REPEAT_INTERVAL = 0.001;
 
 interface ScriptInstance {
   readonly behaviour: Behaviour;
@@ -31,6 +36,16 @@ interface ScriptInstance {
   destroyed: boolean;
 }
 
+interface ScriptTimer {
+  readonly instance: ScriptInstance;
+  readonly callback: () => void;
+  /** Seconds between calls of a repeating timer, or `null` for a timer that fires once. */
+  readonly interval: number | null;
+  /** The game time (`Time.elapsed`) at which the timer fires next. */
+  due: number;
+  cancelled: boolean;
+}
+
 /**
  * Creates a script instance for every script attached to an entity and drives their
  * lifecycle callbacks. An exception thrown by a script is logged and never stops the game.
@@ -39,6 +54,8 @@ export class ScriptSystem {
   private instances: ScriptInstance[] = [];
   private readonly byBinding = new Map<ScriptBinding, ScriptInstance>();
   private readonly byEntity = new Map<EntityId, ScriptInstance[]>();
+  private readonly byBehaviour = new Map<Behaviour, ScriptInstance>();
+  private timers: ScriptTimer[] = [];
   /** Scripts that failed to load or construct. Each one is reported only once. */
   private readonly failedScripts = new Set<string>();
   private readonly subscriptions: Unsubscribe[] = [];
@@ -48,12 +65,14 @@ export class ScriptSystem {
     private readonly scene: Scene,
     private readonly assets: AssetDatabase,
     private readonly loader: ScriptModuleLoader,
-    services: Omit<ScriptServices, 'getScript'>,
+    services: Omit<ScriptServices, 'getScript' | 'startTimer'>,
     private readonly logger: Logger,
   ) {
     this.services = {
       ...services,
       getScript: (entity, type) => this.getScript(entity, type),
+      startTimer: (behaviour, seconds, repeat, callback) =>
+        this.startTimer(behaviour, seconds, repeat, callback),
     };
   }
 
@@ -79,12 +98,14 @@ export class ScriptSystem {
       this.destroyInstance(instance);
     }
     this.instances = [];
+    this.timers = [];
     this.failedScripts.clear();
   }
 
   update(deltaTime: number): void {
     this.syncInstances();
     this.runHook('onUpdate', deltaTime);
+    this.runTimers(deltaTime);
   }
 
   fixedUpdate(fixedDeltaTime: number): void {
@@ -149,6 +170,46 @@ export class ScriptSystem {
           : instance.behaviour instanceof type,
       );
     return match?.behaviour as T | undefined;
+  }
+
+  /**
+   * Starts a timer for a script. A one-shot timer fires after `seconds` of game time; a
+   * repeating one fires every `seconds`. Returns the function that cancels it.
+   */
+  startTimer(
+    behaviour: Behaviour,
+    seconds: number,
+    repeat: boolean,
+    callback: () => void,
+  ): CancelTimer {
+    const instance = this.byBehaviour.get(behaviour);
+    if (!instance) {
+      throw new RowanError('A timer can only be started by a script on a living entity');
+    }
+    if (typeof callback !== 'function') {
+      throw new RowanError('A timer needs a function to call, such as () => this.fire()');
+    }
+    if (!Number.isFinite(seconds) || seconds < 0) {
+      throw new RowanError(`A timer needs a time of zero or more seconds, but got ${seconds}`);
+    }
+    if (repeat && seconds < MIN_REPEAT_INTERVAL) {
+      throw new RowanError(
+        `every() needs an interval of at least ${MIN_REPEAT_INTERVAL} seconds, but got ${seconds}`,
+      );
+    }
+    // Time.elapsed already includes the current frame, so the wait starts from now and
+    // the time that passed before the call is not counted against it.
+    const timer: ScriptTimer = {
+      instance,
+      callback,
+      interval: repeat ? seconds : null,
+      due: this.services.time.elapsed + seconds,
+      cancelled: false,
+    };
+    this.timers.push(timer);
+    return () => {
+      timer.cancelled = true;
+    };
   }
 
   /** Brings the set of instances in line with the script bindings in the scene. */
@@ -227,6 +288,7 @@ export class ScriptSystem {
     };
     this.instances.push(instance);
     this.byBinding.set(binding, instance);
+    this.byBehaviour.set(behaviour, instance);
     const entityInstances = this.byEntity.get(entity.id);
     if (entityInstances) {
       entityInstances.push(instance);
@@ -247,6 +309,7 @@ export class ScriptSystem {
     }
     instance.destroyed = true;
     this.byBinding.delete(instance.binding);
+    this.byBehaviour.delete(instance.behaviour);
     const entityInstances = this.byEntity.get(instance.entity.id);
     if (entityInstances) {
       const remaining = entityInstances.filter((other) => other !== instance);
@@ -275,6 +338,52 @@ export class ScriptSystem {
       if (this.prepare(instance) && hook) {
         this.call(instance, hook, delta);
       }
+    }
+  }
+
+  /** Fires the timers that are due. Runs once per frame, after the `onUpdate` calls. */
+  private runTimers(deltaTime: number): void {
+    const timers = this.timers;
+    if (timers.length === 0) {
+      return;
+    }
+    const now = this.services.time.elapsed;
+    let finished = false;
+    // A callback may start timers; those are appended and wait for the next frame.
+    const count = timers.length;
+    for (let index = 0; index < count; index++) {
+      const timer = timers[index]!;
+      if (timer.instance.destroyed) {
+        timer.cancelled = true;
+      } else if (!isRunnable(timer.instance)) {
+        // Paused: push the deadline back by the time that passes meanwhile.
+        timer.due += deltaTime;
+      }
+      while (!timer.cancelled && isRunnable(timer.instance) && now >= timer.due) {
+        if (timer.interval === null) {
+          timer.cancelled = true;
+        } else {
+          timer.due += timer.interval;
+        }
+        this.fireTimer(timer);
+      }
+      finished ||= timer.cancelled;
+    }
+    if (finished) {
+      this.timers = this.timers.filter((timer) => !timer.cancelled);
+    }
+  }
+
+  private fireTimer(timer: ScriptTimer): void {
+    const { instance } = timer;
+    try {
+      timer.callback();
+    } catch (error) {
+      const entityName = instance.entity.isValid ? instance.entity.name : 'destroyed entity';
+      this.logger.error(
+        `A timer failed on "${entityName}": ${formatScriptError(error)}`,
+        instance.scriptName,
+      );
     }
   }
 
