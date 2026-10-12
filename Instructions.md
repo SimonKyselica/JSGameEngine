@@ -10,7 +10,7 @@ We Are building a indie game engine, that runs natively in the browser, with eve
 - Setup a scene used for testing, which tests every single feature in the engine - all components, and entire scripting API
 - Do things properly, this is production-grade and not a hack project
 - Create AGENTS.md and relevant skills to support development, and contain concrete development guidelines
-- Code style to match Hazel, full repo here
+
 - Create git repository, commit and push to GitHub repo. IMPORTANT: do a code review before committing, and make sure all changes comply with code style, production-grade quality standards, and have been properly tested/have unit tests that have passed where necessary
 
 ## Tech stack
