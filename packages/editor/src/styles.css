@@ -633,6 +633,16 @@ span.tab {
   background: var(--bg-field);
 }
 
+/* A field for several lines of text: three are visible, and it can be dragged taller. */
+textarea.text-field {
+  height: auto;
+  min-height: 56px;
+  padding: 3px 5px;
+  font: inherit;
+  line-height: 1.35;
+  resize: vertical;
+}
+
 .text-field:focus,
 .select-field:focus,
 .number-field input:focus,

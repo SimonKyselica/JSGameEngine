@@ -75,6 +75,48 @@ export async function readCanvasPixel(
   );
 }
 
+/**
+ * Counts the pixels of the WebGL canvas that have a color, give or take `tolerance` per
+ * channel. Like {@link readCanvasPixel}, it reads inside an animation frame.
+ */
+export async function countCanvasPixels(
+  page: Page,
+  selector: string,
+  color: readonly [red: number, green: number, blue: number],
+  tolerance: number,
+): Promise<number> {
+  return page.evaluate(
+    ({ selector, color, tolerance }) =>
+      new Promise<number>((resolve, reject) => {
+        requestAnimationFrame(() => {
+          const source = document.querySelector<HTMLCanvasElement>(selector);
+          const copy = document.createElement('canvas');
+          const context = copy.getContext('2d');
+          if (!source || !context || source.width === 0 || source.height === 0) {
+            reject(new Error(`No canvas with a picture matches ${selector}`));
+            return;
+          }
+          copy.width = source.width;
+          copy.height = source.height;
+          context.drawImage(source, 0, 0);
+          const { data } = context.getImageData(0, 0, copy.width, copy.height);
+          let count = 0;
+          for (let offset = 0; offset < data.length; offset += 4) {
+            if (
+              Math.abs(data[offset]! - color[0]) <= tolerance &&
+              Math.abs(data[offset + 1]! - color[1]) <= tolerance &&
+              Math.abs(data[offset + 2]! - color[2]) <= tolerance
+            ) {
+              count++;
+            }
+          }
+          resolve(count);
+        });
+      }),
+    { selector, color, tolerance },
+  );
+}
+
 /** Waits until the running feature test has passed the named check. */
 async function waitForCheck(page: Page, name: string): Promise<void> {
   await page.waitForFunction(

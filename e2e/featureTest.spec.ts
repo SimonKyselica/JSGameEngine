@@ -5,6 +5,7 @@ import { dirname, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import {
   chooseMenu,
+  countCanvasPixels,
   expectAllChecksPassed,
   hierarchyRow,
   openEditor,
@@ -20,6 +21,10 @@ import {
  * game. Together they cover what the headless unit test cannot: WebGL, Web Audio, real
  * input events, and the export pipeline.
  */
+
+const MAGENTA = [255, 0, 255] as const;
+/** A word in large bold letters covers thousands of pixels; a failed text covers none. */
+const MIN_TEXT_PIXELS = 300;
 
 async function openFeatureTestProject(page: Page): Promise<void> {
   await openEditor(page);
@@ -50,6 +55,8 @@ async function expectExportedGameToPass(game: Page): Promise<void> {
   expect(blue).toBeLessThan(180);
   const corner = await readCanvasPixel(game, 'canvas', 0.02, 0.02);
   expect(Math.max(...corner)).toBeLessThan(90);
+  // Above the disc the scene says "Finished" in magenta, a color nothing else in it has.
+  expect(await countCanvasPixels(game, 'canvas', MAGENTA, 40)).toBeGreaterThan(MIN_TEXT_PIXELS);
 
   await expect(game).toHaveTitle('Rowan Feature Test');
   expect(pageErrors).toEqual([]);
@@ -63,6 +70,10 @@ test('the feature-test project passes in the editor', async ({ page }) => {
 
   await playFeatureTestInput(page, page.getByLabel('Game view'));
   expectAllChecksPassed(await waitForFeatureTestReport(page));
+  // The report is closed by the Finish scene, whose text is drawn in the frame that follows.
+  await expect
+    .poll(() => countCanvasPixels(page, 'canvas.viewport-canvas', MAGENTA, 40))
+    .toBeGreaterThan(MIN_TEXT_PIXELS);
 
   await page.getByRole('tab', { name: /Console/ }).click();
   const log = page.getByRole('log');

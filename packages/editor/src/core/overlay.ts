@@ -3,7 +3,6 @@ import {
   Camera,
   CircleCollider2D,
   Vec2,
-  type AssetDatabase,
   type CameraView,
   type Entity,
   type Scene,
@@ -15,7 +14,7 @@ import {
   type GizmoLayout,
   type TransformTool,
 } from './gizmos';
-import { getSpriteCorners } from './picking';
+import { getSpriteCorners, getTextCorners, type VisualSources } from './picking';
 
 const COLORS = {
   gridMinor: 'rgba(255, 255, 255, 0.05)',
@@ -33,9 +32,8 @@ const COLORS = {
 const MIN_GRID_SPACING = 14;
 const CIRCLE_SEGMENTS = 40;
 
-export interface OverlayOptions {
+export interface OverlayOptions extends VisualSources {
   readonly scene: Scene;
-  readonly assets: AssetDatabase;
   readonly view: CameraView;
   /** Viewport size in CSS pixels. The context must already be scaled for the pixel ratio. */
   readonly width: number;
@@ -78,7 +76,7 @@ export function drawOverlay(context: CanvasRenderingContext2D, options: OverlayO
   }
   if (selected) {
     drawColliders(context, selected, toScreen);
-    drawSelection(context, selected, options.assets, toScreen);
+    drawSelection(context, selected, options, toScreen);
     if (options.tool) {
       drawGizmo(
         context,
@@ -216,12 +214,17 @@ function drawColliders(
 function drawSelection(
   context: CanvasRenderingContext2D,
   entity: Entity,
-  assets: AssetDatabase,
+  sources: VisualSources,
   toScreen: (point: Readonly<Vec2>) => Vec2,
 ): void {
-  const corners = getSpriteCorners(entity, assets);
-  if (corners) {
-    strokePolygon(context, corners.map(toScreen), COLORS.selection, 1.5);
+  const outlines = [
+    getSpriteCorners(entity, sources.assets),
+    getTextCorners(entity, sources.textMeasurer),
+  ];
+  for (const corners of outlines) {
+    if (corners) {
+      strokePolygon(context, corners.map(toScreen), COLORS.selection, 1.5);
+    }
   }
 }
 

@@ -233,7 +233,11 @@ function ComponentField({ entity, type, name, field }: ComponentFieldProps): Rea
     case 'string':
       return (
         <FieldRow label={label}>
-          <TextField value={component[name] as string} onChange={assign} />
+          <TextField
+            value={component[name] as string}
+            multiline={field.multiline}
+            onChange={assign}
+          />
         </FieldRow>
       );
     case 'vec2': {

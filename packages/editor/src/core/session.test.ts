@@ -6,6 +6,7 @@ import {
   decodeImageHeadless,
   encodePng,
   HeadlessRenderer,
+  HeadlessTextRasterizer,
   Identity,
   NullAudioBackend,
   Project,
@@ -14,6 +15,7 @@ import {
   Scene,
   ScriptComponent,
   SpriteRenderer,
+  TextRenderer,
   Transform,
   Vec2,
   type InputState,
@@ -31,7 +33,13 @@ import {
   isSnapActive,
 } from './gizmos';
 import { drawOverlay, getGizmoLayout } from './overlay';
-import { getEntityBounds, getSpriteCorners, pickEntity } from './picking';
+import {
+  getEntityBounds,
+  getSpriteCorners,
+  getTextCorners,
+  pickEntity,
+  type VisualSources,
+} from './picking';
 import type { PlayDependencies } from './playController';
 import { MemoryProjectStore } from './projectStore';
 import { createStarterProject } from './templates';
@@ -43,6 +51,7 @@ function createSession(): EditorSession {
 function createPlayDependencies(): PlayDependencies & {
   renderer: HeadlessRenderer;
   audioBackend: NullAudioBackend;
+  textRasterizer: HeadlessTextRasterizer;
   inputs: InputState[];
   detached: number;
 } {
@@ -50,6 +59,7 @@ function createPlayDependencies(): PlayDependencies & {
     renderer: new HeadlessRenderer(),
     audioBackend: new NullAudioBackend(),
     imageDecoder: decodeImageHeadless,
+    textRasterizer: new HeadlessTextRasterizer(),
     inputs: [] as InputState[],
     detached: 0,
     attachInput(input: InputState) {
@@ -642,6 +652,23 @@ describe('play mode', () => {
     expect(dependencies.renderer.textureCount).toBe(0);
   });
 
+  it('draws the texts of the running game and frees their textures on stop', async () => {
+    const session = createSession();
+    session.createEntity('text');
+    const dependencies = createPlayDependencies();
+    session.play.setDependencies(dependencies);
+    await session.play.start();
+
+    const { game } = session.play;
+    game!.render();
+    expect(dependencies.textRasterizer.rasterized.map((entry) => entry.text)).toEqual(['Text']);
+    const withText = dependencies.renderer.textureCount;
+
+    session.play.stop();
+    expect(dependencies.renderer.textureCount).toBe(0);
+    expect(withText).toBeGreaterThan(0);
+  });
+
   it('applies edits to the running game without recording them', async () => {
     const session = createSession();
     session.play.setDependencies(createPlayDependencies());
@@ -772,6 +799,7 @@ describe('entity presets', () => {
     const expected: Record<string, unknown[]> = {
       empty: [],
       sprite: [SpriteRenderer],
+      text: [TextRenderer],
       camera: [Camera],
       'physics-box': [SpriteRenderer, Rigidbody2D, BoxCollider2D],
       'physics-circle': [SpriteRenderer, Rigidbody2D, CircleCollider2D],
@@ -855,12 +883,15 @@ describe('EditorCamera', () => {
 });
 
 describe('picking', () => {
-  function createScene(): { scene: Scene; project: Project } {
-    return { scene: new Scene(), project: new Project() };
+  function createScene(): { scene: Scene; project: Project; sources: VisualSources } {
+    const project = new Project();
+    // The headless rasterizer measures every character as half an em wide.
+    const sources = { assets: project.assets, textMeasurer: new HeadlessTextRasterizer() };
+    return { scene: new Scene(), project, sources };
   }
 
   it('picks the sprite under the point, honouring rotation and scale', () => {
-    const { scene, project } = createScene();
+    const { scene, sources } = createScene();
     const sprite = scene.createEntity('Wide');
     sprite.transform.position.set(10, 0);
     sprite.transform.scale.set(4, 1);
@@ -868,25 +899,25 @@ describe('picking', () => {
     sprite.addComponent(SpriteRenderer);
 
     // Rotated by 90 degrees, the 4x1 sprite is tall instead of wide.
-    expect(pickEntity(scene, project.assets, new Vec2(10, 1.9), 0)).toBe(sprite);
-    expect(pickEntity(scene, project.assets, new Vec2(11.9, 0), 0)).toBeNull();
+    expect(pickEntity(scene, sources, new Vec2(10, 1.9), 0)).toBe(sprite);
+    expect(pickEntity(scene, sources, new Vec2(11.9, 0), 0)).toBeNull();
   });
 
   it('prefers the sprite drawn on top', () => {
-    const { scene, project } = createScene();
+    const { scene, sources } = createScene();
     const back = scene.createEntity('Back');
     back.addComponent(SpriteRenderer, { sortingOrder: 5 });
     const front = scene.createEntity('Front');
     front.addComponent(SpriteRenderer, { sortingOrder: 5 });
     const below = scene.createEntity('Below');
     below.addComponent(SpriteRenderer, { sortingOrder: 1 });
-    expect(pickEntity(scene, project.assets, new Vec2(), 0)).toBe(front);
+    expect(pickEntity(scene, sources, new Vec2(), 0)).toBe(front);
     front.requireComponent(SpriteRenderer).sortingOrder = 0;
-    expect(pickEntity(scene, project.assets, new Vec2(), 0)).toBe(back);
+    expect(pickEntity(scene, sources, new Vec2(), 0)).toBe(back);
   });
 
   it('skips hidden, inactive and zero-sized sprites', () => {
-    const { scene, project } = createScene();
+    const { scene, sources } = createScene();
     scene.createEntity('Hidden').addComponent(SpriteRenderer, { visible: false });
     const inactive = scene.createEntity('Inactive');
     inactive.addComponent(SpriteRenderer);
@@ -894,22 +925,22 @@ describe('picking', () => {
     const flat = scene.createEntity('Flat');
     flat.addComponent(SpriteRenderer);
     flat.transform.scale.set(0, 1);
-    expect(pickEntity(scene, project.assets, new Vec2(), 0)).toBeNull();
+    expect(pickEntity(scene, sources, new Vec2(), 0)).toBeNull();
   });
 
   it('picks the nearest entity without a sprite within the icon radius', () => {
-    const { scene, project } = createScene();
+    const { scene, sources } = createScene();
     const camera = scene.createEntity('Camera');
     camera.transform.position.set(5, 5);
     const audio = scene.createEntity('Audio');
     audio.transform.position.set(5.3, 5);
-    expect(pickEntity(scene, project.assets, new Vec2(5.25, 5), 0.5)).toBe(audio);
-    expect(pickEntity(scene, project.assets, new Vec2(5.1, 5), 0.5)).toBe(camera);
-    expect(pickEntity(scene, project.assets, new Vec2(8, 8), 0.5)).toBeNull();
+    expect(pickEntity(scene, sources, new Vec2(5.25, 5), 0.5)).toBe(audio);
+    expect(pickEntity(scene, sources, new Vec2(5.1, 5), 0.5)).toBe(camera);
+    expect(pickEntity(scene, sources, new Vec2(8, 8), 0.5)).toBeNull();
   });
 
   it('uses the texture size for the pickable area', () => {
-    const { scene, project } = createScene();
+    const { scene, project, sources } = createScene();
     const texture = project.assets.create({
       name: 'big.png',
       type: 'texture',
@@ -919,8 +950,8 @@ describe('picking', () => {
     });
     const sprite = scene.createEntity('Big');
     sprite.addComponent(SpriteRenderer, { texture: texture.id });
-    expect(pickEntity(scene, project.assets, new Vec2(1.9, 0.4), 0)).toBe(sprite);
-    expect(pickEntity(scene, project.assets, new Vec2(1.9, 0.6), 0)).toBeNull();
+    expect(pickEntity(scene, sources, new Vec2(1.9, 0.4), 0)).toBe(sprite);
+    expect(pickEntity(scene, sources, new Vec2(1.9, 0.6), 0)).toBeNull();
     expect(getSpriteCorners(sprite, project.assets)!.map((corner) => corner.toArray())).toEqual([
       [-2, -0.5],
       [2, -0.5],
@@ -930,14 +961,67 @@ describe('picking', () => {
   });
 
   it('computes bounds that include the children', () => {
-    const { scene, project } = createScene();
+    const { scene, project, sources } = createScene();
     const parent = scene.createEntity('Parent');
     parent.addComponent(SpriteRenderer);
     const child = scene.createEntity('Child', { parent });
     child.transform.position.set(5, 3);
-    const bounds = getEntityBounds(parent, project.assets);
+    const bounds = getEntityBounds(parent, sources);
     expect([bounds.minX, bounds.minY, bounds.maxX, bounds.maxY]).toEqual([-0.5, -0.5, 5, 3]);
     expect(getSpriteCorners(child, project.assets)).toBeNull();
+  });
+
+  it('picks a text by the area it covers, honouring its alignment', () => {
+    const { scene, sources } = createScene();
+    const label = scene.createEntity('Label');
+    label.transform.position.set(10, 0);
+    // Four characters of half an em each at a font size of 1: two units wide, 1.2 high.
+    label.addComponent(TextRenderer, { text: 'Jump', fontSize: 1, align: 'left' });
+
+    expect(pickEntity(scene, sources, new Vec2(11.9, 0.5), 0)).toBe(label);
+    expect(pickEntity(scene, sources, new Vec2(9.9, 0), 0)).toBeNull();
+    expect(pickEntity(scene, sources, new Vec2(11, 0.7), 0)).toBeNull();
+    expect(getTextCorners(label, sources.textMeasurer)!.map((corner) => corner.toArray())).toEqual([
+      [10, -0.6],
+      [12, -0.6],
+      [12, 0.6],
+      [10, 0.6],
+    ]);
+  });
+
+  it('picks a text before a sprite with the same order, and never a hidden or empty one', () => {
+    const { scene, sources } = createScene();
+    const label = scene.createEntity('Label');
+    const text = label.addComponent(TextRenderer, { text: 'Hi', fontSize: 1 });
+    const sprite = scene.createEntity('Sprite');
+    sprite.addComponent(SpriteRenderer);
+    expect(pickEntity(scene, sources, new Vec2(), 0)).toBe(label);
+
+    sprite.requireComponent(SpriteRenderer).sortingOrder = 1;
+    expect(pickEntity(scene, sources, new Vec2(), 0)).toBe(sprite);
+
+    sprite.active = false;
+    text.visible = false;
+    expect(pickEntity(scene, sources, new Vec2(), 0)).toBeNull();
+    text.visible = true;
+    text.text = '';
+    // An entity with a text is picked by its text only, like one with a sprite.
+    expect(pickEntity(scene, sources, new Vec2(), 5)).toBeNull();
+  });
+
+  it('includes texts in the bounds of an entity', () => {
+    const { scene, sources } = createScene();
+    const parent = scene.createEntity('Parent');
+    const child = scene.createEntity('Title', { parent });
+    child.transform.position.set(4, 2);
+    child.addComponent(TextRenderer, { text: 'ab\ncd', fontSize: 2, verticalAlign: 'top' });
+    const bounds = getEntityBounds(parent, sources);
+    // Two lines of two characters: 2 wide and 4.8 high, hanging below the entity.
+    const rounded = [bounds.minX, bounds.minY, bounds.maxX, bounds.maxY].map(
+      (value) => Math.round(value * 1000) / 1000,
+    );
+    expect(rounded).toEqual([0, -2.8, 5, 2]);
+    expect(getTextCorners(parent, sources.textMeasurer)).toBeNull();
   });
 });
 
@@ -1082,6 +1166,7 @@ describe('overlay', () => {
       drawOverlay(context, {
         scene: session.scene,
         assets: session.project.assets,
+        textMeasurer: new HeadlessTextRasterizer(),
         view: new EditorCamera().toView(2),
         width: 800,
         height: 400,

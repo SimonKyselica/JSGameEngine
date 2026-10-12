@@ -20,6 +20,7 @@ import {
   type Collision,
   type HeadlessGame,
   type RaycastHit,
+  type RasterizedText,
   type RecordedQuad,
   type SceneData,
   type ScriptLifecycle,
@@ -37,18 +38,39 @@ import {
 } from './index';
 
 const FRAME = 1 / 60;
-/** RenderProbe changes sprites and the camera in this frame. */
+/** RenderProbe and TextProbe change what is drawn in this frame. */
 const RENDER_CHANGE_FRAME = 20;
 const MAX_FRAMES = 60 * 20;
+
+/** What one frame drew. */
+interface Snapshot {
+  quads: RecordedQuad[];
+  /** Every text rasterized up to and including this frame. */
+  texts: RasterizedText[];
+  clearColor: string;
+  halfHeight: number;
+}
 
 interface Run {
   headless: HeadlessGame;
   report: FeatureTestReport;
-  /** Quads drawn just before and just after RenderProbe's changes, and the clear colors. */
-  before: { quads: RecordedQuad[]; clearColor: string; halfHeight: number };
-  after: { quads: RecordedQuad[]; clearColor: string; halfHeight: number };
+  /** The frames just before and just after the probes change what is drawn. */
+  before: Snapshot;
+  after: Snapshot;
   frames: number;
 }
+
+/** The quad whose center is at a world position, if one was drawn there. */
+function quadAt(quads: readonly RecordedQuad[], x: number, y: number): RecordedQuad | undefined {
+  return quads.find((quad) => {
+    const center = quad.transform.getTranslation();
+    return Math.abs(center.x - x) < 1e-6 && Math.abs(center.y - y) < 1e-6;
+  });
+}
+
+/** Rounds away floating-point noise so sizes can be compared exactly. */
+const rounded = (values: readonly number[]): number[] =>
+  values.map((value) => Math.round(value * 1e6) / 1e6);
 
 async function runFeatureTest(): Promise<Run> {
   clearFeatureTestReport();
@@ -57,17 +79,18 @@ async function runFeatureTest(): Promise<Run> {
   const { game, renderer } = headless;
   await game.start();
 
-  const snapshot = (): Run['before'] => {
+  const snapshot = (): Snapshot => {
     game.render();
     return {
       quads: [...renderer.quads],
+      texts: [...headless.text.rasterized],
       clearColor: renderer.clearColor.toHex(),
       halfHeight: game.getCameraView()?.halfHeight ?? 0,
     };
   };
 
-  let before: Run['before'] | undefined;
-  let after: Run['after'] | undefined;
+  let before: Snapshot | undefined;
+  let after: Snapshot | undefined;
   let frame = 0;
   while (!getFeatureTestReport()?.done && frame < MAX_FRAMES) {
     frame++;
@@ -153,6 +176,64 @@ describe('feature-test scene, run headless', () => {
     expect(byX.get(-9)!.transform.getScale().toArray()).toEqual([2, 2]);
     expect(row.at(-1)).toBe(byX.get(-9));
     expect(byX.get(-9)!.texture).toBe(byX.get(-6)!.texture);
+  });
+
+  it('draws the texts the scene describes', () => {
+    const { quads, texts } = run.before;
+    // The camera shows 12 units on 720 pixels: 60 pixels per unit, so a font size of 0.4
+    // is 24 pixels. The hidden and the empty text are not rasterized at all.
+    expect(texts).toEqual([
+      {
+        text: 'Rowan\nFeature Test',
+        style: { font: 'serif', bold: true, italic: true },
+        pixelsPerEm: 24,
+      },
+      {
+        text: 'Frame 0',
+        style: { font: 'monospace', bold: false, italic: false },
+        pixelsPerEm: 30,
+      },
+    ]);
+
+    // Aligned left and top, the title starts at (-9, 3) and extends right and down. The
+    // headless rasterizer makes it 6 em wide and, with a line height of 1.5, 3 em high.
+    const title = quadAt(quads, -7.8, 2.4)!;
+    expect(title.texture).toEqual({ width: 156, height: 84 });
+    expect(rounded(title.transform.getScale().toArray())).toEqual([2.6, 1.4]);
+    expect(title.color.toHex()).toBe('#ffe666');
+    // With a sorting order of 3 it is drawn after everything else in the scene so far.
+    expect(quads.at(-1)).toBe(title);
+    // The counter is centered on its entity, like a sprite: 4.2 em by 1.2 em at 30 pixels
+    // per em, plus 8 pixels of padding on every side.
+    expect(quadAt(quads, -3, 3)?.texture).toEqual({ width: 142, height: 52 });
+  });
+
+  it('reflects text changes made by scripts in the next frame', () => {
+    const { quads, texts } = run.after;
+    // The camera now shows 14 units, so the same font sizes cover fewer pixels.
+    expect(texts.slice(run.before.texts.length)).toEqual([
+      {
+        text: 'Rowan\nFeature Test',
+        style: { font: 'serif', bold: false, italic: true },
+        pixelsPerEm: 42,
+      },
+      {
+        text: 'Frame 20',
+        style: { font: 'monospace', bold: false, italic: false },
+        pixelsPerEm: 26,
+      },
+      {
+        text: 'Now you see me',
+        style: { font: 'sans-serif', bold: false, italic: false },
+        pixelsPerEm: 26,
+      },
+    ]);
+    // Twice the font size and centered: the title now hangs centered below (-9, 3).
+    const title = quadAt(quads, -9, 1.8)!;
+    expect(title.texture).toEqual({ width: 274, height: 148 });
+    expect(quadAt(quads, -3, 3)).toBeDefined();
+    // The text that was hidden is drawn where its entity is.
+    expect(quadAt(quads, 2, 3)).toBeDefined();
   });
 
   it('plays the sounds the scene and its scripts ask for', () => {

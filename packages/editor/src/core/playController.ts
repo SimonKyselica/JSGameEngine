@@ -6,6 +6,7 @@ import {
   type ImageDecoder,
   type InputState,
   type Renderer2D,
+  type TextRasterizer,
 } from '@rowan/core';
 import { SourceScriptProvider } from '@rowan/core/compiler';
 import type { EditorSession } from './editorSession';
@@ -17,6 +18,7 @@ export interface PlayDependencies {
   readonly renderer: Renderer2D;
   readonly audioBackend: AudioBackend;
   readonly imageDecoder: ImageDecoder;
+  readonly textRasterizer: TextRasterizer;
   /** Connects the game's input to the viewport and returns a function that disconnects it. */
   attachInput(input: InputState): () => void;
 }
@@ -74,6 +76,7 @@ export class PlayController {
       renderer: dependencies.renderer,
       audioBackend: dependencies.audioBackend,
       imageDecoder: dependencies.imageDecoder,
+      textRasterizer: dependencies.textRasterizer,
       scripts: new SourceScriptProvider(session.project.assets),
       logger: session.logger,
     });

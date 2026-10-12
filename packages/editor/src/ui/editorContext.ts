@@ -1,5 +1,5 @@
 import { createContext, useContext, useSyncExternalStore } from 'react';
-import type { ImageDecoder } from '@rowan/core';
+import type { ImageDecoder, TextRasterizer } from '@rowan/core';
 import type { ConsoleEntry } from '../core/consoleStore';
 import type { EditorCamera } from '../core/editorCamera';
 import type { EditorSession } from '../core/editorSession';
@@ -56,6 +56,8 @@ export interface EditorCommands {
 export interface EditorApi {
   readonly session: EditorSession;
   readonly imageDecoder: ImageDecoder;
+  /** Measures and draws text for the viewport, the game and everything that needs its size. */
+  readonly textRasterizer: TextRasterizer;
   readonly assetUrls: AssetUrlCache;
   readonly viewport: ViewportState;
   readonly commands: EditorCommands;

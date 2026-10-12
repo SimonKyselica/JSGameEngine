@@ -12,6 +12,7 @@ import {
   Rigidbody2D,
   ScriptComponent,
   SpriteRenderer,
+  TextRenderer,
 } from './components';
 import { Scene } from './scene';
 import {
@@ -51,6 +52,19 @@ function createFullScene(): Scene {
     flipX: true,
     sortingOrder: 4,
     pixelsPerUnit: 32,
+  });
+  player.addComponent(TextRenderer, {
+    text: 'Player 1\nReady',
+    font: 'monospace',
+    fontSize: 0.75,
+    bold: true,
+    italic: true,
+    color: new Color(0, 1, 0, 0.5),
+    align: 'left',
+    verticalAlign: 'bottom',
+    lineHeight: 1.5,
+    sortingOrder: 9,
+    visible: false,
   });
   player.addComponent(Rigidbody2D, {
     bodyType: 'kinematic',
@@ -120,6 +134,11 @@ describe('component schemas', () => {
     [BoxCollider2D, { size: [1, 'a'] }, 'size[1]: expected a finite number'],
     [SpriteRenderer, { color: [1, 1] }, 'expected an array of 3 to 4 numbers'],
     [SpriteRenderer, { texture: 5 }, 'expected an asset id or null'],
+    [TextRenderer, { text: 5 }, 'expected a string'],
+    [TextRenderer, { font: 'Comic Sans' }, 'expected one of "sans-serif", "serif", "monospace"'],
+    [TextRenderer, { align: 'justify' }, 'expected one of "left", "center", "right"'],
+    [TextRenderer, { verticalAlign: 'center' }, 'expected one of "top", "middle", "bottom"'],
+    [TextRenderer, { fontSize: '12px' }, 'expected a finite number'],
     [ScriptComponent, { scripts: {} }, 'expected an array of script bindings'],
     [ScriptComponent, { scripts: [{ script: 7 }] }, 'scripts[0].script'],
     [ScriptComponent, { scripts: [{ script: null, properties: [] }] }, 'scripts[0].properties'],
@@ -174,12 +193,26 @@ describe('scene serialization', () => {
       'Identity',
       'Transform',
       'SpriteRenderer',
+      'TextRenderer',
       'Rigidbody2D',
       'BoxCollider2D',
       'CircleCollider2D',
       'AudioSource',
       'Script',
     ]);
+    expect(data.entities[1]!.components.TextRenderer).toEqual({
+      text: 'Player 1\nReady',
+      font: 'monospace',
+      fontSize: 0.75,
+      bold: true,
+      italic: true,
+      color: [0, 1, 0, 0.5],
+      align: 'left',
+      verticalAlign: 'bottom',
+      lineHeight: 1.5,
+      sortingOrder: 9,
+      visible: false,
+    });
   });
 
   it('round-trips every component through JSON without loss', () => {

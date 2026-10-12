@@ -96,8 +96,13 @@ what the tools enforce:
 - Unit tests use Vitest and run in Node. Tests that need a DOM start with
   `// @vitest-environment happy-dom`.
 - The engine is testable without a browser on purpose: `HeadlessRenderer` records draw calls,
-  `NullAudioBackend` records sounds, `InputState` takes synthetic events, and
-  `createHeadlessGame` wires them into a real `Game`. Use them instead of mocks.
+  `HeadlessTextRasterizer` records the texts that are drawn, `NullAudioBackend` records sounds,
+  `InputState` takes synthetic events, and `createHeadlessGame` wires them into a real `Game`.
+  Use them instead of mocks.
+- Real fonts differ between browsers and devices, so the size of a text is only predictable
+  with the `HeadlessTextRasterizer`, which measures every character as half an em. Unit tests
+  assert on those sizes; browser tests only check that text reaches the screen, by counting
+  pixels of its color (`countCanvasPixels` in `e2e/support.ts`).
 - Test behaviour, not implementation. A test name states a fact about the engine
   ("rests dynamic bodies on static colliders"). Assert on the specific value you expect.
 - Physics and timing tests step the game with a fixed delta so they are deterministic. Do not

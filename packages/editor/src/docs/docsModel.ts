@@ -33,6 +33,10 @@ export const REFERENCE_GROUPS: readonly { title: string; types: readonly string[
     types: [
       'Transform',
       'SpriteRenderer',
+      'TextRenderer',
+      'TextFont',
+      'TextAlign',
+      'TextVerticalAlign',
       'Camera',
       'Rigidbody2D',
       'BodyType',

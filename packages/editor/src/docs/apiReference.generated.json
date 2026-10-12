@@ -2186,6 +2186,149 @@
       ]
     },
     {
+      "name": "TextAlign",
+      "summary": "Where a text sits horizontally, relative to its entity. See `TextRenderer.align`.",
+      "typeParameters": "",
+      "definition": "'left' | 'center' | 'right'",
+      "kind": "type",
+      "members": []
+    },
+    {
+      "name": "TextFont",
+      "summary": "The fonts text can be drawn in. Each one stands for the browser's own font of that kind, so the exact letter shapes, and with them the width of a text, differ a little between devices.",
+      "typeParameters": "",
+      "definition": "'sans-serif' | 'serif' | 'monospace'",
+      "kind": "type",
+      "members": []
+    },
+    {
+      "name": "TextRenderer",
+      "summary": "Draws text at the entity's position. The text follows the entity's rotation and scale, and is sorted together with sprites.",
+      "typeParameters": "",
+      "definition": "",
+      "kind": "class",
+      "members": [
+        {
+          "name": "text",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "text: string"
+          ],
+          "summary": "What is written. A line break (`\\n`) starts a new line."
+        },
+        {
+          "name": "font",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "font: TextFont"
+          ],
+          "summary": "The font the text is drawn in."
+        },
+        {
+          "name": "fontSize",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "fontSize: number"
+          ],
+          "summary": "The height of the font in world units, before the entity's scale is applied."
+        },
+        {
+          "name": "bold",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "bold: boolean"
+          ],
+          "summary": "Draws the text in a heavier weight."
+        },
+        {
+          "name": "italic",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "italic: boolean"
+          ],
+          "summary": "Draws the text slanted."
+        },
+        {
+          "name": "color",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "color: Color"
+          ],
+          "summary": "The color of the text. Its alpha makes the text see-through."
+        },
+        {
+          "name": "align",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "align: TextAlign"
+          ],
+          "summary": "Where the text sits horizontally: `left` starts it at the entity's position, `center` centers it there and `right` ends it there. Lines of different length line up the same way."
+        },
+        {
+          "name": "verticalAlign",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "verticalAlign: TextVerticalAlign"
+          ],
+          "summary": "Where the text sits vertically: `top` hangs it below the entity's position, `middle` centers it there and `bottom` stands it on top."
+        },
+        {
+          "name": "lineHeight",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "lineHeight: number"
+          ],
+          "summary": "The distance from one line to the next, as a multiple of `fontSize`."
+        },
+        {
+          "name": "sortingOrder",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "sortingOrder: number"
+          ],
+          "summary": "Text with a higher order is drawn on top. The order is shared with `SpriteRenderer`; where a text and a sprite have the same order, the text is on top."
+        },
+        {
+          "name": "visible",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "visible: boolean"
+          ],
+          "summary": "A text that is not visible is not drawn. The rest of the entity keeps working."
+        }
+      ]
+    },
+    {
+      "name": "TextVerticalAlign",
+      "summary": "Where a text sits vertically, relative to its entity. See `TextRenderer.verticalAlign`.",
+      "typeParameters": "",
+      "definition": "'top' | 'middle' | 'bottom'",
+      "kind": "type",
+      "members": []
+    },
+    {
       "name": "Time",
       "summary": "Frame timing as seen by scripts (`this.time`). All durations are in seconds.",
       "typeParameters": "",

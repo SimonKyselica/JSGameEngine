@@ -12,6 +12,7 @@ import { decodeImageHeadless } from './imageDecoder';
 import { HeadlessRenderer, type TextureSource } from './renderer2d';
 import { createCameraView, findPrimaryCamera, getSpriteSize, SceneRenderer } from './sceneRenderer';
 import { createQuadIndices, FLOATS_PER_VERTEX, MAX_BATCH_QUADS, SpriteBatch } from './spriteBatch';
+import { HeadlessTextRasterizer } from './textLayout';
 import { TextureCache, type ImageDecoder } from './textureCache';
 import { premultiplyAlpha } from './webgl2Renderer';
 
@@ -42,7 +43,7 @@ function createRenderSetup(): {
     assets,
     renderer,
     textures,
-    sceneRenderer: new SceneRenderer(renderer, textures, assets),
+    sceneRenderer: new SceneRenderer(renderer, textures, assets, new HeadlessTextRasterizer()),
   };
 }
 

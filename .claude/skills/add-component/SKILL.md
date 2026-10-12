@@ -35,7 +35,7 @@ correctly. Behaviour lives in a system, never in the component.
 
    - Every field needs a default value and an entry in `fields`. Field types are listed in
      `scene/schema.ts`: `number`, `angle`, `boolean`, `string`, `vec2`, `color`, `enum`, `asset`,
-     `json`.
+     `json`. A `string` field with `multiline: true` is edited in a text area.
    - State the unit in the doc comment (world units, radians, seconds).
    - The class needs a zero-argument constructor and must not hold runtime state such as GPU
      handles or physics bodies. Systems keep that in their own maps keyed by entity id.

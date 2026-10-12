@@ -7,6 +7,7 @@ import lifecycleLogger from './examples/LifecycleLogger.ts?raw';
 import patrol from './examples/Patrol.ts?raw';
 import playerController from './examples/PlayerController.ts?raw';
 import scanner from './examples/Scanner.ts?raw';
+import scoreCounter from './examples/ScoreCounter.ts?raw';
 import spinner from './examples/Spinner.ts?raw';
 import turret from './examples/Turret.ts?raw';
 
@@ -311,6 +312,50 @@ this.destroy(other, 2.5);  // in two and a half seconds`),
         'The wait is counted from the call. Timers that are due call back once per frame, after `onUpdate`.',
         'A repeating timer does not drift. When a frame is longer than the interval, the calls that were missed are made in that frame. The interval must be at least 0.001 seconds.',
         'Write the callback as an arrow function, `() => this.fire()`, so that `this` is still the script inside it.',
+      ),
+    ],
+  },
+  {
+    id: 'text',
+    title: 'Text',
+    summary: 'Showing scores, labels and messages with the Text Renderer component.',
+    blocks: [
+      p(
+        'A [TextRenderer](api/TextRenderer) component writes text at the position of its entity. Create one with **Entity → Text**, or add a **Text Renderer** to an entity you already have. A script changes what it says by assigning to `text`.',
+      ),
+      code(scoreCounter),
+      h('What you can set'),
+      table(
+        ['Field', 'What it does'],
+        ['`text`', 'What is written. A line break, `\\n` in a string, starts a new line.'],
+        ['`font`', "`'sans-serif'`, `'serif'` or `'monospace'`."],
+        ['`fontSize`', 'The height of the font in world units.'],
+        ['`bold`, `italic`', 'A heavier weight, and slanted letters.'],
+        ['`color`', 'The color of the text. Its alpha makes the text see-through.'],
+        [
+          '`align`, `verticalAlign`',
+          'Where the text sits relative to the entity: to the left, centered or to the right of it, and above, centered or below.',
+        ],
+        ['`lineHeight`', 'The distance between lines, as a multiple of the font size.'],
+        [
+          '`sortingOrder`',
+          'What is drawn on top. Texts and sprites share one order; a text is drawn over a sprite with the same number.',
+        ],
+        ['`visible`', 'Hides the text without removing it.'],
+      ),
+      h('Size and position'),
+      list(
+        'A text belongs to the world, like a sprite: it has a place in the scene, and it turns and scales with its entity. `fontSize` is in world units, so a text with a font size of 1 is as tall as a sprite one unit high.',
+        'With `align` set to `left`, the text starts at the entity and grows to the right as it gets longer. That keeps a score in place while its number of digits changes. `center` and `right` work the same way from the middle and from the end.',
+        'For text that should stay where it is on the screen while the camera moves, such as a score, make its entity a child of the camera entity. It then moves along with the camera.',
+        'Text stays sharp at every size: the engine draws it for the size it has on screen.',
+      ),
+      h('Fonts'),
+      p(
+        "The three fonts are the browser's own: each device shows its standard sans-serif, serif or monospaced font. The letters therefore look slightly different from one device to another, and so does the width of a text. Leave some room around a text rather than fitting it to the pixel.",
+      ),
+      note(
+        'Writing a new text costs a little each time, because the engine has to draw the letters again. Changing it when the score changes is fine. Avoid assigning a different text every single frame to many texts at once.',
       ),
     ],
   },

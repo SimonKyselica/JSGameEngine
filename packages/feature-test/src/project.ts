@@ -15,6 +15,7 @@ import {
   ScriptComponent,
   serializeScene,
   SpriteRenderer,
+  TextRenderer,
   Vec2,
   type Entity,
   type ScriptPropertyValue,
@@ -144,6 +145,30 @@ export function createFeatureTestProject(): Project {
   inactive.addComponent(SpriteRenderer, { texture: disc, pixelsPerUnit: 32 });
   inactive.active = false;
 
+  // A row of texts. "Title" sets every TextRenderer field to something other than its default.
+  const texts = at('Texts', -9, 3);
+  attach(texts, 'TextProbe');
+  at('Title', 0, 0, texts).addComponent(TextRenderer, {
+    text: 'Rowan\nFeature Test',
+    font: 'serif',
+    fontSize: 0.4,
+    bold: true,
+    italic: true,
+    color: new Color(1, 0.9, 0.4, 1),
+    align: 'left',
+    verticalAlign: 'top',
+    lineHeight: 1.5,
+    sortingOrder: 3,
+  });
+  at('Frame Counter', 6, 0, texts).addComponent(TextRenderer, {
+    text: 'Frame 0',
+    font: 'monospace',
+  });
+  at('Hidden Text', 11, 0, texts).addComponent(TextRenderer, {
+    text: 'Now you see me',
+    visible: false,
+  });
+
   attach(at('Math Probe', 0, 0), 'MathProbe');
   attach(at('Lifecycle Probe', 0, 0), 'LifecycleProbe');
   attach(at('Counter', 0, 0), 'Counter');
@@ -217,6 +242,15 @@ export function createFeatureTestProject(): Project {
     color: new Color(0.4, 1, 0.5, 1),
   });
   attach(done, 'FinishProbe');
+  // In a color nothing else has, so the browser tests can tell that text reaches the screen.
+  const verdict = finish.createEntity('Verdict');
+  verdict.transform.position.set(0, 3.2);
+  verdict.addComponent(TextRenderer, {
+    text: 'Finished',
+    fontSize: 1.2,
+    bold: true,
+    color: new Color(1, 0, 1, 1),
+  });
 
   for (const scene of [main, finish]) {
     const record = assets.create({

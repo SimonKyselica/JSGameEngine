@@ -1,46 +1,64 @@
 import type { AssetDatabase } from '../assets/assetDatabase';
+import type { Logger } from '../core/logger';
 import type { EntityId } from '../ecs/registry';
 import { Color } from '../math/color';
 import { Mat3 } from '../math/mat3';
+import { Rect } from '../math/rect';
 import { Vec2 } from '../math/vec2';
-import { Camera, SpriteRenderer } from '../scene/components';
+import { Camera, SpriteRenderer, TextRenderer } from '../scene/components';
 import type { Entity } from '../scene/entity';
 import type { Scene } from '../scene/scene';
 import { CameraView } from './cameraView';
 import type { Renderer2D, Texture } from './renderer2d';
+import { getTextRect, TEXT_PADDING, type TextRasterizer } from './textLayout';
+import { TextTextureCache } from './textTextureCache';
 import type { TextureCache } from './textureCache';
 
+/** One quad of a frame: a sprite, or a text that was rasterized into a texture. */
 interface DrawItem {
   readonly matrix: Mat3;
-  sprite: SpriteRenderer;
   texture: Texture | null;
+  /** The component's own color object, not a copy. */
+  color: Readonly<Color>;
+  flipX: boolean;
+  flipY: boolean;
+  sortingOrder: number;
   /** Position in the unsorted list, used to keep the sort stable. */
   sequence: number;
 }
 
 /** Shown when a scene has no camera, so the problem is obvious rather than a blank frame. */
 const NO_CAMERA_COLOR = Color.black();
+/** What a pooled draw item points at until it is given the color of a sprite or a text. */
+const UNUSED_COLOR = Color.white();
 
 export interface SceneRenderStats {
-  /** Sprites submitted to the renderer in the last frame. */
+  /** Sprites and texts submitted to the renderer in the last frame. */
   drawn: number;
-  /** Sprites skipped because they were outside the camera's view. */
+  /** Sprites and texts skipped because they were outside the camera's view. */
   culled: number;
 }
 
-/** Draws the sprites of a scene through a {@link Renderer2D}. */
+/** Draws the sprites and texts of a scene through a {@link Renderer2D}. */
 export class SceneRenderer {
   readonly stats: SceneRenderStats = { drawn: 0, culled: 0 };
 
   private readonly items: DrawItem[] = [];
+  private readonly texts: TextTextureCache;
   private readonly size = new Vec2();
   private readonly corner = new Vec2();
+  private readonly rect = new Rect();
+  private readonly bounds = new Mat3();
 
   constructor(
     private readonly renderer: Renderer2D,
     private readonly textures: TextureCache,
     private readonly assets: AssetDatabase,
-  ) {}
+    textRasterizer: TextRasterizer,
+    logger?: Logger,
+  ) {
+    this.texts = new TextTextureCache(renderer, textRasterizer, logger);
+  }
 
   /** The viewport's width divided by its height. */
   get aspect(): number {
@@ -53,17 +71,20 @@ export class SceneRenderer {
     const items = this.items;
     // Only the first `count` items belong to this frame; the rest are pooled leftovers.
     const frameItems = items.length === count ? items : items.slice(0, count);
-    frameItems.sort(
-      (a, b) => a.sprite.sortingOrder - b.sprite.sortingOrder || a.sequence - b.sequence,
-    );
+    frameItems.sort((a, b) => a.sortingOrder - b.sortingOrder || a.sequence - b.sequence);
 
     this.renderer.beginFrame(clearColor);
     this.renderer.setViewProjection(view.viewProjection);
     for (const item of frameItems) {
-      const { sprite } = item;
-      this.renderer.drawQuad(item.matrix, item.texture, sprite.color, sprite.flipX, sprite.flipY);
+      this.renderer.drawQuad(item.matrix, item.texture, item.color, item.flipX, item.flipY);
     }
     this.renderer.endFrame();
+    this.texts.endFrame();
+  }
+
+  /** Frees the textures the renderer made for texts. */
+  dispose(): void {
+    this.texts.dispose();
   }
 
   /**
@@ -84,7 +105,10 @@ export class SceneRenderer {
     return view;
   }
 
-  /** Fills the item pool with the visible sprites and returns how many there are. */
+  /**
+   * Fills the item pool with the visible sprites and texts and returns how many there are.
+   * Texts come after the sprites, which puts a text on top of a sprite with the same order.
+   */
   private collect(scene: Scene, view: CameraView): number {
     let count = 0;
     let culled = 0;
@@ -97,11 +121,7 @@ export class SceneRenderer {
         continue;
       }
 
-      let item = this.items[count];
-      if (!item) {
-        item = { matrix: new Mat3(), sprite, texture: null, sequence: 0 };
-        this.items.push(item);
-      }
+      const item = this.itemAt(count);
       getSpriteSize(sprite, this.assets, this.size);
       scene
         .getWorldMatrix(entity, item.matrix)
@@ -111,14 +131,106 @@ export class SceneRenderer {
         culled++;
         continue;
       }
-      item.sprite = sprite;
       item.texture = sprite.texture === null ? null : this.textures.get(sprite.texture);
+      item.color = sprite.color;
+      item.flipX = sprite.flipX;
+      item.flipY = sprite.flipY;
+      item.sortingOrder = sprite.sortingOrder;
       item.sequence = count;
       count++;
     }
+
+    const pixelsPerUnit = 1 / view.getWorldUnitsPerPixel(this.renderer.height);
+    for (const [id, text] of scene.registry.view(TextRenderer)) {
+      // Written so that a font size of NaN, which a script can produce, is skipped as well.
+      if (
+        !text.visible ||
+        text.color.a <= 0 ||
+        !(text.fontSize > 0) ||
+        text.fontSize === Infinity
+      ) {
+        continue;
+      }
+      const entity = scene.getEntity(id);
+      if (!entity.activeInHierarchy) {
+        continue;
+      }
+      const cached = this.texts.prepare(id, text);
+      const layout = cached.layout;
+      if (!layout || layout.width <= 0) {
+        continue;
+      }
+
+      const item = this.itemAt(count);
+      const world = scene.getWorldMatrix(entity, item.matrix);
+      const rect = getTextRect(text, layout, this.rect);
+      // Culled before it is rasterized, so text that is out of sight costs no texture.
+      const padding = 2 * TEXT_PADDING * text.fontSize;
+      this.bounds
+        .copy(world)
+        .multiply(
+          SCALE_SCRATCH.set(
+            rect.width + padding,
+            0,
+            0,
+            rect.height + padding,
+            rect.centerX,
+            rect.centerY,
+          ),
+        );
+      if (!this.isVisible(this.bounds, view)) {
+        culled++;
+        continue;
+      }
+
+      world.getScale(this.size);
+      const scale = Math.max(Math.abs(this.size.x), Math.abs(this.size.y));
+      const texture = this.texts.getTexture(cached, text, text.fontSize * scale * pixelsPerUnit);
+      if (!texture) {
+        continue;
+      }
+      // The texture is larger than the text by its padding, and the quad with it.
+      const unitsPerPixel = text.fontSize / cached.pixelsPerEm;
+      world.multiply(
+        SCALE_SCRATCH.set(
+          texture.width * unitsPerPixel,
+          0,
+          0,
+          texture.height * unitsPerPixel,
+          rect.centerX,
+          rect.centerY,
+        ),
+      );
+      item.texture = texture;
+      item.color = text.color;
+      item.flipX = false;
+      item.flipY = false;
+      item.sortingOrder = text.sortingOrder;
+      item.sequence = count;
+      count++;
+    }
+
     this.stats.drawn = count;
     this.stats.culled = culled;
     return count;
+  }
+
+  /** The pooled item at an index, created the first time the index is used. */
+  private itemAt(index: number): DrawItem {
+    let item = this.items[index];
+    if (!item) {
+      item = {
+        matrix: new Mat3(),
+        texture: null,
+        color: UNUSED_COLOR,
+        flipX: false,
+        flipY: false,
+        sortingOrder: 0,
+        sequence: 0,
+      };
+      this.items.push(item);
+    }
+    return item;
   }
 
   /** Tests the quad's world-space bounding box against the camera bounds. */

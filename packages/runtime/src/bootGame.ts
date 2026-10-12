@@ -1,5 +1,6 @@
 import {
   attachDomInput,
+  CanvasTextRasterizer,
   computeFitRect,
   consoleSink,
   decodeImageInBrowser,
@@ -17,6 +18,7 @@ import {
   type ImageDecoder,
   type ModuleFactory,
   type Renderer2D,
+  type TextRasterizer,
 } from '@rowan/core';
 
 /** Where exported games register their compiled scripts. Must match the script compiler. */
@@ -37,6 +39,8 @@ export interface PlayerOptions {
   readonly createAudioBackend?: () => AudioBackend;
   /** Replaces the browser image decoder. */
   readonly imageDecoder?: ImageDecoder;
+  /** Replaces the canvas that text is drawn with. */
+  readonly textRasterizer?: TextRasterizer;
 }
 
 export interface Player {
@@ -121,6 +125,7 @@ async function startPlayer(options: PlayerOptions): Promise<Player> {
       renderer,
       audioBackend,
       imageDecoder: options.imageDecoder ?? decodeImageInBrowser,
+      textRasterizer: options.textRasterizer ?? new CanvasTextRasterizer(),
       scripts: new PrecompiledScriptProvider(options.scripts ?? getRegisteredScripts()),
       logger,
     });

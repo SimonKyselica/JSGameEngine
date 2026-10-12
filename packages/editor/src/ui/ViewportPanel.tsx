@@ -61,7 +61,7 @@ export function ViewportPanel({
   mode: ViewportMode;
   hidden: boolean;
 }): ReactElement {
-  const { session, imageDecoder, viewport } = useEditor();
+  const { session, imageDecoder, textRasterizer, viewport } = useEditor();
   const containerRef = useRef<HTMLDivElement>(null);
   const glCanvasRef = useRef<HTMLCanvasElement>(null);
   const overlayRef = useRef<HTMLCanvasElement>(null);
@@ -116,12 +116,19 @@ export function ViewportPanel({
       pixelArt ? 'nearest' : 'linear',
       session.logger,
     );
-    const sceneRenderer = new SceneRenderer(renderer, textures, assets);
+    const sceneRenderer = new SceneRenderer(
+      renderer,
+      textures,
+      assets,
+      textRasterizer,
+      session.logger,
+    );
     const audioBackend = createAudioBackend();
     session.play.setDependencies({
       renderer,
       audioBackend,
       imageDecoder,
+      textRasterizer,
       attachInput: (input) => attachDomInput(input, glCanvas),
     });
 
@@ -176,6 +183,7 @@ export function ViewportPanel({
       drawOverlay(context, {
         scene,
         assets,
+        textMeasurer: textRasterizer,
         view,
         width: rect.width,
         height: rect.height,
@@ -190,11 +198,12 @@ export function ViewportPanel({
     return () => {
       loop.stop();
       session.play.setDependencies(null);
+      sceneRenderer.dispose();
       textures.dispose();
       renderer.dispose();
       audioBackend.dispose();
     };
-  }, [session, imageDecoder, viewport, pixelArt]);
+  }, [session, imageDecoder, textRasterizer, viewport, pixelArt]);
 
   /** Pointer position relative to the scene view, in CSS pixels and in world space. */
   const locate = (event: { clientX: number; clientY: number }): { screen: Vec2; world: Vec2 } => {
@@ -306,7 +315,7 @@ export function ViewportPanel({
         session.selectEntity(
           pickEntity(
             session.activeScene,
-            session.project.assets,
+            { assets: session.project.assets, textMeasurer: textRasterizer },
             world,
             ICON_PICK_RADIUS * unitsPerPixel,
           ),

@@ -12,6 +12,7 @@ import RenderProbe from './scripts/RenderProbe.ts?raw';
 import Spawner from './scripts/Spawner.ts?raw';
 import support from './scripts/support.ts?raw';
 import TestHarness from './scripts/TestHarness.ts?raw';
+import TextProbe from './scripts/TextProbe.ts?raw';
 import TriggerProbe from './scripts/TriggerProbe.ts?raw';
 
 /**
@@ -36,5 +37,6 @@ export const FEATURE_TEST_SCRIPTS: Readonly<Record<string, string>> = {
   Spawner,
   support,
   TestHarness,
+  TextProbe,
   TriggerProbe,
 };

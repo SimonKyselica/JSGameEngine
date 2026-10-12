@@ -7,6 +7,7 @@ import {
   encodePng,
   Rigidbody2D,
   SpriteRenderer,
+  TextRenderer,
   type AssetDatabase,
   type Entity,
   type Scene,
@@ -15,6 +16,7 @@ import {
 export const ENTITY_PRESETS = [
   { id: 'empty', label: 'Empty Entity' },
   { id: 'sprite', label: 'Sprite' },
+  { id: 'text', label: 'Text' },
   { id: 'camera', label: 'Camera' },
   { id: 'physics-box', label: 'Physics Box' },
   { id: 'physics-circle', label: 'Physics Circle' },
@@ -43,6 +45,9 @@ export function createPresetEntity(
       break;
     case 'sprite':
       entity.addComponent(SpriteRenderer);
+      break;
+    case 'text':
+      entity.addComponent(TextRenderer);
       break;
     case 'camera':
       // Only the first camera in a scene should claim to be the primary one.

@@ -22,10 +22,14 @@ export {
   Rigidbody2D,
   ScriptComponent,
   SpriteRenderer,
+  TextRenderer,
   Transform,
   type BodyType,
   type ScriptBinding,
   type ScriptPropertyValue,
+  type TextAlign,
+  type TextFont,
+  type TextVerticalAlign,
 } from '../scene/components';
 export { Entity } from '../scene/entity';
 export {

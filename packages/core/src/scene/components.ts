@@ -93,6 +93,79 @@ export class SpriteRenderer {
   visible = true;
 }
 
+export const TEXT_FONTS = ['sans-serif', 'serif', 'monospace'] as const;
+/**
+ * The fonts text can be drawn in. Each one stands for the browser's own font of that kind, so
+ * the exact letter shapes, and with them the width of a text, differ a little between devices.
+ */
+export type TextFont = (typeof TEXT_FONTS)[number];
+
+export const TEXT_ALIGNMENTS = ['left', 'center', 'right'] as const;
+/** Where a text sits horizontally, relative to its entity. See `TextRenderer.align`. */
+export type TextAlign = (typeof TEXT_ALIGNMENTS)[number];
+
+export const TEXT_VERTICAL_ALIGNMENTS = ['top', 'middle', 'bottom'] as const;
+/** Where a text sits vertically, relative to its entity. See `TextRenderer.verticalAlign`. */
+export type TextVerticalAlign = (typeof TEXT_VERTICAL_ALIGNMENTS)[number];
+
+/**
+ * Draws text at the entity's position. The text follows the entity's rotation and scale, and
+ * is sorted together with sprites.
+ */
+export class TextRenderer {
+  static readonly schema: ComponentSchema = {
+    name: 'TextRenderer',
+    displayName: 'Text Renderer',
+    category: 'Rendering',
+    removable: true,
+    fields: {
+      text: { type: 'string', multiline: true },
+      font: { type: 'enum', options: TEXT_FONTS },
+      fontSize: { type: 'number', min: 0, step: 0.1 },
+      bold: { type: 'boolean' },
+      italic: { type: 'boolean' },
+      color: { type: 'color' },
+      align: { type: 'enum', options: TEXT_ALIGNMENTS },
+      verticalAlign: { type: 'enum', options: TEXT_VERTICAL_ALIGNMENTS },
+      lineHeight: { type: 'number', min: 0.1, step: 0.1 },
+      sortingOrder: { type: 'number', step: 1 },
+      visible: { type: 'boolean' },
+    },
+  };
+
+  /** What is written. A line break (`\n`) starts a new line. */
+  text = 'Text';
+  /** The font the text is drawn in. */
+  font: TextFont = 'sans-serif';
+  /** The height of the font in world units, before the entity's scale is applied. */
+  fontSize = 0.5;
+  /** Draws the text in a heavier weight. */
+  bold = false;
+  /** Draws the text slanted. */
+  italic = false;
+  /** The color of the text. Its alpha makes the text see-through. */
+  color = Color.white();
+  /**
+   * Where the text sits horizontally: `left` starts it at the entity's position, `center`
+   * centers it there and `right` ends it there. Lines of different length line up the same way.
+   */
+  align: TextAlign = 'center';
+  /**
+   * Where the text sits vertically: `top` hangs it below the entity's position, `middle`
+   * centers it there and `bottom` stands it on top.
+   */
+  verticalAlign: TextVerticalAlign = 'middle';
+  /** The distance from one line to the next, as a multiple of `fontSize`. */
+  lineHeight = 1.2;
+  /**
+   * Text with a higher order is drawn on top. The order is shared with `SpriteRenderer`; where
+   * a text and a sprite have the same order, the text is on top.
+   */
+  sortingOrder = 0;
+  /** A text that is not visible is not drawn. The rest of the entity keeps working. */
+  visible = true;
+}
+
 /** An orthographic camera. The scene is drawn from the first active primary camera. */
 export class Camera {
   static readonly schema: ComponentSchema = {
@@ -322,6 +395,7 @@ export const COMPONENT_TYPES: readonly ComponentType[] = [
   Identity,
   Transform,
   SpriteRenderer,
+  TextRenderer,
   Camera,
   Rigidbody2D,
   BoxCollider2D,

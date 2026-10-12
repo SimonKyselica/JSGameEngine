@@ -24,6 +24,8 @@ export interface FieldSchema {
   readonly min?: number;
   readonly max?: number;
   readonly step?: number;
+  /** A `string` field that may hold several lines, edited in a text area. */
+  readonly multiline?: boolean;
   /** Allowed values of an `enum` field. */
   readonly options?: readonly string[];
   /** The asset type an `asset` field accepts. */

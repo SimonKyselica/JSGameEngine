@@ -10,6 +10,7 @@ import { Vec2 } from '../math/vec2';
 import type { CameraView } from '../renderer/cameraView';
 import type { Renderer2D } from '../renderer/renderer2d';
 import { createCameraView, findPrimaryCamera, SceneRenderer } from '../renderer/sceneRenderer';
+import type { TextRasterizer } from '../renderer/textLayout';
 import { TextureCache, type ImageDecoder } from '../renderer/textureCache';
 import type { Scene } from '../scene/scene';
 import { deserializeScene } from '../scene/serializer';
@@ -30,6 +31,8 @@ export interface GameOptions {
   readonly renderer: Renderer2D;
   readonly audioBackend: AudioBackend;
   readonly imageDecoder: ImageDecoder;
+  /** Measures and draws text. `CanvasTextRasterizer` in a browser. */
+  readonly textRasterizer: TextRasterizer;
   readonly scripts: ScriptFactoryProvider;
   readonly logger?: Logger;
 }
@@ -80,7 +83,13 @@ export class Game {
       this.logger,
     );
     this.audio = new AudioSystem(options.audioBackend, this.assets, this.logger);
-    this.sceneRenderer = new SceneRenderer(options.renderer, this.textures, this.assets);
+    this.sceneRenderer = new SceneRenderer(
+      options.renderer,
+      this.textures,
+      this.assets,
+      options.textRasterizer,
+      this.logger,
+    );
     this.scriptLoader = new ScriptModuleLoader(this.assets, options.scripts, { ...scriptApi });
     this.time.fixedDeltaTime = physics.fixedTimeStep;
   }
@@ -177,6 +186,7 @@ export class Game {
   /** Stops the game and releases its GPU textures. */
   dispose(): void {
     this.stop();
+    this.sceneRenderer.dispose();
     this.textures.dispose();
   }
 

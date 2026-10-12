@@ -9,6 +9,7 @@ import {
   type ReactElement,
 } from 'react';
 import {
+  CanvasTextRasterizer,
   decodeImageInBrowser,
   describeError,
   generateUuid,
@@ -199,6 +200,8 @@ interface EditorProps {
 
 function Editor({ workspace, store, onReplaceProject }: EditorProps): ReactElement {
   const { session, assetUrls, viewport } = workspace;
+  // One for the whole editor: the viewport draws text with it and tools measure text with it.
+  const [textRasterizer] = useState(() => new CanvasTextRasterizer());
   const [dialog, setDialog] = useState<DialogState>(null);
   const [centerTab, setCenterTab] = useState('scene');
   const [scriptTabs, setScriptTabs] = useState<readonly string[]>([]);
@@ -363,7 +366,13 @@ function Editor({ workspace, store, onReplaceProject }: EditorProps): ReactEleme
       focusSelection: () => {
         const entity = session.selectedEntity;
         if (entity) {
-          viewport.camera.focus(getEntityBounds(entity, session.project.assets), viewport.aspect);
+          viewport.camera.focus(
+            getEntityBounds(entity, {
+              assets: session.project.assets,
+              textMeasurer: textRasterizer,
+            }),
+            viewport.aspect,
+          );
         }
       },
       toggleSnapping: () => {
@@ -380,6 +389,7 @@ function Editor({ workspace, store, onReplaceProject }: EditorProps): ReactEleme
     return {
       session,
       imageDecoder: decodeImageInBrowser,
+      textRasterizer,
       assetUrls,
       viewport,
       commands,
@@ -387,7 +397,17 @@ function Editor({ workspace, store, onReplaceProject }: EditorProps): ReactEleme
       prompt,
       confirm,
     };
-  }, [session, assetUrls, viewport, store, onReplaceProject, prompt, confirm, openScript]);
+  }, [
+    session,
+    assetUrls,
+    viewport,
+    textRasterizer,
+    store,
+    onReplaceProject,
+    prompt,
+    confirm,
+    openScript,
+  ]);
 
   const togglePlay = useCallback(() => {
     if (session.play.state === 'stopped') {

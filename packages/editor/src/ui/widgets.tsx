@@ -315,6 +315,8 @@ interface TextFieldProps {
   readonly onChange: (value: string) => void;
   readonly placeholder?: string;
   readonly ariaLabel?: string;
+  /** Shows a text area, in which Enter starts a new line instead of finishing the edit. */
+  readonly multiline?: boolean;
 }
 
 export function TextField({
@@ -322,7 +324,21 @@ export function TextField({
   onChange,
   placeholder,
   ariaLabel,
+  multiline = false,
 }: TextFieldProps): ReactElement {
+  if (multiline) {
+    return (
+      <textarea
+        className="text-field"
+        aria-label={ariaLabel}
+        value={value}
+        placeholder={placeholder}
+        spellCheck={false}
+        rows={3}
+        onChange={(event) => onChange(event.currentTarget.value)}
+      />
+    );
+  }
   return (
     <input
       type="text"

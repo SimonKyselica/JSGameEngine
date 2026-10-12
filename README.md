@@ -41,9 +41,11 @@ A/D and make jump with Space, a ground and a few crates. Press Play in the toolb
 
 **Engine**
 
-- Entities with components: Transform (with parent/child hierarchy), Sprite Renderer, Camera,
-  Rigidbody 2D, Box Collider 2D, Circle Collider 2D, Audio Source and Script.
+- Entities with components: Transform (with parent/child hierarchy), Sprite Renderer, Text
+  Renderer, Camera, Rigidbody 2D, Box Collider 2D, Circle Collider 2D, Audio Source and Script.
 - A batched WebGL2 sprite renderer with sorting, tinting, flipping and off-screen culling.
+- Text in the browser's sans-serif, serif and monospace fonts, with several lines, alignment,
+  bold and italic. It is sorted together with sprites and stays sharp at every size.
 - 2D physics (planck.js, a Box2D port): dynamic, kinematic and static bodies with an optional
   start velocity, triggers, collision callbacks, raycasts, and point and circle queries, stepped
   at a fixed rate.

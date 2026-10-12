@@ -1,6 +1,13 @@
 import { expect, test } from '@playwright/test';
 import { encodePng } from '../packages/core/src/assets/png';
-import { chooseMenu, hierarchyRow, openEditor, readCanvasPixel, readNumber } from './support';
+import {
+  chooseMenu,
+  countCanvasPixels,
+  hierarchyRow,
+  openEditor,
+  readCanvasPixel,
+  readNumber,
+} from './support';
 
 const GL_CANVAS = 'canvas.viewport-canvas';
 
@@ -185,6 +192,52 @@ test.describe('editor', () => {
     // Clicking empty space clears the selection.
     await page.mouse.click(box.x + 20, box.y + 20);
     await expect(page.getByText('Select an entity or an asset')).toBeVisible();
+  });
+
+  test('writes text into the scene, edits it in the inspector and picks it by clicking', async ({
+    page,
+  }) => {
+    await openEditor(page);
+    // Nothing in the starter scene is white, so white pixels are the text. Its letters cover
+    // thousands of pixels; this is far above what anything but drawn text could reach.
+    const MIN_TEXT_PIXELS = 500;
+    const whitePixels = (): Promise<number> =>
+      countCanvasPixels(page, GL_CANVAS, [255, 255, 255], 30);
+    expect(await whitePixels()).toBe(0);
+
+    await chooseMenu(page, 'Entity', 'Text');
+    await expect(hierarchyRow(page, 'Text')).toHaveClass(/selected/);
+    const inspector = page.getByRole('region', { name: 'Inspector' });
+    await expect(inspector.getByText('Text Renderer')).toBeVisible();
+
+    // A new text says "Text" and is hidden behind the player sprite in the middle of the
+    // scene. Two lines at twice the size reach far beyond the sprite.
+    const text = inspector.getByRole('textbox', { name: 'Text', exact: true });
+    await expect(text).toHaveValue('Text');
+    await text.fill('Score: 1500\nLives: 3');
+    const fontSize = inspector.getByRole('spinbutton', { name: 'Font Size' });
+    await fontSize.fill('1');
+    await fontSize.blur();
+    await expect.poll(whitePixels).toBeGreaterThan(MIN_TEXT_PIXELS);
+
+    // The text is wider than the player sprite in front of it, so a click to the left of
+    // the sprite lands on the text.
+    const scene = page.getByLabel('Scene view');
+    const box = (await scene.boundingBox())!;
+    await page.mouse.click(box.x + 20, box.y + 20);
+    await expect(page.getByText('Select an entity or an asset')).toBeVisible();
+    await page.mouse.click(box.x + box.width / 2 - 60, box.y + box.height / 2);
+    await expect(hierarchyRow(page, 'Text')).toHaveClass(/selected/);
+
+    await inspector.getByRole('checkbox', { name: 'Visible' }).uncheck();
+    await expect.poll(whitePixels).toBe(0);
+    await chooseMenu(page, 'Edit', 'Undo');
+    await expect.poll(whitePixels).toBeGreaterThan(MIN_TEXT_PIXELS);
+
+    // The game draws it too, through the scene's camera.
+    await page.getByRole('button', { name: 'Play', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Stop', exact: true })).toBeVisible();
+    await expect.poll(whitePixels).toBeGreaterThan(MIN_TEXT_PIXELS);
   });
 
   test('snaps gizmo drags in snap mode and remembers the mode', async ({ page }) => {

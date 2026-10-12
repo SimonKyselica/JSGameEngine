@@ -32,10 +32,13 @@ export * from './assets/project';
 export * from './assets/wav';
 
 export * from './renderer/cameraView';
+export * from './renderer/canvasTextRasterizer';
 export * from './renderer/imageDecoder';
 export * from './renderer/renderer2d';
 export * from './renderer/sceneRenderer';
 export * from './renderer/spriteBatch';
+export * from './renderer/textLayout';
+export * from './renderer/textTextureCache';
 export * from './renderer/textureCache';
 export * from './renderer/webgl2Renderer';
 

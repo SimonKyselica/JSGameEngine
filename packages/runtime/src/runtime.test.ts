@@ -7,12 +7,14 @@ import {
   decodeImageHeadless,
   encodePng,
   HeadlessRenderer,
+  HeadlessTextRasterizer,
   NullAudioBackend,
   Project,
   Scene,
   ScriptComponent,
   serializeScene,
   SpriteRenderer,
+  TextRenderer,
   type ModuleFactory,
 } from '@rowan/core';
 import { buildScriptBundle, SCRIPT_BUNDLE_GLOBAL } from '@rowan/core/compiler';
@@ -20,7 +22,7 @@ import { bootGame, createPlayerHtml, type PlayerOptions } from './index';
 
 const globals = globalThis as Record<string, unknown>;
 
-/** A small game: a camera, a textured sprite and a script that counts its updates. */
+/** A small game: a camera, a title, a textured sprite and a script that counts its updates. */
 function createGame(): Project {
   const project = new Project(createDefaultSettings('Tiny Game'));
   const { assets } = project;
@@ -43,6 +45,7 @@ function createGame(): Project {
 
   const scene = new Scene('Main');
   scene.createEntity('Camera').addComponent(Camera);
+  scene.createEntity('Title').addComponent(TextRenderer, { text: 'Tiny Game' });
   const hero = scene.createEntity('Hero');
   hero.addComponent(SpriteRenderer, { texture: texture.id });
   hero.addComponent(ScriptComponent, {
@@ -68,18 +71,22 @@ function compileScripts(project: Project): Record<string, ModuleFactory> {
 function createOptions(overrides: Partial<PlayerOptions> & { bundle: unknown }): PlayerOptions & {
   renderer: HeadlessRenderer;
   audio: NullAudioBackend;
+  text: HeadlessTextRasterizer;
 } {
   const container = document.createElement('div');
   document.body.append(container);
   const renderer = new HeadlessRenderer();
   const audio = new NullAudioBackend();
+  const text = new HeadlessTextRasterizer();
   return {
     container,
     createRenderer: () => renderer,
     createAudioBackend: () => audio,
     imageDecoder: decodeImageHeadless,
+    textRasterizer: text,
     renderer,
     audio,
+    text,
     ...overrides,
   };
 }
@@ -111,7 +118,10 @@ describe('bootGame', () => {
 
     await nextFrames();
     expect(globals.__ticks as number).toBeGreaterThan(0);
-    expect(options.renderer.quads).toHaveLength(1);
+    // The sprite and the title, whose text became a texture of its own.
+    expect(options.renderer.quads).toHaveLength(2);
+    expect(options.text.rasterized.map((entry) => entry.text)).toEqual(['Tiny Game']);
+    expect(options.renderer.textureCount).toBe(2);
 
     player.dispose();
     expect(player.game.isRunning).toBe(false);
@@ -120,6 +130,26 @@ describe('bootGame', () => {
     const ticks = globals.__ticks;
     await nextFrames();
     expect(globals.__ticks).toBe(ticks);
+  });
+
+  it('draws text with a canvas by default, and keeps running where there is none', async () => {
+    // happy-dom has canvases but no 2D context, like a browser in which canvas drawing is blocked.
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const project = createGame();
+    compileScripts(project);
+    const { bundle } = createGameBundle(project, { inlineBinaryAssets: true });
+    const options = createOptions({ bundle: JSON.parse(JSON.stringify(bundle)) });
+
+    const player = await bootGame({ ...options, textRasterizer: undefined });
+    await nextFrames();
+    expect(player.game.isRunning).toBe(true);
+    expect(options.text.rasterized).toEqual([]);
+    expect(options.renderer.quads).toHaveLength(1);
+    expect(errors.mock.calls).toEqual([
+      [expect.stringMatching(/^Text could not be drawn: .*2D canvas/)],
+    ]);
+    player.dispose();
+    errors.mockRestore();
   });
 
   it('fetches the manifest and its asset files relative to the manifest URL', async () => {

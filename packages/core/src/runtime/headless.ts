@@ -3,6 +3,7 @@ import { NullAudioBackend } from '../audio/audioBackend';
 import { Logger, type LogEntry } from '../core/logger';
 import { decodeImageHeadless } from '../renderer/imageDecoder';
 import { HeadlessRenderer } from '../renderer/renderer2d';
+import { HeadlessTextRasterizer } from '../renderer/textLayout';
 import type { ScriptFactoryProvider } from '../scripting/scriptModuleLoader';
 import { Game } from './game';
 
@@ -10,6 +11,8 @@ export interface HeadlessGame {
   readonly game: Game;
   readonly renderer: HeadlessRenderer;
   readonly audio: NullAudioBackend;
+  /** Records the texts the game draws. */
+  readonly text: HeadlessTextRasterizer;
   /** Everything the game has logged so far. */
   readonly logs: LogEntry[];
 }
@@ -22,6 +25,7 @@ export function createHeadlessGame(project: Project, scripts: ScriptFactoryProvi
   const { width, height } = project.settings.rendering;
   const renderer = new HeadlessRenderer(width, height);
   const audio = new NullAudioBackend();
+  const text = new HeadlessTextRasterizer();
   const logs: LogEntry[] = [];
   const logger = new Logger();
   logger.addSink((entry) => logs.push(entry));
@@ -31,8 +35,9 @@ export function createHeadlessGame(project: Project, scripts: ScriptFactoryProvi
     renderer,
     audioBackend: audio,
     imageDecoder: decodeImageHeadless,
+    textRasterizer: text,
     scripts,
     logger,
   });
-  return { game, renderer, audio, logs };
+  return { game, renderer, audio, text, logs };
 }
