@@ -3,7 +3,6 @@
   "version": "0.1.0",
   "description": "Rowan core engine library: ECS, scenes, rendering, audio, physics, input and scripting.",
   "type": "module",
-  "license": "MIT",
   "files": [
     "dist"
   ],

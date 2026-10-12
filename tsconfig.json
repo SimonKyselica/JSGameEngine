@@ -9,7 +9,8 @@
       "@rowan/runtime": ["./packages/runtime/src/index.ts"],
       "@rowan/feature-test": ["./packages/feature-test/src/index.ts"],
       "rowan": ["./packages/core/src/scripting/api.ts"]
-    }
+    },
+    "allowImportingTsExtensions": true
   },
   "include": ["packages/*/src", "packages/*/*.ts", "e2e", "*.ts"],
   "exclude": ["**/dist", "**/node_modules"]

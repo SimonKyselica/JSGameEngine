@@ -4,15 +4,16 @@
   "private": true,
   "description": "Rowan - an indie 2D game engine and editor that runs natively in the browser.",
   "type": "module",
-  "license": "MIT",
   "engines": {
-    "node": ">=22.12.0"
+    "node": ">=24"
   },
   "workspaces": [
     "packages/*"
   ],
   "scripts": {
-    "build": "npm run build -w @rowan/core",
+    "dev": "npm run build -w @rowan/runtime && npm run dev -w @rowan/editor",
+    "build": "npm run build -w @rowan/core && npm run build -w @rowan/runtime && npm run build -w @rowan/editor",
+    "preview": "npm run preview -w @rowan/editor",
     "typecheck": "tsc -p tsconfig.json",
     "lint": "eslint .",
     "format": "prettier --write .",
@@ -20,6 +21,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "test:e2e": "npm run build && playwright test",
     "check": "npm run typecheck && npm run lint && npm run format:check && npm run test"
   },
   "devDependencies": {

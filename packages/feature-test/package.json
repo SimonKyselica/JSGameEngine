@@ -4,7 +4,6 @@
   "private": true,
   "description": "The Rowan feature-test project: one scene that exercises every component and the whole scripting API.",
   "type": "module",
-  "license": "MIT",
   "exports": {
     ".": "./src/index.ts"
   },

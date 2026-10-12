@@ -1,0 +1,19 @@
+{
+  "name": "@rowan/runtime",
+  "version": "0.1.0",
+  "description": "Rowan player: the stripped runtime that exported games ship with.",
+  "type": "module",
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": "./src/index.ts",
+    "./player": "./dist/rowan-player.js"
+  },
+  "scripts": {
+    "build": "vite build"
+  },
+  "dependencies": {
+    "@rowan/core": "0.1.0"
+  }
+}
