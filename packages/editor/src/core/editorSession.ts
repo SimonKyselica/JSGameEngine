@@ -6,6 +6,7 @@ import {
   getNameWithoutExtension,
   getScriptProperties,
   instantiatePrefab,
+  makeUniqueName,
   Logger,
   ScriptApi,
   ScriptComponent,
@@ -17,6 +18,7 @@ import {
   type ComponentType,
   type Entity,
   type ImageDecoder,
+  type PrefabData,
   type Project,
   type ProjectSettings,
   type Scene,
@@ -73,6 +75,8 @@ export class EditorSession {
 
   private version = 0;
   private dragSnapshot: string | null = null;
+  /** The entity that was copied or cut. Kept as a prefab, so it outlives its scene. */
+  private clipboard: PrefabData | null = null;
   private readonly scriptLoader: ScriptModuleLoader;
   private readonly scriptInfo = new Map<string, ScriptInfo>();
   private readonly subscriptions: Unsubscribe[];
@@ -257,6 +261,56 @@ export class EditorSession {
       copy = duplicateEntity(entity);
     });
     this.selectEntity(copy);
+  }
+
+  /** True when an entity has been copied or cut and can be pasted. */
+  get canPaste(): boolean {
+    return this.clipboard !== null;
+  }
+
+  /** Remembers an entity and its children, so copies can be pasted, also into other scenes. */
+  copyEntity(entity: Entity): void {
+    this.clipboard = createPrefab(entity);
+    this.notify();
+  }
+
+  /** Copies an entity and removes it from the scene. */
+  cutEntity(entity: Entity): void {
+    this.copyEntity(entity);
+    this.deleteEntity(entity);
+  }
+
+  /**
+   * Adds a copy of the copied entity right after the selected entity, as its sibling, or
+   * at the end of the scene root when nothing is selected. The copy keeps its local
+   * transform, gets a name that is unique among its new siblings, and becomes the selection.
+   */
+  pasteEntity(): void {
+    const clipboard = this.clipboard;
+    if (!clipboard) {
+      return;
+    }
+    const target = this.selectedEntity;
+    const parent = target?.parent ?? null;
+    let pasted: Entity | null = null;
+    this.edit(() => {
+      const scene = this.activeScene;
+      const siblings = parent ? parent.children : scene.rootEntities;
+      pasted = instantiatePrefab(scene, clipboard, {
+        parent,
+        name: makeUniqueName(
+          clipboard.name,
+          siblings.map((sibling) => sibling.name),
+        ),
+      });
+      if (target) {
+        scene.setParent(pasted, parent, {
+          keepWorldTransform: false,
+          index: scene.getSiblingIndex(target) + 1,
+        });
+      }
+    });
+    this.selectEntity(pasted);
   }
 
   renameEntity(entity: Entity, name: string): void {

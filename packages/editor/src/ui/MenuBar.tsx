@@ -1,11 +1,8 @@
 import { useState, type ReactElement } from 'react';
 import { ENTITY_PRESETS } from '../core/entityPresets';
 import { useEditor } from './editorContext';
+import { IS_MAC, MOD } from './shortcuts';
 import { PopupMenu, type MenuEntry } from './widgets';
-
-/** True on Apple platforms, where shortcuts use the Command key. */
-const IS_MAC = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
-const MOD = IS_MAC ? '⌘' : 'Ctrl+';
 
 /** The application menu at the top of the editor. */
 export function MenuBar(): ReactElement {
@@ -39,6 +36,24 @@ export function MenuBar(): ReactElement {
         onSelect: () => session.redo(),
       },
       'separator',
+      {
+        label: 'Cut',
+        shortcut: `${MOD}X`,
+        disabled: !entity,
+        onSelect: () => entity && session.cutEntity(entity),
+      },
+      {
+        label: 'Copy',
+        shortcut: `${MOD}C`,
+        disabled: !entity,
+        onSelect: () => entity && session.copyEntity(entity),
+      },
+      {
+        label: 'Paste',
+        shortcut: `${MOD}V`,
+        disabled: !session.canPaste,
+        onSelect: () => session.pasteEntity(),
+      },
       {
         label: 'Duplicate',
         shortcut: `${MOD}D`,

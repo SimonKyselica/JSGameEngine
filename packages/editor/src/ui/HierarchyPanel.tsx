@@ -1,7 +1,9 @@
 import { useState, type DragEvent, type KeyboardEvent, type ReactElement } from 'react';
 import type { Entity } from '@rowan/core';
 import { ENTITY_PRESETS } from '../core/entityPresets';
+import { filterEntitiesByName } from '../core/hierarchyFilter';
 import { DRAG_TYPES, useEditor } from './editorContext';
+import { MOD } from './shortcuts';
 import { Icon, useContextMenu, type MenuEntry } from './widgets';
 
 /** Where a dragged entity would land relative to the row under the pointer. */
@@ -29,6 +31,16 @@ export function HierarchyPanel(): ReactElement {
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
   const [renaming, setRenaming] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<DropTarget | null>(null);
+  const [search, setSearch] = useState('');
+  // While searching, the tree is replaced by a flat list of the entities that match.
+  const matches = search.trim() === '' ? null : filterEntitiesByName(scene, search);
+
+  const pasteItem: MenuEntry = {
+    label: 'Paste',
+    shortcut: `${MOD}V`,
+    disabled: !session.canPaste,
+    onSelect: () => session.pasteEntity(),
+  };
 
   const createMenu = (parent: Entity | null): MenuEntry[] =>
     ENTITY_PRESETS.map((preset) => ({
@@ -40,7 +52,10 @@ export function HierarchyPanel(): ReactElement {
     ...createMenu(entity),
     'separator',
     { label: 'Rename', shortcut: 'F2', onSelect: () => setRenaming(entity.uuid) },
-    { label: 'Duplicate', shortcut: 'Ctrl+D', onSelect: () => session.duplicateEntity(entity) },
+    { label: 'Cut', shortcut: `${MOD}X`, onSelect: () => session.cutEntity(entity) },
+    { label: 'Copy', shortcut: `${MOD}C`, onSelect: () => session.copyEntity(entity) },
+    pasteItem,
+    { label: 'Duplicate', shortcut: `${MOD}D`, onSelect: () => session.duplicateEntity(entity) },
     {
       label: 'Save as Prefab',
       onSelect: () => {
@@ -85,27 +100,37 @@ export function HierarchyPanel(): ReactElement {
     }
   };
 
-  /** Arrow keys walk the tree the way they do in a file explorer; F2 renames. */
-  const handleKeyDown = (event: KeyboardEvent<HTMLElement>): void => {
-    const selected = session.selectedEntity;
-    if (event.key === 'F2' && selected) {
-      setRenaming(selected.uuid);
-      return;
-    }
-    if (!['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) {
-      return;
-    }
-    event.preventDefault();
-
-    // The rows as they appear on screen: children of collapsed entities are left out.
-    const visible: Entity[] = [];
+  /** The tree's rows as they appear on screen: children of collapsed entities are left out. */
+  const listTreeRows = (): Entity[] => {
+    const rows: Entity[] = [];
     const visit = (entity: Entity): void => {
-      visible.push(entity);
+      rows.push(entity);
       if (!collapsed.has(entity.uuid)) {
         entity.children.forEach(visit);
       }
     };
     scene.rootEntities.forEach(visit);
+    return rows;
+  };
+
+  /** Arrow keys walk the tree the way they do in a file explorer; F2 renames. */
+  const handleKeyDown = (event: KeyboardEvent<HTMLElement>): void => {
+    const selected = session.selectedEntity;
+    // In the search field only Up and Down leave the text; the other keys edit it.
+    const inSearchField = event.target instanceof HTMLInputElement;
+    const keys = inSearchField
+      ? ['ArrowUp', 'ArrowDown']
+      : ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'];
+    if (event.key === 'F2' && selected && !inSearchField) {
+      setRenaming(selected.uuid);
+      return;
+    }
+    if (!keys.includes(event.key)) {
+      return;
+    }
+    event.preventDefault();
+
+    const visible = matches ?? listTreeRows();
     if (visible.length === 0) {
       return;
     }
@@ -115,25 +140,27 @@ export function HierarchyPanel(): ReactElement {
     }
 
     const index = visible.indexOf(selected);
-    const hasChildren = selected.children.length > 0;
-    const isCollapsed = collapsed.has(selected.uuid);
     if (event.key === 'ArrowDown') {
       session.selectEntity(visible[Math.min(index + 1, visible.length - 1)]!);
     } else if (event.key === 'ArrowUp') {
       session.selectEntity(visible[Math.max(index - 1, 0)]!);
-    } else if (event.key === 'ArrowRight' && hasChildren && isCollapsed) {
-      toggleCollapsed(selected.uuid);
-    } else if (event.key === 'ArrowLeft') {
-      if (hasChildren && !isCollapsed) {
+    } else if (!matches) {
+      // Left and right fold the tree; a flat list of search results has nothing to fold.
+      const hasChildren = selected.children.length > 0;
+      const isCollapsed = collapsed.has(selected.uuid);
+      if (event.key === 'ArrowRight' && hasChildren && isCollapsed) {
         toggleCollapsed(selected.uuid);
-      } else if (selected.parent) {
+      } else if (event.key === 'ArrowLeft' && hasChildren && !isCollapsed) {
+        toggleCollapsed(selected.uuid);
+      } else if (event.key === 'ArrowLeft' && selected.parent) {
         session.selectEntity(selected.parent);
       }
     }
   };
 
   const renderRow = (entity: Entity, depth: number): ReactElement => {
-    const children = entity.children;
+    // Search results are listed flat: no nesting, and no dragging into an order that is hidden.
+    const children = matches ? [] : entity.children;
     const isCollapsed = collapsed.has(entity.uuid);
     const isSelected = session.selectedEntity === entity;
     const drop = dropTarget?.uuid === entity.uuid ? ` drop-${dropTarget.zone}` : '';
@@ -142,7 +169,7 @@ export function HierarchyPanel(): ReactElement {
         <div
           className={`tree-row${isSelected ? ' selected' : ''}${entity.activeInHierarchy ? '' : ' inactive'}${drop}`}
           style={{ paddingLeft: 6 + depth * 14 }}
-          draggable={renaming !== entity.uuid}
+          draggable={!matches && renaming !== entity.uuid}
           onClick={() => session.selectEntity(entity)}
           onDoubleClick={() => setRenaming(entity.uuid)}
           onContextMenu={(event) => {
@@ -234,6 +261,22 @@ export function HierarchyPanel(): ReactElement {
         <span>{scene.name}</span>
         {session.play.isActive && <span className="badge">Playing</span>}
       </div>
+      <div className="tree-search">
+        <input
+          type="search"
+          className="text-field"
+          placeholder="Search entities"
+          aria-label="Search entities"
+          value={search}
+          spellCheck={false}
+          onChange={(event) => setSearch(event.currentTarget.value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Escape') {
+              setSearch('');
+            }
+          }}
+        />
+      </div>
       <div
         className="panel-body tree"
         tabIndex={0}
@@ -245,7 +288,7 @@ export function HierarchyPanel(): ReactElement {
         onContextMenu={(event) => {
           if (event.target === event.currentTarget) {
             event.preventDefault();
-            menu.open(event, createMenu(null));
+            menu.open(event, [...createMenu(null), 'separator', pasteItem]);
           }
         }}
         onDragOver={(event) => {
@@ -256,8 +299,9 @@ export function HierarchyPanel(): ReactElement {
         onDrop={(event) => handleDrop(event, null)}
       >
         <ul role="tree" aria-label="Entities">
-          {scene.rootEntities.map((entity) => renderRow(entity, 0))}
+          {(matches ?? scene.rootEntities).map((entity) => renderRow(entity, 0))}
         </ul>
+        {matches?.length === 0 && <p className="empty-hint">No entity matches the search.</p>}
       </div>
       {menu.element}
     </section>

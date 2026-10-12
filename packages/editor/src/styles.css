@@ -697,6 +697,12 @@ input[type='radio'] {
   color: var(--text-dim);
 }
 
+.tree-search {
+  flex: none;
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--border);
+}
+
 .tree {
   padding: 2px 0;
   outline: none;

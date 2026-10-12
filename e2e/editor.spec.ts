@@ -96,6 +96,50 @@ test.describe('editor', () => {
     await expect(hierarchyRow(page, 'Main Camera')).toBeVisible();
   });
 
+  test('cuts, copies and pastes entities with the keyboard and the menu', async ({ page }) => {
+    await openEditor(page);
+    await hierarchyRow(page, 'Player').click();
+    await page.keyboard.press('ControlOrMeta+C');
+    await page.keyboard.press('ControlOrMeta+V');
+    await expect(hierarchyRow(page, 'Player (1)')).toHaveClass(/selected/);
+    await expect(
+      page.getByRole('region', { name: 'Inspector' }).getByRole('button', {
+        name: 'Rigidbody 2D',
+        exact: true,
+      }),
+    ).toBeVisible();
+
+    await page.keyboard.press('ControlOrMeta+X');
+    await expect(hierarchyRow(page, 'Player (1)')).toHaveCount(0);
+    await chooseMenu(page, 'Edit', 'Paste');
+    await expect(hierarchyRow(page, 'Player (1)')).toHaveClass(/selected/);
+
+    await chooseMenu(page, 'Edit', 'Undo');
+    await expect(hierarchyRow(page, 'Player (1)')).toHaveCount(0);
+  });
+
+  test('filters the hierarchy with the search box', async ({ page }) => {
+    await openEditor(page);
+    const search = page.getByRole('searchbox', { name: 'Search entities' });
+    const rows = page.getByRole('tree', { name: 'Entities' }).locator('.tree-row');
+    await expect(rows).toHaveCount(6);
+
+    await search.fill('crate');
+    await expect(rows).toHaveCount(3);
+    await expect(hierarchyRow(page, 'Ground')).toHaveCount(0);
+
+    // Arrow keys in the search field move through the results.
+    await search.press('ArrowDown');
+    await expect(rows.first()).toHaveClass(/selected/);
+
+    await search.fill('nothing like this');
+    await expect(page.getByText('No entity matches the search.')).toBeVisible();
+
+    await search.press('Escape');
+    await expect(search).toHaveValue('');
+    await expect(rows).toHaveCount(6);
+  });
+
   test('adds and removes components', async ({ page }) => {
     await openEditor(page);
     await hierarchyRow(page, 'Ground').click();

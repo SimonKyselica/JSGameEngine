@@ -451,6 +451,22 @@ function Editor({ workspace, store, onReplaceProject }: EditorProps): ReactEleme
         if (entity) {
           session.duplicateEntity(entity);
         }
+      } else if (modifier && (key === 'c' || key === 'x')) {
+        // Text the user has selected, in the console for example, keeps its normal copy.
+        const hasTextSelection = (window.getSelection()?.toString() ?? '') !== '';
+        if (entity && !hasTextSelection) {
+          event.preventDefault();
+          if (key === 'c') {
+            session.copyEntity(entity);
+          } else {
+            session.cutEntity(entity);
+          }
+        }
+      } else if (modifier && key === 'v') {
+        if (session.canPaste) {
+          event.preventDefault();
+          session.pasteEntity();
+        }
       } else if ((key === 'delete' || key === 'backspace') && entity) {
         event.preventDefault();
         session.deleteEntity(entity);

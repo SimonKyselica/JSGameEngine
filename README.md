@@ -28,6 +28,8 @@ A/D and make jump with Space, a ground and a few crates. Press Play in the toolb
   hold Ctrl to snap; F frames the selection).
 - Play, Pause and Step. The game runs on a copy of the scene, so Stop restores it exactly.
 - Undo and redo for every scene edit.
+- Copy, cut and paste entities (Ctrl+C, X, V), also from one scene into another, and a search
+  box that filters the hierarchy by name.
 - A built-in code editor for scripts, with syntax checking as you type.
 - Import by menu or drag and drop: PNG, JPEG, WebP, GIF, BMP, AVIF and SVG images; WAV, MP3, OGG,
   M4A, AAC, FLAC and WebA audio; TypeScript and JavaScript scripts.
@@ -39,8 +41,9 @@ A/D and make jump with Space, a ground and a few crates. Press Play in the toolb
 - Entities with components: Transform (with parent/child hierarchy), Sprite Renderer, Camera,
   Rigidbody 2D, Box Collider 2D, Circle Collider 2D, Audio Source and Script.
 - A batched WebGL2 sprite renderer with sorting, tinting, flipping and off-screen culling.
-- 2D physics (planck.js, a Box2D port): dynamic, kinematic and static bodies, triggers, collision
-  callbacks, raycasts and point queries, stepped at a fixed rate.
+- 2D physics (planck.js, a Box2D port): dynamic, kinematic and static bodies with an optional
+  start velocity, triggers, collision callbacks, raycasts, and point and circle queries, stepped
+  at a fixed rate.
 - Sound through the Web Audio API.
 - Keyboard and mouse input.
 
@@ -92,7 +95,10 @@ Callbacks: `onStart`, `onUpdate`, `onFixedUpdate`, `onLateUpdate`, `onDestroy`,
 
 From a script you can reach `this.entity`, `this.transform`, `this.scene`, `this.input`,
 `this.physics`, `this.audio`, `this.assets` and `this.time`, plus `getComponent`, `getScript`,
-`instantiate`, `destroy` and `log`. Scripts can import each other by relative path. Types are
+`instantiate`, `destroy` and `log`. `this.after(seconds, fn)` and `this.every(seconds, fn)` are
+timers that stop by themselves when the entity is destroyed, and `entity.findChild(name)`,
+`getComponentInChildren` and `getComponentInParent` look through the hierarchy. Scripts can
+import each other by relative path. Types are
 stripped, not checked, when a script is compiled. An error thrown by a script is reported in the
 Console panel and does not stop the game.
 

@@ -21,6 +21,7 @@ import {
 import { EditorCamera } from './editorCamera';
 import { EditorSession } from './editorSession';
 import { createPresetEntity, ENTITY_PRESETS } from './entityPresets';
+import { filterEntitiesByName } from './hierarchyFilter';
 import { applyGizmoDrag, getGizmoAxes, GIZMO, hitTestGizmo, type GizmoDragStart } from './gizmos';
 import { drawOverlay, getGizmoLayout } from './overlay';
 import { getEntityBounds, getSpriteCorners, pickEntity } from './picking';
@@ -279,6 +280,135 @@ describe('EditorSession editing', () => {
       { script: scriptId, enabled: true, properties: {} },
       { script: scriptId, enabled: true, properties: {} },
     ]);
+  });
+});
+
+describe('EditorSession clipboard', () => {
+  it('pastes a copy right after the selected entity, with a unique name and new ids', () => {
+    const session = createSession();
+    const ground = session.scene.findByName('Ground')!;
+    session.selectEntity(ground);
+    expect(session.canPaste).toBe(false);
+
+    session.copyEntity(ground);
+    expect(session.canPaste).toBe(true);
+    session.pasteEntity();
+
+    const pasted = session.selectedEntity!;
+    expect(pasted.name).toBe('Ground (1)');
+    expect(pasted.uuid).not.toBe(ground.uuid);
+    expect(pasted.transform.position.toArray()).toEqual(ground.transform.position.toArray());
+    expect(pasted.hasComponent(BoxCollider2D)).toBe(true);
+    expect(entityNames(session.scene).slice(0, 4)).toEqual([
+      'Main Camera',
+      'Ground',
+      'Ground (1)',
+      'Player',
+    ]);
+    expect(session.dirty).toBe(true);
+
+    session.undo();
+    expect(session.scene.findByName('Ground (1)')).toBeNull();
+  });
+
+  it('pastes several independent copies, children included', () => {
+    const session = createSession();
+    const player = session.scene.findByName('Player')!;
+    session.edit(() => session.scene.createEntity('Hat', { parent: player }));
+    session.copyEntity(player);
+    // Changes made after copying must not leak into what is pasted.
+    session.edit(() => {
+      player.transform.position.set(9, 9);
+    });
+
+    session.selectEntity(player);
+    session.pasteEntity();
+    const first = session.selectedEntity!;
+    session.pasteEntity();
+    const second = session.selectedEntity!;
+
+    expect([first.name, second.name]).toEqual(['Player (1)', 'Player (2)']);
+    expect(first.transform.position.toArray()).toEqual([0, 0]);
+    expect(first.children.map((child) => child.name)).toEqual(['Hat']);
+    expect(first.children[0]!.uuid).not.toBe(second.children[0]!.uuid);
+    first.transform.position.set(5, 5);
+    expect(second.transform.position.toArray()).toEqual([0, 0]);
+  });
+
+  it('pastes at the end of the root without a selection, and beside a selected child', () => {
+    const session = createSession();
+    const { scene } = session;
+    const ground = scene.findByName('Ground')!;
+    const player = scene.findByName('Player')!;
+    session.moveEntity(player, ground);
+    session.copyEntity(scene.findByName('Main Camera')!);
+
+    session.selectEntity(null);
+    session.pasteEntity();
+    expect(scene.rootEntities.at(-1)!.name).toBe('Main Camera (1)');
+
+    session.selectEntity(player);
+    session.pasteEntity();
+    expect(session.selectedEntity!.parent).toBe(ground);
+    expect(ground.children.map((child) => child.name)).toEqual(['Player', 'Main Camera']);
+  });
+
+  it('cuts an entity, which paste brings back and undo restores', () => {
+    const session = createSession();
+    const player = session.scene.findByName('Player')!;
+    const originalUuid = player.uuid;
+    session.selectEntity(player);
+    session.cutEntity(player);
+    expect(session.scene.findByName('Player')).toBeNull();
+    expect(session.selection).toBeNull();
+
+    session.pasteEntity();
+    expect(session.selectedEntity!.name).toBe('Player');
+    expect(session.selectedEntity!.hasComponent(ScriptComponent)).toBe(true);
+
+    session.undo();
+    session.undo();
+    expect(session.scene.findByName('Player')!.uuid).toBe(originalUuid);
+    expect(session.canPaste).toBe(true);
+  });
+
+  it('pastes into another scene of the project', () => {
+    const session = createSession();
+    session.copyEntity(session.scene.findByName('Player')!);
+    session.createScene('Level 2');
+    session.pasteEntity();
+    expect(entityNames(session.scene)).toEqual(['Main Camera', 'Player']);
+    expect(session.selectedEntity!.hasComponent(Rigidbody2D)).toBe(true);
+  });
+
+  it('does nothing when nothing was copied, and announces a copy so menus can update', () => {
+    const session = createSession();
+    const version = session.getVersion();
+    session.pasteEntity();
+    expect(session.getVersion()).toBe(version);
+    expect(session.canUndo).toBe(false);
+
+    session.copyEntity(session.scene.findByName('Ground')!);
+    expect(session.getVersion()).toBe(version + 1);
+    expect(session.dirty).toBe(false);
+  });
+});
+
+describe('filterEntitiesByName', () => {
+  it('matches part of a name, ignoring case and surrounding spaces, in hierarchy order', () => {
+    const { scene } = createSession();
+    const player = scene.findByName('Player')!;
+    scene.createEntity('Crate Lid', { parent: player });
+    const found = filterEntitiesByName(scene, '  cRaTe ').map((entity) => entity.name);
+    // The lid is a child of the player, which is listed before the three crates.
+    expect(found).toEqual(['Crate Lid', 'Crate', 'Crate', 'Crate']);
+    expect(filterEntitiesByName(scene, 'a').map((entity) => entity.name)).toContain('Main Camera');
+  });
+
+  it('matches everything for a blank search and nothing for an unknown name', () => {
+    const { scene } = createSession();
+    expect(filterEntitiesByName(scene, '   ')).toHaveLength(scene.entityCount);
+    expect(filterEntitiesByName(scene, 'zzz')).toEqual([]);
   });
 });
 
