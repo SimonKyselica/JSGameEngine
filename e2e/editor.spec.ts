@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Locator } from '@playwright/test';
 import { encodePng } from '../packages/core/src/assets/png';
 import {
   chooseMenu,
@@ -655,6 +655,93 @@ test.describe('editor', () => {
     await page.reload();
     await expect(hierarchyRow(page, 'Second Camera')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Saved' })).toBeVisible();
+  });
+
+  test('organizes assets in folders: makes, fills, moves, renames and deletes them', async ({
+    page,
+  }) => {
+    await openEditor(page);
+    const project = page.getByRole('region', { name: 'Project' });
+    const folders = project.getByRole('listbox', { name: 'Folders' });
+    const folder = (name: string): Locator => folders.getByRole('option', { name, exact: true });
+    const shownPath = project.locator('.project-path');
+    const script = project.getByRole('button', { name: 'PlayerController.ts' });
+
+    // A new folder is there although nothing is in it yet.
+    await project.getByRole('button', { name: 'Add' }).click();
+    await page.getByRole('menuitem', { name: 'New Folder…' }).click();
+    const folderName = page.getByRole('textbox', { name: 'Folder name' });
+    await folderName.fill('Game');
+    await folderName.press('Enter');
+    await expect(folder('Game')).toBeVisible();
+
+    // An asset that is dragged onto a folder moves into it.
+    await script.dragTo(folder('Game'));
+    await expect(script).toHaveAttribute('title', 'Game/PlayerController.ts');
+    await folder('Game').click();
+    await expect(shownPath).toHaveText('Game');
+    await expect(script).toBeVisible();
+    // The folder it came from has nothing in it now, and is still there.
+    await folder('Scripts').click();
+    await expect(project.getByText('This folder is empty.')).toBeVisible();
+
+    // A folder goes into another one by dragging it there, or with the menu.
+    await folder('Scripts').dragTo(folder('Game'));
+    await expect(shownPath).toHaveText('Game/Scripts');
+    await folder('Scenes').click({ button: 'right' });
+    await page.getByRole('menuitem', { name: 'Move to…' }).click();
+    const moveDialog = page.getByRole('dialog', { name: 'Move "Scenes"' });
+    await moveDialog.getByRole('combobox', { name: 'To the folder' }).selectOption('Game/Scripts');
+    await moveDialog.getByRole('button', { name: 'Move', exact: true }).click();
+    await expect(folder('Scenes')).toHaveAttribute('title', 'Game/Scripts/Scenes');
+
+    // Renaming a folder takes along what is in it, and the panel keeps showing it.
+    await folder('Game').click({ button: 'right' });
+    await page.getByRole('menuitem', { name: 'Rename…' }).click();
+    await folderName.fill('Code');
+    await folderName.press('Enter');
+    await expect(shownPath).toHaveText('Code/Scripts');
+    await folder('Code').click();
+    await expect(script).toHaveAttribute('title', 'Code/PlayerController.ts');
+    // The folder inside it is shown next to the script, and opens with a double click.
+    await project.locator('.asset-grid').getByRole('button', { name: 'Scripts' }).dblclick();
+    await expect(shownPath).toHaveText('Code/Scripts');
+
+    // The player still has its script, and the script still runs: scenes refer to assets
+    // by id, not by where they are.
+    await hierarchyRow(page, 'Player').click();
+    await page.getByRole('button', { name: 'Play', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Stop', exact: true })).toBeVisible();
+    await page.getByLabel('Game view').click();
+    await page.keyboard.down('KeyD');
+    await expect.poll(async () => readNumber(page, 'Position X')).toBeGreaterThan(0.5);
+    await page.keyboard.up('KeyD');
+    await page.getByRole('button', { name: 'Stop', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Play', exact: true })).toBeVisible();
+
+    // Folders are saved with the project, the empty ones too.
+    await chooseMenu(page, 'Assets', 'New Folder…');
+    await folderName.fill('Sounds');
+    await folderName.press('Enter');
+    await page.keyboard.press('ControlOrMeta+S');
+    await expect(page.getByRole('button', { name: 'Saved' })).toBeVisible();
+    await page.reload();
+    await expect(folder('Sounds')).toBeVisible();
+    await expect(folder('Scenes')).toHaveAttribute('title', 'Code/Scripts/Scenes');
+
+    // An empty folder goes without a question. One with files in it asks first, and a
+    // folder that holds the only scene of the project stays.
+    await folder('Sounds').click({ button: 'right' });
+    await page.getByRole('menuitem', { name: 'Delete' }).click();
+    await expect(folder('Sounds')).toHaveCount(0);
+    await folder('Code').click({ button: 'right' });
+    await page.getByRole('menuitem', { name: 'Delete' }).click();
+    const deleteDialog = page.getByRole('dialog', { name: 'Delete Folder' });
+    await expect(deleteDialog).toContainText('with the 2 files in it');
+    await deleteDialog.getByRole('button', { name: 'Delete' }).click();
+    await expect(folder('Code')).toBeVisible();
+    await page.getByRole('tab', { name: /Console/ }).click();
+    await expect(page.getByRole('log')).toContainText('holds every scene of the project');
   });
 
   test('imports an image and shows it as a sprite', async ({ page }) => {

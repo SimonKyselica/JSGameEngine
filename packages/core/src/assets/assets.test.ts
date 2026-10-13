@@ -2,13 +2,16 @@ import { describe, expect, it, vi } from 'vitest';
 import { inflateSync } from 'node:zlib';
 import { RowanError } from '../core/assert';
 import {
+  compareAssetPaths,
   detectAssetType,
   getBaseName,
   getDirectoryName,
   getFileExtension,
   getNameWithoutExtension,
   getSupportedExtensions,
+  isInFolder,
   isTextAssetType,
+  joinAssetPath,
 } from './asset';
 import { AssetDatabase, normalizeAssetName } from './assetDatabase';
 import { encodePng, readPngSize } from './png';
@@ -36,6 +39,33 @@ describe('asset paths and types', () => {
     expect(getFileExtension('.hidden')).toBe('');
     expect(getNameWithoutExtension('Sprites/idle.final.png')).toBe('idle.final');
     expect(getNameWithoutExtension('.hidden')).toBe('.hidden');
+  });
+
+  it('puts names into folders and tells what is inside a folder', () => {
+    expect(joinAssetPath('Sprites/Hero', 'idle.png')).toBe('Sprites/Hero/idle.png');
+    expect(joinAssetPath('', 'idle.png')).toBe('idle.png');
+
+    expect(isInFolder('Sprites/Hero/idle.png', 'Sprites')).toBe(true);
+    expect(isInFolder('Sprites/Hero', 'Sprites')).toBe(true);
+    // A folder is not inside itself, and a longer name is another folder.
+    expect(isInFolder('Sprites', 'Sprites')).toBe(false);
+    expect(isInFolder('Sprites 2/idle.png', 'Sprites')).toBe(false);
+    // Everything is inside the top level.
+    expect(isInFolder('idle.png', '')).toBe(true);
+    expect(isInFolder('', '')).toBe(false);
+  });
+
+  it('orders paths the way a tree shows them', () => {
+    const paths = ['Art 2', 'Art/Characters', 'Sounds', 'Art', 'Art/Characters/Hero', 'art'];
+    // As plain text "Art 2" would come between "Art" and what is in "Art".
+    expect(paths.sort(compareAssetPaths)).toEqual([
+      'art',
+      'Art',
+      'Art/Characters',
+      'Art/Characters/Hero',
+      'Art 2',
+      'Sounds',
+    ]);
   });
 
   it('detects asset types from file extensions', () => {
@@ -173,6 +203,117 @@ describe('AssetDatabase', () => {
     expect(removed).toHaveBeenCalledExactlyOnceWith(record);
   });
 
+  it('has the folders its assets are in, and keeps them when they are empty', () => {
+    const assets = new AssetDatabase();
+    const changed = vi.fn();
+    assets.onFoldersChanged.connect(changed);
+    expect(assets.listFolders()).toEqual([]);
+
+    const idle = assets.create({ name: 'Sprites/Hero/idle.png', ...PNG, data: new Uint8Array(1) });
+    const main = assets.create({ name: 'main.ts', ...SCRIPT, data: '' });
+    expect(assets.listFolders()).toEqual(['Sprites', 'Sprites/Hero']);
+    expect(assets.hasFolder('Sprites/Hero')).toBe(true);
+    expect(assets.hasFolder('Hero')).toBe(false);
+
+    // Renaming an asset into a folder makes the folder, and leaving one does not remove it.
+    assets.rename(main.id, 'Scripts/main.ts');
+    assets.rename(idle.id, 'idle.png');
+    assets.remove(main.id);
+    expect(assets.listFolders()).toEqual(['Scripts', 'Sprites', 'Sprites/Hero']);
+    // Folders that come with an asset are announced by the asset.
+    expect(changed).not.toHaveBeenCalled();
+  });
+
+  it('makes folders by themselves, with the folders above them', () => {
+    const assets = new AssetDatabase();
+    const changed = vi.fn();
+    assets.onFoldersChanged.connect(changed);
+
+    expect(assets.createFolder(' Art\\Characters// ')).toBe('Art/Characters');
+    expect(assets.listFolders()).toEqual(['Art', 'Art/Characters']);
+    expect(changed).toHaveBeenCalledTimes(1);
+
+    // A folder that is there already is left as it is.
+    expect(assets.createFolder('Art')).toBe('Art');
+    expect(changed).toHaveBeenCalledTimes(1);
+    expect(() => assets.createFolder(' / ')).toThrow(RowanError);
+  });
+
+  it('moves a folder with everything in it, which is also how it is renamed', () => {
+    const assets = new AssetDatabase();
+    const idle = assets.create({ name: 'Art/Hero/idle.png', ...PNG, data: new Uint8Array(1) });
+    const tree = assets.create({ name: 'Art/tree.png', ...PNG, data: new Uint8Array(1) });
+    const other = assets.create({ name: 'Art 2/rock.png', ...PNG, data: new Uint8Array(1) });
+    assets.createFolder('Art/Empty');
+    const renamed = vi.fn();
+    const changed = vi.fn();
+    assets.onRenamed.connect(renamed);
+    assets.onFoldersChanged.connect(() => {
+      // Listeners see the move when all of it is done.
+      changed(assets.listFolders(), idle.name);
+    });
+
+    expect(assets.moveFolder('Art', 'Game/Graphics')).toBe('Game/Graphics');
+    expect(idle.name).toBe('Game/Graphics/Hero/idle.png');
+    expect(tree.name).toBe('Game/Graphics/tree.png');
+    expect(other.name).toBe('Art 2/rock.png');
+    expect(assets.listFolders()).toEqual([
+      'Art 2',
+      'Game',
+      'Game/Graphics',
+      'Game/Graphics/Empty',
+      'Game/Graphics/Hero',
+    ]);
+    expect(renamed).toHaveBeenCalledTimes(2);
+    expect(renamed).toHaveBeenNthCalledWith(1, idle);
+    expect(renamed).toHaveBeenNthCalledWith(2, tree);
+    expect(changed).toHaveBeenCalledExactlyOnceWith(
+      assets.listFolders(),
+      'Game/Graphics/Hero/idle.png',
+    );
+    // The assets are the same ones: whatever refers to them by id still finds them.
+    expect(assets.get(idle.id)).toBe(idle);
+  });
+
+  it('refuses to move a folder that is not there, into itself, or onto another one', () => {
+    const assets = new AssetDatabase();
+    assets.createFolder('Art/Hero');
+    assets.createFolder('Sounds');
+    const changed = vi.fn();
+    assets.onFoldersChanged.connect(changed);
+
+    expect(() => assets.moveFolder('Music', 'Sounds/Music')).toThrow('There is no folder "Music"');
+    expect(() => assets.moveFolder('Art', 'Art/Hero/Art')).toThrow('cannot be moved into itself');
+    expect(() => assets.moveFolder('Art', 'Sounds')).toThrow(
+      'There is already a folder "Sounds". Choose another name.',
+    );
+    // Moving a folder to where it is changes nothing.
+    expect(assets.moveFolder('Art', 'Art')).toBe('Art');
+    expect(assets.listFolders()).toEqual(['Art', 'Art/Hero', 'Sounds']);
+    expect(changed).not.toHaveBeenCalled();
+  });
+
+  it('removes a folder with the folders and the assets in it', () => {
+    const assets = new AssetDatabase();
+    const idle = assets.create({ name: 'Art/Hero/idle.png', ...PNG, data: new Uint8Array(1) });
+    const rock = assets.create({ name: 'Art 2/rock.png', ...PNG, data: new Uint8Array(1) });
+    const removed = vi.fn();
+    const changed = vi.fn();
+    assets.onRemoved.connect(removed);
+    assets.onFoldersChanged.connect(changed);
+
+    expect(assets.removeFolder('Art')).toEqual([idle]);
+    expect(assets.has(idle.id)).toBe(false);
+    expect(() => assets.getData(idle.id)).toThrow(RowanError);
+    expect(assets.has(rock.id)).toBe(true);
+    expect(assets.listFolders()).toEqual(['Art 2']);
+    expect(removed).toHaveBeenCalledExactlyOnceWith(idle);
+    expect(changed).toHaveBeenCalledTimes(1);
+
+    expect(assets.removeFolder('Art')).toEqual([]);
+    expect(changed).toHaveBeenCalledTimes(1);
+  });
+
   it('finds assets by full path, base name or bare name', () => {
     const assets = new AssetDatabase();
     const hero = assets.create({ name: 'Art/hero.png', ...PNG, data: new Uint8Array() });
@@ -240,6 +381,36 @@ describe('Project', () => {
     );
   });
 
+  it('saves the folders of a project, the empty ones too', () => {
+    const project = createProject();
+    project.assets.create({ name: 'Scripts/Enemies/Bat.ts', ...SCRIPT, data: '' });
+    project.assets.createFolder('Sounds/Music');
+    const archive = project.toArchive();
+    expect(archive.manifest.folders).toEqual([
+      'Scripts',
+      'Scripts/Enemies',
+      'Sounds',
+      'Sounds/Music',
+    ]);
+
+    const restored = Project.fromArchive({
+      manifest: JSON.parse(JSON.stringify(archive.manifest)),
+      files: archive.files,
+    });
+    expect(restored.assets.listFolders()).toEqual(archive.manifest.folders);
+  });
+
+  it('reads a project that was saved before there were folders', () => {
+    const { manifest, files } = createProject().toArchive();
+    const { folders: _folders, ...older } = manifest;
+    older.assets[0]!.name = 'Scenes/Main.scene';
+    expect(parseManifest(older).folders).toEqual([]);
+    // The folders its assets are in are there all the same.
+    expect(Project.fromArchive({ manifest: older, files }).assets.listFolders()).toEqual([
+      'Scenes',
+    ]);
+  });
+
   it('copies settings into the archive instead of sharing them', () => {
     const project = createProject();
     const archive = project.toArchive();
@@ -267,6 +438,9 @@ describe('Project', () => {
       { format: PROJECT_FORMAT, version: 1, assets: [{ id: 'a', name: 'n', type: 'video' }] },
       'unknown asset type "video"',
     ],
+    [{ format: PROJECT_FORMAT, version: 1, assets: [], folders: 'Art' }, 'project.folders'],
+    [{ format: PROJECT_FORMAT, version: 1, assets: [], folders: ['Art', 7] }, 'folders[1]'],
+    [{ format: PROJECT_FORMAT, version: 1, assets: [], folders: [' '] }, 'folders[0]'],
   ])('rejects a malformed manifest %#', (data, message) => {
     expect(() => parseManifest(data)).toThrow(message);
   });

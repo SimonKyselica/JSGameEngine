@@ -36,6 +36,9 @@ A/D and make jump with Space, a ground and a few crates. Press Play in the toolb
   a searchable reference of everything a script can use.
 - Import by menu or drag and drop: PNG, JPEG, WebP, GIF, BMP, AVIF and SVG images; WAV, MP3, OGG,
   M4A, AAC, FLAC and WebA audio; TypeScript and JavaScript scripts.
+- Folders in the Project panel to organize assets as you like: make them, nest them, rename
+  and delete them, and move assets and folders by dragging them onto a folder or with
+  "Move to…" in their menu. Scenes refer to assets by id, so nothing breaks when a file moves.
 - Prefabs: save any entity with its children and spawn copies from the editor or from scripts.
 - Projects are stored in the browser. Export a project file to back it up or move it.
 

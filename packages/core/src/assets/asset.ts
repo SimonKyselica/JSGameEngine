@@ -72,6 +72,36 @@ export function getDirectoryName(path: string): string {
   return slash === -1 ? '' : path.slice(0, slash);
 }
 
+/** Puts a name into a folder. The top level of a project is the folder with the empty name. */
+export function joinAssetPath(folder: string, name: string): string {
+  return folder === '' ? name : `${folder}/${name}`;
+}
+
+/**
+ * True when a path is inside a folder, however deep. A folder is not inside itself, and
+ * everything is inside the top level, the folder with the empty name.
+ */
+export function isInFolder(path: string, folder: string): boolean {
+  return folder === '' ? path !== '' : path.startsWith(`${folder}/`);
+}
+
+/**
+ * Orders paths the way a tree shows them: a folder, then everything in it, then the next
+ * folder. Comparing whole paths as text does not do that, because a space sorts before a
+ * slash: "Art 2" would end up between "Art" and "Art/Characters".
+ */
+export function compareAssetPaths(a: string, b: string): number {
+  const first = a.split('/');
+  const second = b.split('/');
+  for (let index = 0; index < Math.min(first.length, second.length); index++) {
+    const order = first[index]!.localeCompare(second[index]!);
+    if (order !== 0) {
+      return order;
+    }
+  }
+  return first.length - second.length;
+}
+
 /** The base name of a path without its extension. */
 export function getNameWithoutExtension(path: string): string {
   const baseName = getBaseName(path);

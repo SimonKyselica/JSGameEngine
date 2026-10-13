@@ -1057,6 +1057,22 @@ input[type='radio'] {
   color: #fff;
 }
 
+/* A folder that would take what is being dragged over it. */
+.folder.drop-target,
+.asset.drop-target {
+  background: var(--bg-hover);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+/*
+ * A drag that moves from a folder or an asset onto the icon or the name inside it would
+ * count as leaving it. Without pointer events the inside is not there for the pointer.
+ */
+.folder > *,
+.asset > * {
+  pointer-events: none;
+}
+
 .project-main {
   display: flex;
   flex: 1;

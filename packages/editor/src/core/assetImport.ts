@@ -2,6 +2,7 @@ import {
   describeError,
   detectAssetType,
   getSupportedExtensions,
+  joinAssetPath,
   parsePrefabData,
   parseSceneData,
   RowanError,
@@ -82,7 +83,7 @@ export async function importAsset(
   }
 
   return assets.create({
-    name: folder ? `${folder}/${file.name}` : file.name,
+    name: joinAssetPath(folder, file.name),
     type: info.type,
     mimeType: info.mimeType,
     data,

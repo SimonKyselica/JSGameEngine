@@ -20,8 +20,11 @@ export function PromptDialog(props: {
   onResolve: (value: string | null) => void;
 }): ReactElement {
   const { options, onResolve } = props;
-  const [value, setValue] = useState(options.initialValue ?? '');
-  const valid = value.trim() !== '';
+  const { choices } = options;
+  const [value, setValue] = useState(options.initialValue ?? choices?.[0]?.value ?? '');
+  // A choice is taken as it is. What was typed is tidied up, and must be something.
+  const answer = choices ? value : value.trim();
+  const valid = choices ? choices.some((choice) => choice.value === value) : answer !== '';
   return (
     <Modal
       title={options.title}
@@ -35,7 +38,7 @@ export function PromptDialog(props: {
             type="button"
             className="button primary"
             disabled={!valid}
-            onClick={() => onResolve(value.trim())}
+            onClick={() => onResolve(answer)}
           >
             {options.confirmLabel ?? 'OK'}
           </button>
@@ -46,20 +49,35 @@ export function PromptDialog(props: {
         onSubmit={(event) => {
           event.preventDefault();
           if (valid) {
-            onResolve(value.trim());
+            onResolve(answer);
           }
         }}
       >
         <label className="stacked-field">
           <span>{options.label}</span>
-          <input
-            className="text-field"
-            autoFocus
-            value={value}
-            spellCheck={false}
-            onFocus={(event) => event.currentTarget.select()}
-            onChange={(event) => setValue(event.currentTarget.value)}
-          />
+          {choices ? (
+            <select
+              className="select-field"
+              autoFocus
+              value={value}
+              onChange={(event) => setValue(event.currentTarget.value)}
+            >
+              {choices.map((choice) => (
+                <option key={choice.value} value={choice.value}>
+                  {choice.label}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <input
+              className="text-field"
+              autoFocus
+              value={value}
+              spellCheck={false}
+              onFocus={(event) => event.currentTarget.select()}
+              onChange={(event) => setValue(event.currentTarget.value)}
+            />
+          )}
         </label>
       </form>
     </Modal>

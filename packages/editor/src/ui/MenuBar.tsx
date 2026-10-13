@@ -94,8 +94,9 @@ export function MenuBar(): ReactElement {
     Assets: [
       { label: 'Import Files…', onSelect: () => commands.importAssets('') },
       'separator',
+      { label: 'New Folder…', onSelect: () => commands.createFolder('') },
       { label: 'New Script…', onSelect: () => commands.createScript('Scripts') },
-      { label: 'New Scene…', onSelect: commands.createScene },
+      { label: 'New Scene…', onSelect: () => commands.createScene() },
     ],
     Help: [
       { label: 'Scripting Reference', shortcut: 'F1', onSelect: commands.openDocs },

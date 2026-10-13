@@ -10,6 +10,11 @@ export interface PromptOptions {
   readonly label: string;
   readonly initialValue?: string;
   readonly confirmLabel?: string;
+  /**
+   * What there is to choose from. With choices the dialog shows a list instead of a text
+   * field, and the answer is the `value` of one of them, which may be an empty string.
+   */
+  readonly choices?: readonly { readonly value: string; readonly label: string }[];
 }
 
 export interface ConfirmOptions {
@@ -43,7 +48,10 @@ export interface EditorCommands {
   /** Asks for files and imports them into a project folder. */
   readonly importAssets: (folder: string) => void;
   readonly createScript: (folder: string) => void;
-  readonly createScene: () => void;
+  /** Asks for a name and creates a scene, in the "Scenes" folder unless another is given. */
+  readonly createScene: (folder?: string) => void;
+  /** Asks for a name and makes a folder inside `parent`, which is '' for the top level. */
+  readonly createFolder: (parent: string) => void;
   readonly focusSelection: () => void;
   /** Switches snap mode and remembers the choice for the next session. */
   readonly toggleSnapping: () => void;
@@ -94,4 +102,5 @@ export function useConsoleEntries(session: EditorSession): readonly ConsoleEntry
 export const DRAG_TYPES = {
   entity: 'application/x-rowan-entity',
   asset: 'application/x-rowan-asset',
+  folder: 'application/x-rowan-folder',
 } as const;

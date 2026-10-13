@@ -6,10 +6,16 @@ import {
   type CollisionLayerSettings,
 } from '../physics/collisionLayers';
 import { ASSET_TYPES, type AssetData, type AssetMetaValue, type AssetRecord } from './asset';
-import { AssetDatabase } from './assetDatabase';
+import { AssetDatabase, normalizeAssetName } from './assetDatabase';
 
 export const PROJECT_FORMAT = 'rowan.project';
-/** Bump when the project manifest layout changes, and add a migration in `parseManifest`. */
+/**
+ * Bump when the project manifest layout changes, and add a migration in `parseManifest`.
+ *
+ * Fields that were added later without changing what the older ones mean (the collision
+ * layers, the folders) did not need a new version: a manifest without them reads as it
+ * always did.
+ */
 export const PROJECT_VERSION = 1;
 
 export interface PhysicsSettings extends CollisionLayerSettings {
@@ -41,6 +47,11 @@ export interface ProjectManifest {
   id: string;
   settings: ProjectSettings;
   assets: AssetRecord[];
+  /**
+   * Every folder of the project. Those that assets are in could be told from the names of
+   * the assets; they are all listed so that the empty ones are kept as well.
+   */
+  folders: string[];
 }
 
 /** A project in its storage-neutral form: a manifest plus each asset's content by id. */
@@ -77,6 +88,7 @@ export class Project {
         id: this.id,
         settings: structuredClone(this.settings),
         assets: records.map((record) => ({ ...record, meta: { ...record.meta } })),
+        folders: this.assets.listFolders(),
       },
       files: new Map(records.map((record) => [record.id, this.assets.getData(record.id)])),
     };
@@ -95,6 +107,9 @@ export class Project {
         throw new RowanError(`Project is missing the content of asset "${record.name}"`);
       }
       project.assets.create({ ...record, data });
+    }
+    for (const folder of manifest.folders) {
+      project.assets.createFolder(folder);
     }
     return project;
   }
@@ -130,7 +145,24 @@ export function parseManifest(data: unknown): ProjectManifest {
     assets: data.assets.map((asset: unknown, index) =>
       parseAssetRecord(asset, `project.assets[${index}]`),
     ),
+    folders: parseFolders(data.folders),
   };
+}
+
+/** Validates the folders of a manifest. Projects saved before there were folders have none. */
+function parseFolders(data: unknown): string[] {
+  if (data === undefined) {
+    return [];
+  }
+  if (!Array.isArray(data)) {
+    throw new RowanError('project.folders: expected an array');
+  }
+  return data.map((folder: unknown, index) => {
+    if (typeof folder !== 'string' || folder.trim() === '') {
+      throw new RowanError(`project.folders[${index}]: expected the path of a folder`);
+    }
+    return normalizeAssetName(folder);
+  });
 }
 
 /** Validates project settings, replacing anything missing or invalid with its default. */

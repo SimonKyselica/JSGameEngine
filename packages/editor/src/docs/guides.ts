@@ -688,6 +688,9 @@ this.storage.set('unlocked', unlocked);`),
       p(
         "[this.assets](api/AssetsApi) looks assets up by name. A full path such as `Sprites/hero.png` must match exactly; a bare name such as `hero` matches an asset in any folder. `find` returns the asset's id, the same kind of value an asset property holds.",
       ),
+      p(
+        'The folders are the ones of the Project panel, where assets can be organized freely: **Add → New Folder…** makes one, and an asset or a folder moves by being dragged onto a folder or with **Move to…** in its menu. What a scene or an asset property refers to is found by its id and survives every move. Two things go by the path instead and need a second look after a move: a full path that a script passes to `find` or to `this.scene.load`, and an import of one script by another, which is relative to the folder the importing script is in. The console says so when a move leaves such an import pointing at nothing.',
+      ),
       code(`const portrait = this.assets.find('Sprites/hero.png', 'texture');
 if (portrait) {
   this.requireComponent(SpriteRenderer).texture = portrait;

@@ -2,10 +2,12 @@ import { assert, RowanError } from '../core/assert';
 import { Signal } from '../core/signal';
 import { generateUuid } from '../core/uuid';
 import {
+  compareAssetPaths,
   getBaseName,
   getDirectoryName,
   getFileExtension,
   getNameWithoutExtension,
+  isInFolder,
   isTextAssetType,
   type AssetData,
   type AssetMetaValue,
@@ -23,16 +25,30 @@ export interface CreateAssetOptions {
   readonly id?: string;
 }
 
-/** Holds a project's assets: their records and their raw content. */
+/**
+ * Holds a project's assets: their records and their raw content, and the folders they are
+ * organized in.
+ *
+ * The name of an asset is its path, and the folders of that path exist from then on. A
+ * folder is more than a part of a name, though: it stays when the last asset leaves it,
+ * and it can be made, moved, renamed and removed by itself.
+ */
 export class AssetDatabase {
   readonly onAdded = new Signal<AssetRecord>();
   readonly onRemoved = new Signal<AssetRecord>();
   /** Emitted when an asset's content changes. */
   readonly onChanged = new Signal<AssetRecord>();
+  /** Emitted when an asset has a new name, which includes being moved to another folder. */
   readonly onRenamed = new Signal<AssetRecord>();
+  /**
+   * Emitted when a folder was made, moved, renamed or removed. A folder that comes into
+   * being because an asset was put into it is announced by the signal of that asset alone.
+   */
+  readonly onFoldersChanged = new Signal();
 
   private readonly records = new Map<string, AssetRecord>();
   private readonly contents = new Map<string, AssetData>();
+  private readonly folders = new Set<string>();
 
   get size(): number {
     return this.records.size;
@@ -53,6 +69,7 @@ export class AssetDatabase {
     };
     this.records.set(id, record);
     this.contents.set(id, options.data);
+    this.addFolders(getDirectoryName(record.name));
     this.onAdded.emit(record);
     return record;
   }
@@ -117,6 +134,7 @@ export class AssetDatabase {
     const normalized = normalizeAssetName(name);
     if (normalized !== record.name) {
       record.name = this.makeUniqueName(normalized, id);
+      this.addFolders(getDirectoryName(record.name));
       this.onRenamed.emit(record);
     }
     return record.name;
@@ -176,6 +194,112 @@ export class AssetDatabase {
       return byId;
     }
     return this.findByName(reference, type);
+  }
+
+  // --- Folders ---------------------------------------------------------------------------
+
+  /**
+   * Every folder of the project in the order of a tree: a folder comes before what is in
+   * it. The top level is not listed; it is the folder with the empty name.
+   */
+  listFolders(): string[] {
+    return [...this.folders].sort(compareAssetPaths);
+  }
+
+  hasFolder(path: string): boolean {
+    return this.folders.has(path);
+  }
+
+  /**
+   * Makes a folder, together with the folders above it that do not exist yet. Making a
+   * folder that is already there changes nothing. Returns its path, cleaned up the way the
+   * name of an asset is.
+   */
+  createFolder(path: string): string {
+    const folder = normalizeAssetName(path);
+    if (this.addFolders(folder)) {
+      this.onFoldersChanged.emit();
+    }
+    return folder;
+  }
+
+  /**
+   * Gives a folder a new path, and with it every folder and asset inside. This renames a
+   * folder as well as moving it into another one. Returns the new path.
+   *
+   * Throws when there is no such folder, when the new path is inside the folder itself,
+   * or when a folder with the new path exists already: two folders are never merged.
+   */
+  moveFolder(from: string, to: string): string {
+    const source = normalizeAssetName(from);
+    const target = normalizeAssetName(to);
+    if (!this.folders.has(source)) {
+      throw new RowanError(`There is no folder "${source}"`);
+    }
+    if (target === source) {
+      return target;
+    }
+    if (isInFolder(target, source)) {
+      throw new RowanError(`The folder "${source}" cannot be moved into itself`);
+    }
+    if (this.folders.has(target)) {
+      throw new RowanError(`There is already a folder "${target}". Choose another name.`);
+    }
+
+    for (const folder of [...this.folders]) {
+      if (folder === source || isInFolder(folder, source)) {
+        this.folders.delete(folder);
+        this.folders.add(target + folder.slice(source.length));
+      }
+    }
+    this.addFolders(getDirectoryName(target));
+    // Nothing was at the new path, so none of the new names can be taken.
+    const moved = [...this.records.values()].filter((record) => isInFolder(record.name, source));
+    for (const record of moved) {
+      record.name = target + record.name.slice(source.length);
+    }
+    // Announced when all of it is in place, so that a listener never sees half a move.
+    for (const record of moved) {
+      this.onRenamed.emit(record);
+    }
+    this.onFoldersChanged.emit();
+    return target;
+  }
+
+  /**
+   * Removes a folder with every folder and asset inside. Returns the assets that went
+   * with it, which is none when there is no such folder.
+   */
+  removeFolder(path: string): AssetRecord[] {
+    if (!this.folders.has(path)) {
+      return [];
+    }
+    const removed = [...this.records.values()].filter((record) => isInFolder(record.name, path));
+    for (const record of removed) {
+      this.records.delete(record.id);
+      this.contents.delete(record.id);
+    }
+    for (const folder of [...this.folders]) {
+      if (folder === path || isInFolder(folder, path)) {
+        this.folders.delete(folder);
+      }
+    }
+    for (const record of removed) {
+      this.onRemoved.emit(record);
+    }
+    this.onFoldersChanged.emit();
+    return removed;
+  }
+
+  /** Makes sure a folder and the folders above it exist. Returns whether any was missing. */
+  private addFolders(path: string): boolean {
+    let added = false;
+    for (let folder = path; folder !== '' && !this.folders.has(folder);) {
+      this.folders.add(folder);
+      added = true;
+      folder = getDirectoryName(folder);
+    }
+    return added;
   }
 
   /** Returns `name`, or a numbered variation of it when another asset already uses it. */

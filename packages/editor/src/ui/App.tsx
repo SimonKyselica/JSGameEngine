@@ -359,7 +359,7 @@ function Editor({ workspace, store, onReplaceProject }: EditorProps): ReactEleme
           }
         });
       },
-      createScene: () => {
+      createScene: (folder) => {
         void prompt({
           title: 'New Scene',
           label: 'Scene name',
@@ -367,7 +367,19 @@ function Editor({ workspace, store, onReplaceProject }: EditorProps): ReactEleme
           confirmLabel: 'Create',
         }).then((name) => {
           if (name) {
-            session.createScene(name);
+            session.createScene(name, folder);
+          }
+        });
+      },
+      createFolder: (parent) => {
+        void prompt({
+          title: 'New Folder',
+          label: 'Folder name',
+          initialValue: 'New Folder',
+          confirmLabel: 'Create',
+        }).then((name) => {
+          if (name) {
+            session.createFolder(parent, name);
           }
         });
       },

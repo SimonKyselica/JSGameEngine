@@ -51,7 +51,7 @@ import {
 } from './picking';
 import type { PlayDependencies } from './playController';
 import { MemoryProjectStore } from './projectStore';
-import { createStarterProject } from './templates';
+import { addSceneAsset, createEmptyScene, createStarterProject } from './templates';
 
 function createSession(): EditorSession {
   return new EditorSession(createStarterProject('Test'));
@@ -605,6 +605,223 @@ describe('EditorSession assets', () => {
     expect(broken.properties).toEqual({});
     expect(broken.error).toContain('has a syntax error');
     expect(session.getScriptInfo('missing').error).toContain('does not exist');
+  });
+});
+
+describe('EditorSession folders', () => {
+  const PNG = { type: 'texture', mimeType: 'image/png' } as const;
+  const SCRIPT = { type: 'script', mimeType: 'text/typescript' } as const;
+  const BEHAVIOUR = `import { Behaviour } from 'rowan';\nexport default class extends Behaviour {}`;
+
+  it('makes folders, one inside another, and marks the project as changed', () => {
+    const session = createSession();
+    const listener = vi.fn();
+    session.onChange.connect(listener);
+    expect(session.dirty).toBe(false);
+
+    expect(session.createFolder('', 'Art')).toBe('Art');
+    expect(session.createFolder('Art', ' Characters ')).toBe('Art/Characters');
+    expect(session.project.assets.listFolders()).toEqual([
+      'Art',
+      'Art/Characters',
+      'Scenes',
+      'Scripts',
+    ]);
+    expect(session.dirty).toBe(true);
+    expect(listener).toHaveBeenCalledTimes(2);
+
+    // Nothing to make a folder of: no folder, and a name that is none is explained.
+    expect(session.createFolder('Art', '   ')).toBeNull();
+    expect(session.createFolder('', '..')).toBeNull();
+    expect(session.console.entries.at(-1)).toMatchObject({ level: 'error', source: 'Project' });
+    expect(listener).toHaveBeenCalledTimes(2);
+  });
+
+  it('moves an asset into a folder, keeping its file name and what refers to it', () => {
+    const session = createSession();
+    const { assets } = session.project;
+    const script = assets.list('script')[0]!;
+    session.createFolder('', 'Game');
+
+    session.moveAsset(script.id, 'Game');
+    expect(script.name).toBe('Game/PlayerController.ts');
+    // The scene refers to the script by its id, so the player still has it.
+    const player = session.scene.findByName('Player')!;
+    expect(player.requireComponent(ScriptComponent).scripts[0]!.script).toBe(script.id);
+    expect(session.getScriptInfo(script.id).error).toBeNull();
+    expect(session.console.entries).toEqual([]);
+
+    // To the top level, and to where it already is.
+    session.moveAsset(script.id, '');
+    expect(script.name).toBe('PlayerController.ts');
+    session.moveAsset(script.id, '');
+    session.moveAsset('missing', 'Game');
+    expect(script.name).toBe('PlayerController.ts');
+  });
+
+  it('gives a moved asset another name when its own is taken in the folder', () => {
+    const session = createSession();
+    const { assets } = session.project;
+    assets.create({ name: 'Art/hero.png', ...PNG, data: new Uint8Array(1) });
+    const other = assets.create({ name: 'hero.png', ...PNG, data: new Uint8Array(1) });
+
+    session.moveAsset(other.id, 'Art');
+    expect(other.name).toBe('Art/hero 1.png');
+    expect(session.console.entries.at(-1)).toMatchObject({
+      level: 'info',
+      message:
+        '"Art/hero.png" was there already, so the file that was moved is now "Art/hero 1.png"',
+    });
+  });
+
+  it('moves and renames a folder with everything in it', () => {
+    const session = createSession();
+    const { assets } = session.project;
+    const hero = assets.create({ name: 'Art/Hero/idle.png', ...PNG, data: new Uint8Array(1) });
+    session.createFolder('', 'Game');
+
+    expect(session.moveFolder('Art', 'Game')).toBe('Game/Art');
+    expect(hero.name).toBe('Game/Art/Hero/idle.png');
+    expect(session.renameFolder('Game/Art', 'Graphics')).toBe('Game/Graphics');
+    expect(hero.name).toBe('Game/Graphics/Hero/idle.png');
+    // Back to the top level.
+    expect(session.moveFolder('Game/Graphics', '')).toBe('Graphics');
+    expect(assets.listFolders()).toEqual([
+      'Game',
+      'Graphics',
+      'Graphics/Hero',
+      'Scenes',
+      'Scripts',
+    ]);
+    expect(session.renameFolder('Graphics', '  ')).toBeNull();
+    expect(session.console.entries).toEqual([]);
+  });
+
+  it('says why a folder cannot go where it was sent', () => {
+    const session = createSession();
+    session.createFolder('', 'Art/Hero');
+    session.createFolder('', 'Hero');
+
+    // Into itself, into what is inside it, to where it is, and onto a folder of its name.
+    expect(session.canMoveFolder('Art', 'Art')).toBe(false);
+    expect(session.canMoveFolder('Art', 'Art/Hero')).toBe(false);
+    expect(session.canMoveFolder('Art/Hero', 'Art')).toBe(false);
+    expect(session.canMoveFolder('Art/Hero', '')).toBe(false);
+    expect(session.canMoveFolder('Art', 'Hero')).toBe(true);
+    expect(session.canMoveFolder('Hero', 'Scripts')).toBe(true);
+
+    expect(session.moveFolder('Art', 'Art/Hero')).toBeNull();
+    expect(session.console.entries.at(-1)).toMatchObject({
+      level: 'error',
+      message: 'The folder "Art" cannot be moved into itself',
+    });
+    expect(session.moveFolder('Art/Hero', '')).toBeNull();
+    expect(session.console.entries.at(-1)!.message).toBe(
+      'There is already a folder "Hero". Choose another name.',
+    );
+    expect(session.renameFolder('Music', 'Sounds')).toBeNull();
+    expect(session.console.entries.at(-1)!.message).toBe('There is no folder "Music"');
+  });
+
+  it('deletes a folder with what is in it, clearing a selection that pointed there', () => {
+    const session = createSession();
+    const { assets } = session.project;
+    const hero = assets.create({ name: 'Art/Hero/idle.png', ...PNG, data: new Uint8Array(1) });
+    const rock = assets.create({ name: 'rock.png', ...PNG, data: new Uint8Array(1) });
+    session.select({ kind: 'asset', id: hero.id });
+
+    expect(session.deleteFolder('Art')).toBe(true);
+    expect(assets.has(hero.id)).toBe(false);
+    expect(assets.has(rock.id)).toBe(true);
+    expect(assets.listFolders()).toEqual(['Scenes', 'Scripts']);
+    expect(session.selection).toBeNull();
+
+    // A folder that is not there cannot be deleted, and nothing is touched.
+    session.dirty = false;
+    expect(session.deleteFolder('Art')).toBe(false);
+    expect(session.dirty).toBe(false);
+  });
+
+  it('opens another scene when the folder of the open one is deleted', () => {
+    const session = createSession();
+    const { assets, settings } = session.project;
+    const mainId = session.sceneAssetId;
+    const level = addSceneAsset(assets, createEmptyScene('Level'), 'Levels');
+    expect(settings.startScene).toBe(mainId);
+
+    expect(session.deleteFolder('Scenes')).toBe(true);
+    expect(assets.has(mainId)).toBe(false);
+    expect(session.sceneAssetId).toBe(level.id);
+    expect(session.scene.name).toBe('Level');
+    expect(settings.startScene).toBe(level.id);
+    expect(session.canUndo).toBe(false);
+  });
+
+  it('keeps a folder that holds every scene of the project', () => {
+    const session = createSession();
+    const { assets } = session.project;
+    expect(session.deleteFolder('Scenes')).toBe(false);
+    expect(assets.has(session.sceneAssetId)).toBe(true);
+    expect(assets.hasFolder('Scenes')).toBe(true);
+    expect(session.console.entries.at(-1)).toMatchObject({
+      level: 'error',
+      message:
+        'The folder "Scenes" holds every scene of the project and cannot be deleted. ' +
+        'Move a scene out of it first.',
+    });
+  });
+
+  it('warns when a move leaves the import of a script pointing at nothing', () => {
+    const session = createSession();
+    const { assets } = session.project;
+    const helper = assets.create({
+      name: 'Scripts/helpers.ts',
+      ...SCRIPT,
+      data: 'export const SPEED = 3;',
+    });
+    const enemy = assets.create({
+      name: 'Scripts/Enemy.ts',
+      ...SCRIPT,
+      data: `import { SPEED } from './helpers';\n${BEHAVIOUR}\nexport const speed = SPEED;`,
+    });
+    const boss = assets.create({
+      name: 'Scripts/Boss.ts',
+      ...SCRIPT,
+      data: `import Enemy from './Enemy';\nexport default class extends Enemy {}`,
+    });
+    expect(session.getScriptInfo(boss.id).error).toBeNull();
+
+    // Moving the whole folder keeps the scripts next to each other: nothing to say.
+    session.renameFolder('Scripts', 'Code');
+    expect(session.getScriptInfo(boss.id).error).toBeNull();
+    expect(session.console.entries).toEqual([]);
+
+    // Moving one of them away breaks the import, for the script and for what imports it.
+    session.createFolder('', 'Shared');
+    session.moveAsset(helper.id, 'Shared');
+    // Said once, although two scripts fail because of it.
+    expect(session.console.count('warn')).toBe(1);
+    const warnings = session.console.entries.filter((entry) => entry.level === 'warn');
+    expect(warnings[0]).toMatchObject({ source: 'Project' });
+    expect(warnings[0]!.message).toContain('Cannot find script "./helpers"');
+    expect(warnings[0]!.message).toContain('imported from "Code/Enemy.ts"');
+    expect(warnings[0]!.message).toContain('correct the path in the script that imports');
+    expect(session.getScriptInfo(enemy.id).error).not.toBeNull();
+
+    // Putting it back mends it, and a script that was broken before is not reported again.
+    session.renameAsset(helper.id, 'Code/helpers.ts');
+    expect(session.getScriptInfo(boss.id).error).toBeNull();
+    session.moveAsset(helper.id, 'Shared');
+    session.moveAsset(boss.id, 'Shared');
+    expect(session.console.count('warn')).toBe(2);
+  });
+
+  it('creates scenes and scripts in the folder it is told', () => {
+    const session = createSession();
+    session.createFolder('', 'Levels');
+    expect(session.createScene('Cave', 'Levels').name).toBe('Levels/Cave.scene');
+    expect(session.createScene('Forest').name).toBe('Scenes/Forest.scene');
+    expect(session.createScript('Bat', 'Levels').name).toBe('Levels/Bat.ts');
   });
 });
 

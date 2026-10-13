@@ -3,10 +3,15 @@ import {
   describeError,
   deserializeScene,
   duplicateEntity,
+  getBaseName,
+  getDirectoryName,
   getNameWithoutExtension,
   getScriptProperties,
   instantiatePrefab,
+  isInFolder,
+  joinAssetPath,
   makeUniqueName,
+  normalizeAssetName,
   Logger,
   ScriptApi,
   ScriptComponent,
@@ -120,6 +125,10 @@ export class EditorSession {
       assets.onRemoved.connect(handleAssetChange),
       assets.onChanged.connect(handleAssetChange),
       assets.onRenamed.connect(handleAssetChange),
+      assets.onFoldersChanged.connect(() => {
+        this.dirty = true;
+        this.notify();
+      }),
     ];
   }
 
@@ -425,9 +434,9 @@ export class EditorSession {
     this.notify();
   }
 
-  createScene(name: string): AssetRecord {
+  createScene(name: string, folder = 'Scenes'): AssetRecord {
     const sceneName = name.trim() || 'New Scene';
-    const record = addSceneAsset(this.project.assets, createEmptyScene(sceneName));
+    const record = addSceneAsset(this.project.assets, createEmptyScene(sceneName), folder);
     this.openScene(record.id);
     return record;
   }
@@ -458,7 +467,7 @@ export class EditorSession {
     const baseName = name.trim().replace(/\.(ts|js)$/i, '') || 'NewScript';
     const fileName = `${baseName}.ts`;
     return this.project.assets.create({
-      name: folder ? `${folder}/${fileName}` : fileName,
+      name: joinAssetPath(folder, fileName),
       type: 'script',
       mimeType: 'text/typescript',
       data: createScriptSource(fileName),
@@ -469,7 +478,7 @@ export class EditorSession {
   createPrefab(entity: Entity, folder = 'Prefabs'): AssetRecord {
     const fileName = `${entity.name}.prefab`;
     return this.project.assets.create({
-      name: folder ? `${folder}/${fileName}` : fileName,
+      name: joinAssetPath(folder, fileName),
       type: 'prefab',
       mimeType: 'application/json',
       data: JSON.stringify(createPrefab(entity), null, 2),
@@ -510,9 +519,28 @@ export class EditorSession {
     this.selectEntity(created);
   }
 
+  /** Gives an asset a new name, which may put it into another folder. */
   renameAsset(id: string, name: string): void {
-    if (name.trim() !== '') {
-      this.project.assets.rename(id, name);
+    const record = this.project.assets.get(id);
+    if (record && name.trim() !== '') {
+      this.changePaths(record.type === 'script', () => this.project.assets.rename(id, name));
+    }
+  }
+
+  /** Moves an asset into a folder, keeping its file name. `folder` is '' for the top level. */
+  moveAsset(id: string, folder: string): void {
+    const { assets } = this.project;
+    const record = assets.get(id);
+    if (!record || getDirectoryName(record.name) === folder) {
+      return;
+    }
+    const wanted = joinAssetPath(folder, getBaseName(record.name));
+    const name = this.changePaths(record.type === 'script', () => assets.rename(id, wanted));
+    if (name !== wanted) {
+      this.logger.info(
+        `"${wanted}" was there already, so the file that was moved is now "${name}"`,
+        'Project',
+      );
     }
   }
 
@@ -525,10 +553,7 @@ export class EditorSession {
         this.logger.error('The only scene of a project cannot be deleted');
         return;
       }
-      // The scene is going away, so its unsaved changes do not need to be written first.
-      this.sceneAssetId = other.id;
-      this.scene = this.loadScene(other);
-      this.history.clear();
+      this.leaveSceneFor(other);
     }
     if (settings.startScene === id) {
       settings.startScene = this.sceneAssetId;
@@ -537,6 +562,93 @@ export class EditorSession {
       this.selection = null;
     }
     assets.remove(id);
+  }
+
+  // --- Folders ---------------------------------------------------------------------------
+
+  /**
+   * Makes a folder inside another one and returns its path. `parent` is '' for the top
+   * level. A folder that exists already is returned as it is.
+   */
+  createFolder(parent: string, name: string): string | null {
+    if (name.trim() === '') {
+      return null;
+    }
+    const { assets } = this.project;
+    try {
+      const folder = normalizeAssetName(joinAssetPath(parent, name));
+      if (assets.hasFolder(folder)) {
+        this.logger.info(`There is already a folder "${folder}"`, 'Project');
+        return folder;
+      }
+      return assets.createFolder(folder);
+    } catch (error) {
+      this.logger.error(describeError(error), 'Project');
+      return null;
+    }
+  }
+
+  /** Whether a folder can be moved into another one; `parent` is '' for the top level. */
+  canMoveFolder(path: string, parent: string): boolean {
+    const target = joinAssetPath(parent, getBaseName(path));
+    return (
+      parent !== path &&
+      !isInFolder(parent, path) &&
+      getDirectoryName(path) !== parent &&
+      !this.project.assets.hasFolder(target)
+    );
+  }
+
+  /**
+   * Moves a folder, with everything in it, into another folder. Returns its new path, or
+   * `null` when it cannot go there; the console says why.
+   */
+  moveFolder(path: string, parent: string): string | null {
+    return this.relocateFolder(path, joinAssetPath(parent, getBaseName(path)));
+  }
+
+  /** Gives a folder another name in the place where it is. Returns its new path. */
+  renameFolder(path: string, name: string): string | null {
+    if (name.trim() === '') {
+      return null;
+    }
+    return this.relocateFolder(path, joinAssetPath(getDirectoryName(path), name));
+  }
+
+  /**
+   * Deletes a folder with the folders and the assets in it. A project needs a scene, so a
+   * folder that holds all of them stays; the console says so. Returns whether it is gone.
+   */
+  deleteFolder(path: string): boolean {
+    const { assets, settings } = this.project;
+    if (!assets.hasFolder(path)) {
+      return false;
+    }
+    const scenes = assets.list('scene');
+    const remaining = scenes.filter((record) => !isInFolder(record.name, path));
+    if (remaining.length === 0) {
+      this.logger.error(
+        `The folder "${path}" holds every scene of the project and cannot be deleted. ` +
+          'Move a scene out of it first.',
+        'Project',
+      );
+      return false;
+    }
+    const goes = (id: string | null): boolean => {
+      const record = id === null ? undefined : assets.get(id);
+      return record !== undefined && isInFolder(record.name, path);
+    };
+    if (goes(this.sceneAssetId)) {
+      this.leaveSceneFor(remaining[0]!);
+    }
+    if (goes(settings.startScene)) {
+      settings.startScene = this.sceneAssetId;
+    }
+    if (this.selection?.kind === 'asset' && goes(this.selection.id)) {
+      this.selection = null;
+    }
+    assets.removeFolder(path);
+    return true;
   }
 
   /** The inspector properties of a script, or the reason the script does not load. */
@@ -581,6 +693,61 @@ export class EditorSession {
       this.selection = null;
     }
     this.notify();
+  }
+
+  /** Opens another scene in place of one that is about to be deleted. */
+  private leaveSceneFor(other: AssetRecord): void {
+    // The scene is going away, so its unsaved changes do not need to be written first.
+    this.sceneAssetId = other.id;
+    this.scene = this.loadScene(other);
+    this.history.clear();
+  }
+
+  private relocateFolder(from: string, to: string): string | null {
+    const { assets } = this.project;
+    const movesScripts = assets.list('script').some((record) => isInFolder(record.name, from));
+    try {
+      return this.changePaths(movesScripts, () => assets.moveFolder(from, to));
+    } catch (error) {
+      this.logger.error(describeError(error), 'Project');
+      return null;
+    }
+  }
+
+  /**
+   * Runs a change that gives assets new paths. A script imports other scripts by a path
+   * that is relative to where it is, so moving one can leave an import pointing at
+   * nothing. The scripts that loaded before the change and do not load after it are named
+   * in the console, where the user would otherwise only find out when pressing Play.
+   *
+   * @param movesScripts Whether the change moves a script at all. Checking means running
+   *   every script of the project twice, which is not worth it for moving a picture.
+   */
+  private changePaths<T>(movesScripts: boolean, change: () => T): T {
+    if (!movesScripts) {
+      return change();
+    }
+    const { assets } = this.project;
+    const loaded = assets
+      .list('script')
+      .filter((record) => this.getScriptInfo(record.id).error === null);
+    const result = change();
+    // A script that imports a broken one fails with the same message: say it once.
+    const errors = new Set<string>();
+    for (const record of loaded) {
+      const { error } = this.getScriptInfo(record.id);
+      if (error !== null) {
+        errors.add(error);
+      }
+    }
+    for (const error of errors) {
+      this.logger.warn(
+        `${error}. An import between scripts is relative to the folder a script is in: ` +
+          'correct the path in the script that imports.',
+        'Project',
+      );
+    }
+    return result;
   }
 
   private travel(snapshot: string | undefined): void {
