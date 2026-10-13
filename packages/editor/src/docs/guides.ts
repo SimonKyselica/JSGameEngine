@@ -14,6 +14,7 @@ import playerController from './examples/PlayerController.ts?raw';
 import scanner from './examples/Scanner.ts?raw';
 import scoreCounter from './examples/ScoreCounter.ts?raw';
 import spinner from './examples/Spinner.ts?raw';
+import touchSteering from './examples/TouchSteering.ts?raw';
 import turret from './examples/Turret.ts?raw';
 
 const p = (text: string): DocBlock => ({ kind: 'paragraph', text });
@@ -213,7 +214,7 @@ const direction = target.transform.position.clone().sub(this.transform.position)
   {
     id: 'input',
     title: 'Input',
-    summary: 'Reading the keyboard and the mouse through `this.input`.',
+    summary: 'Reading the keyboard, the mouse and touch screens through `this.input`.',
     blocks: [
       code(keyboardMover),
       h('Keys'),
@@ -235,6 +236,20 @@ const direction = target.transform.position.clone().sub(this.transform.position)
         '`mousePosition` is the pointer in pixels from the top-left corner of the game view.',
         '`mouseWorldPosition` is the same point in world space, as seen through the main camera. It is what you compare with entity positions.',
         '`scrollDelta` is how far the wheel moved during this frame.',
+      ),
+      h('Touch'),
+      p(
+        'On a phone or a tablet there is no keyboard and no mouse. Two things make a game playable there without special code. The first finger on the screen acts as the mouse: it moves the pointer and presses the left button, so `wasMouseButtonPressed` and `mouseWorldPosition` work. And a [Button](api/Button) can be pressed by any finger, so on-screen controls are buttons; see [Screen and buttons](guide/ui).',
+      ),
+      p(
+        'For everything else, `this.input.touches` lists every finger on the screen as a [TouchPoint](api/TouchPoint), and `touchCount` says how many there are:',
+      ),
+      code(touchSteering),
+      list(
+        'A touch keeps its `id` for as long as the finger stays down, which is how to follow one finger among several.',
+        '`began` is true during the frame the finger came down and `ended` during the frame it was lifted. A lifted finger is listed for that one last frame.',
+        '`position` is in pixels from the top-left corner of the game view and `worldPosition` is the same place in the world.',
+        'The list is empty on a device without a touch screen. The mouse is not a touch.',
       ),
       note(
         'Read one-frame events such as `wasKeyPressed` in `onUpdate`. In `onFixedUpdate` they can be missed, or seen twice, because a frame does not always contain exactly one fixed step.',
@@ -492,6 +507,7 @@ this.destroy(other, 2.5);  // in two and a half seconds`),
       list(
         'When buttons overlap, the one drawn on top gets the pointer: a button on the screen before one in the world, then the one with the higher `sortingOrder` on its own sprite or text.',
         'A disabled button still covers the buttons behind it.',
+        'On a touch screen every finger can press a button of its own, so a move button and a jump button can be held at the same time. A finger gets `onPointerEnter` and `onPointerDown` when it comes down on a button, and `onPointerUp`, `onClick` and `onPointerExit` when it is lifted.',
         'The callbacks run once per frame, before `onUpdate`. See [The script lifecycle](guide/lifecycle).',
       ),
       p('Buttons keep working while `this.time.timeScale` is 0, which is what a pause menu needs:'),

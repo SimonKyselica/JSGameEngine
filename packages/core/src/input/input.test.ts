@@ -97,6 +97,74 @@ describe('Input mouse', () => {
     expect(state.pointerInside).toBe(false);
   });
 
+  it('lists the fingers on a touch screen, with where they are on the screen and in the world', () => {
+    const view = new CameraView(new Vec2(10, 0), 0, 5, 2);
+    const { state, input } = createInput(view);
+    expect(input.touches).toEqual([]);
+    expect(input.touchCount).toBe(0);
+
+    state.handleTouchStart(7, 150, 25, 200, 100);
+    state.handleTouchStart(9, 50, 50, 200, 100);
+    expect(input.touchCount).toBe(2);
+    const [first, second] = input.touches;
+    expect(first).toMatchObject({ id: 7, began: true, ended: false });
+    expect(first!.position.toArray()).toEqual([150, 25]);
+    expect(first!.worldPosition.equals(new Vec2(15, 2.5))).toBe(true);
+    expect(second!.id).toBe(9);
+    // Every call describes the frame anew, so changing what it returned changes nothing.
+    first!.position.x = 999;
+    expect(input.touches[0]!.position.x).toBe(150);
+  });
+
+  it('follows a finger from the frame it comes down to the frame it is lifted', () => {
+    const { state, input } = createInput();
+    state.handleTouchStart(3, 10, 10, 200, 100);
+    expect(input.touches[0]).toMatchObject({ began: true, ended: false });
+    state.endFrame();
+
+    state.handleTouchMove(3, 40, 20);
+    expect(input.touches[0]).toMatchObject({ began: false, ended: false });
+    expect(input.touches[0]!.position.toArray()).toEqual([40, 20]);
+    state.endFrame();
+
+    state.handleTouchEnd(3);
+    // Lifted fingers are listed for one more frame, and no longer counted.
+    expect(input.touches[0]).toMatchObject({ began: false, ended: true });
+    expect(input.touchCount).toBe(0);
+    state.endFrame();
+    expect(input.touches).toEqual([]);
+  });
+
+  it('reports a tap that began and ended within one frame as both', () => {
+    const { state, input } = createInput();
+    state.handleTouchStart(1, 10, 10, 200, 100);
+    state.handleTouchEnd(1);
+    expect(input.touches[0]).toMatchObject({ began: true, ended: true });
+    state.endFrame();
+    expect(input.touches).toEqual([]);
+  });
+
+  it('ignores movement and lifting of fingers it has not seen come down', () => {
+    const { state, input } = createInput();
+    state.handleTouchMove(5, 10, 10);
+    state.handleTouchEnd(5);
+    expect(input.touches).toEqual([]);
+  });
+
+  it('lifts every finger when the page loses the focus, and forgets them on a reset', () => {
+    const { state, input } = createInput();
+    state.handleTouchStart(1, 10, 10, 200, 100);
+    state.handleTouchStart(2, 20, 20, 200, 100);
+    state.releaseAll();
+    expect(input.touches.map((touch) => touch.ended)).toEqual([true, true]);
+
+    state.handleTouchStart(3, 30, 30, 200, 100);
+    state.handlePointerMove(30, 30, 200, 100, true);
+    state.reset();
+    expect(input.touches).toEqual([]);
+    expect(state.pointerFromTouch).toBe(false);
+  });
+
   it('reports the origin as world position when there is no camera', () => {
     const { state, input } = createInput(null);
     state.handlePointerMove(150, 25, 200, 100);
@@ -202,6 +270,54 @@ describe('attachDomInput', () => {
     detach();
     viewport.dispatchEvent(new PointerEvent('pointerleave'));
     expect(state.pointerInside).toBe(true);
+  });
+
+  it('reports fingers as touches, and lets the first one drive the pointer as well', () => {
+    const { state, viewport, detach } = setup();
+    const touch = (
+      type: string,
+      id: number,
+      x: number,
+      y: number,
+      isPrimary: boolean,
+    ): PointerEvent =>
+      new PointerEvent(type, {
+        pointerType: 'touch',
+        pointerId: id,
+        clientX: x,
+        clientY: y,
+        isPrimary,
+        button: 0,
+        bubbles: true,
+      });
+
+    viewport.dispatchEvent(touch('pointerdown', 11, 150, 80, true));
+    expect([...state.touches.values()]).toEqual([
+      { id: 11, x: 50, y: 30, began: true, ended: false, cancelled: false },
+    ]);
+    // The first finger is also the mouse, for games that only know the mouse.
+    expect(state.pointer.toArray()).toEqual([50, 30]);
+    expect(state.buttonsDown.has(0)).toBe(true);
+    expect(state.pointerFromTouch).toBe(true);
+
+    // A second finger is a touch and nothing else: it does not move or release the "mouse".
+    viewport.dispatchEvent(touch('pointerdown', 12, 300, 150, false));
+    viewport.dispatchEvent(touch('pointermove', 12, 310, 160, false));
+    expect(state.touches.get(12)).toMatchObject({ x: 210, y: 110 });
+    expect(state.pointer.toArray()).toEqual([50, 30]);
+    window.dispatchEvent(touch('pointerup', 12, 310, 160, false));
+    expect(state.touches.get(12)).toMatchObject({ ended: true, cancelled: false });
+    expect(state.buttonsDown.has(0)).toBe(true);
+
+    // A touch the system takes away has ended, and so has the press of the first finger.
+    window.dispatchEvent(touch('pointercancel', 11, 150, 80, true));
+    expect(state.touches.get(11)).toMatchObject({ ended: true, cancelled: true });
+    expect(state.buttonsDown.has(0)).toBe(false);
+
+    // Moving the mouse afterwards makes the pointer a mouse again.
+    viewport.dispatchEvent(new PointerEvent('pointermove', { clientX: 120, clientY: 70 }));
+    expect(state.pointerFromTouch).toBe(false);
+    detach();
   });
 
   it('captures the wheel and suppresses the context menu', () => {

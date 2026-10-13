@@ -236,6 +236,12 @@ export function createFeatureTestProject(): Project {
   hudBackground.transform.scale.set(240, 120);
   hudBackground.addComponent(SpriteRenderer, { color: new Color(0.2, 0.3, 0.5, 0.6) });
   attach(hudButton, 'UiProbe');
+  // A button for a finger, in the bottom-right corner where no other pointer comes by.
+  const touchButton = at('Touch Button', -160, 100);
+  touchButton.addComponent(ScreenAnchor, { horizontal: 'right', vertical: 'bottom' });
+  touchButton.addComponent(Button, { size: new Vec2(200, 120) });
+  touchButton.addComponent(TextRenderer, { text: 'Touch', fontSize: 28 });
+  attach(touchButton, 'TouchProbe');
   const disabledButton = at('Disabled Button', -140, -60);
   disabledButton.transform.scale.set(200, 60);
   disabledButton.addComponent(ScreenAnchor, { horizontal: 'right', vertical: 'top' });

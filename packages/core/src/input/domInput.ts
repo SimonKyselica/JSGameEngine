@@ -37,14 +37,25 @@ export function attachDomInput(
     );
   };
 
+  const isTouch = (event: PointerEvent): boolean => event.pointerType === 'touch';
+  // The mouse, a pen, and the first finger on the screen drive the pointer and its buttons.
+  // Further fingers are touches only, or they would press and release the "mouse" at random.
+  const drivesPointer = (event: PointerEvent): boolean => !isTouch(event) || event.isPrimary;
+
   const updatePointer = (event: PointerEvent): void => {
     const bounds = viewport.getBoundingClientRect();
-    state.handlePointerMove(
-      event.clientX - bounds.left,
-      event.clientY - bounds.top,
-      bounds.width,
-      bounds.height,
-    );
+    const x = event.clientX - bounds.left;
+    const y = event.clientY - bounds.top;
+    if (isTouch(event)) {
+      if (event.type === 'pointerdown') {
+        state.handleTouchStart(event.pointerId, x, y, bounds.width, bounds.height);
+      } else {
+        state.handleTouchMove(event.pointerId, x, y);
+      }
+    }
+    if (drivesPointer(event)) {
+      state.handlePointerMove(x, y, bounds.width, bounds.height, isTouch(event));
+    }
   };
 
   keyboardTarget.addEventListener(
@@ -74,12 +85,29 @@ export function attachDomInput(
     'pointerdown',
     (event) => {
       updatePointer(event);
-      state.handlePointerDown(event.button);
+      if (drivesPointer(event)) {
+        state.handlePointerDown(event.button);
+      }
     },
     options,
   );
-  // Listening on the window catches releases that happen outside the viewport.
-  window.addEventListener('pointerup', (event) => state.handlePointerUp(event.button), options);
+  // Listening on the window catches releases that happen outside the viewport. A touch can
+  // also be taken away by the system, for a gesture of its own; that ends it just the same.
+  const release = (event: PointerEvent): void => {
+    if (isTouch(event)) {
+      if (event.type === 'pointercancel') {
+        state.handleTouchCancel(event.pointerId);
+      } else {
+        state.handleTouchEnd(event.pointerId);
+      }
+    }
+    if (drivesPointer(event)) {
+      // A cancelled pointer reports no button; for a finger it can only have been the left one.
+      state.handlePointerUp(isTouch(event) ? 0 : event.button);
+    }
+  };
+  window.addEventListener('pointerup', release, options);
+  window.addEventListener('pointercancel', release, options);
   viewport.addEventListener(
     'wheel',
     (event) => {

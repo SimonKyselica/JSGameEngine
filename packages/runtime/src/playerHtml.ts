@@ -38,7 +38,18 @@ export function createPlayerHtml(options: PlayerHtmlOptions): string {
     <title>${escapeHtml(options.title)}</title>
     <style>
       html, body { margin: 0; height: 100%; overflow: hidden; background: ${background}; }
-      #rowan-game { position: fixed; inset: 0; }
+      /* A game is played with fingers on the glass. None of the things a browser does with a
+         page on touch may happen: scrolling, pull-to-refresh, zooming, selecting, a menu on a
+         long press, a flash on a tap. */
+      html, body { touch-action: none; overscroll-behavior: none; }
+      #rowan-game {
+        position: fixed;
+        inset: 0;
+        user-select: none;
+        -webkit-user-select: none;
+        -webkit-touch-callout: none;
+        -webkit-tap-highlight-color: transparent;
+      }
       canvas:focus { outline: none; }
     </style>
   </head>

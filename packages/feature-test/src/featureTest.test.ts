@@ -141,6 +141,20 @@ describe('feature-test scene, run headless', () => {
     });
   });
 
+  it('ran the checks that only start when a finger touches the screen', () => {
+    // TouchProbe announces these when the first finger arrives, so that a person at a
+    // computer is not kept waiting for them. Here the fingers did arrive.
+    const names = run.report.checks.map((check) => check.name);
+    expect(names).toEqual(
+      expect.arrayContaining([
+        'Input.touches reports a finger that touches the screen',
+        'Input.touchCount counts the fingers that are down',
+        'a second finger presses a button while the first is held',
+        'TouchPoint.ended is true in the frame a finger is lifted',
+      ]),
+    );
+  });
+
   it('gives every check a unique name', () => {
     const names = run.report.checks.map((check) => check.name);
     expect(new Set(names).size).toBe(names.length);
@@ -209,6 +223,7 @@ describe('feature-test scene, run headless', () => {
         style: { font: 'sans-serif', bold: false, italic: false },
         pixelsPerEm: 32,
       },
+      { text: 'Touch', style: { font: 'sans-serif', bold: false, italic: false }, pixelsPerEm: 28 },
     ]);
 
     // Aligned left and top, the title starts at (-9, 3) and extends right and down. The
@@ -287,7 +302,7 @@ describe('feature-test scene, run headless', () => {
 
     // Everything on the screen comes after everything in the world.
     const firstOnScreen = Math.min(quads.indexOf(background), quads.indexOf(disabled));
-    expect(quads.length - firstOnScreen).toBe(4);
+    expect(quads.length - firstOnScreen).toBe(5);
     expect(run.before.texts.map((entry) => entry.text)).toEqual(
       expect.arrayContaining(['HUD', 'Clicked']),
     );

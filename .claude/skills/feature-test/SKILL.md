@@ -30,7 +30,9 @@ The Playwright tests need a fresh build: run `npm run build` first, or use `npm 
 
 When run by hand, the input checks wait for you: hold and release Space, press D and W, move
 the pointer onto the "Click me" button, press all three mouse buttons there, scroll the wheel
-and move the pointer away again. Results appear in the Console panel; without input the scene
+and move the pointer away again. `TouchProbe` checks two fingers, which only a touch screen or the automated runs can provide;
+it announces those checks when the first finger arrives, so without a touch screen they are
+simply not part of the run. Results appear in the Console panel; without input the scene
 finishes after its 15 second timeout with the input checks failed.
 
 Pressing Stop before the scene has finished is not a failure. The harness logs that it was
@@ -46,7 +48,7 @@ Help → Open Feature Test Project always opens a fresh copy.
   Textures and sounds are generated in code, so there are no binary files to maintain.
 - `src/scripts/*.ts`: the probe scripts, one per area (`MathProbe`, `EntityProbe`,
   `LifecycleProbe`, `PhysicsProbe`, `TriggerProbe`, `InputProbe`, `AudioProbe`, `RenderProbe`,
-  `TextProbe`, `UiProbe`, `AnimationProbe`, `LayerProbe`, `StorageProbe`, `Spawner` with `Bullet`), plus `TestHarness` and
+  `TextProbe`, `UiProbe`, `AnimationProbe`, `LayerProbe`, `StorageProbe`, `TouchProbe`, `Spawner` with `Bullet`), plus `TestHarness` and
   `FinishProbe`.
 - `src/scripts.ts`: imports every script as text. **A new script file must be added here.**
 - `src/index.ts`: `createFeatureTestProject()`, the report accessors, and

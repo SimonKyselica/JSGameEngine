@@ -7,6 +7,7 @@
  */
 import type { InputState } from '@rowan/core';
 import type { FeatureTestReport } from './scripts/TestHarness';
+import { FEATURE_TEST_TOUCHES } from './touches';
 
 export { createFeatureTestProject } from './project';
 export { FEATURE_TEST_SCRIPTS } from './scripts';
@@ -27,11 +28,12 @@ export function clearFeatureTestReport(): void {
 }
 
 /** The last frame in which {@link driveFeatureTestInput} does anything. */
-export const FEATURE_TEST_INPUT_FRAMES = 18;
+export const FEATURE_TEST_INPUT_FRAMES = 30;
 
 /**
- * Plays the input the feature test's InputProbe and UiProbe wait for. Call it once per
- * frame, before updating the game, with the number of the frame that is about to run.
+ * Plays the input that the feature test's InputProbe, UiProbe and TouchProbe wait for. Call
+ * it once per frame, before updating the game, with the number of the frame that is about
+ * to run.
  */
 export function driveFeatureTestInput(input: InputState, frame: number): void {
   switch (frame) {
@@ -61,9 +63,27 @@ export function driveFeatureTestInput(input: InputState, frame: number): void {
     case 16:
       input.handleWheel(120);
       break;
-    case FEATURE_TEST_INPUT_FRAMES:
+    case 18:
       // Off the button that UiProbe sits on, which until now had the pointer.
       input.handlePointerMove(1000, 600, 1280, 720);
       break;
+    case 22: {
+      const { id, x, y } = FEATURE_TEST_TOUCHES.first;
+      input.handleTouchStart(id, x, y, 1280, 720);
+      break;
+    }
+    case 24: {
+      const { id, x, y } = FEATURE_TEST_TOUCHES.second;
+      input.handleTouchStart(id, x, y, 1280, 720);
+      break;
+    }
+    case 27:
+      input.handleTouchEnd(FEATURE_TEST_TOUCHES.second.id);
+      break;
+    case FEATURE_TEST_INPUT_FRAMES:
+      input.handleTouchEnd(FEATURE_TEST_TOUCHES.first.id);
+      break;
   }
 }
+
+export { FEATURE_TEST_TOUCHES };

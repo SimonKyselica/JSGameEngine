@@ -60,7 +60,8 @@ A/D and make jump with Space, a ground and a few crates. Press Play in the toolb
 - Save data: `this.storage` keeps named values, such as a high score, across scene changes
   and until the next time the game is opened, in the browser's local storage.
 - Sound through the Web Audio API.
-- Keyboard and mouse input.
+- Keyboard, mouse and touch input. On a touch screen the first finger acts as the mouse,
+  every finger can press a button of its own, and scripts can read each finger.
 
 **Export**
 

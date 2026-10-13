@@ -8,7 +8,7 @@
 export type { AssetType } from '../assets/asset';
 export { AudioApi } from '../audio/audioSystem';
 export type { ComponentClass, EntityId } from '../ecs/registry';
-export { Input, MouseButton, type AxisName } from '../input/input';
+export { Input, MouseButton, type AxisName, type TouchPoint } from '../input/input';
 export { Color, type ColorTuple } from '../math/color';
 export { MathUtils } from '../math/mathUtils';
 export { Vec2, type Vec2Tuple } from '../math/vec2';

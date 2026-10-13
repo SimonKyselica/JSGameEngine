@@ -23,18 +23,32 @@ export function getButtonMatrix(entity: Entity, button: Readonly<Button>, out = 
     .multiply(SIZE_SCRATCH.set(button.size.x, 0, 0, button.size.y, 0, 0));
 }
 
+/** The id of the mouse among the pointers. Fingers have the ids the browser gave them. */
+const MOUSE_POINTER = -1;
+
+/** What one pointer, the mouse or a finger, is doing with the buttons. */
+interface PointerState {
+  /** The button the pointer is on. A finger is only ever on the button it is pressing. */
+  hovered: EntityId | null;
+  /** The button the pointer pressed and has not let go of yet. */
+  pressed: EntityId | null;
+}
+
 /**
- * Works out which button the pointer is on and what it does there, and tells the scripts.
+ * Works out which buttons the mouse and the fingers on a touch screen are on, and what they
+ * do there, and tells the scripts.
  *
- * Of the buttons under the pointer the one drawn on top gets it: a button on the screen
+ * Of the buttons under a pointer the one drawn on top gets it: a button on the screen
  * before one in the world, then the higher sorting order of its own sprite or text, then
  * the one created later. A button that is not interactable gets no callbacks, but it still
  * shields the buttons behind it.
+ *
+ * Every finger can press a button of its own, so two buttons can be held at once. A button
+ * that is already held by one pointer ignores the others.
  */
 export class ButtonSystem {
-  private hovered: EntityId | null = null;
-  private pressed: EntityId | null = null;
-  /** The entities this system gave a {@link ButtonState}. There are never more than two. */
+  private readonly pointers = new Map<number, PointerState>();
+  /** The entities this system gave a {@link ButtonState}. */
   private readonly marked: EntityId[] = [];
   private readonly matrix = new Mat3();
   private readonly pointerWorld = new Vec2();
@@ -51,54 +65,139 @@ export class ButtonSystem {
     private readonly raise: (entity: Entity, callback: PointerCallback) => void,
   ) {}
 
-  /** Looks at the pointer once. Called every frame, before the scripts are updated. */
+  /** Looks at the pointers once. Called every frame, before the scripts are updated. */
   update(): void {
-    const { input } = this;
-    const wasPressed = input.buttonsPressed.has(PRIMARY_BUTTON);
-    const wasReleased = input.buttonsReleased.has(PRIMARY_BUTTON);
-    // A finger can touch, lift and so leave between two frames. The press says where it was.
-    const target = input.pointerInside || wasPressed ? this.pick() : null;
+    const { input, pointers } = this;
 
-    if (target !== this.hovered) {
-      const left = this.hovered;
-      this.hovered = target;
-      if (left !== null) {
-        this.send(left, 'onPointerExit');
-      }
-      if (target !== null) {
-        this.send(target, 'onPointerEnter');
-      }
+    // While the pointer is a finger there is no mouse: the finger is handled as a touch
+    // below, and would otherwise press every button twice.
+    const mousePresent = !input.pointerFromTouch;
+    const wasPressed = mousePresent && input.buttonsPressed.has(PRIMARY_BUTTON);
+    const mouse = this.pointerOf(MOUSE_POINTER);
+    // A press says where the mouse was even if it has left the game again since.
+    const onGame = mousePresent && (input.pointerInside || wasPressed);
+    this.hover(mouse, onGame ? this.pick(input.pointer.x, input.pointer.y) : null);
+    if (wasPressed) {
+      this.press(mouse);
     }
-    if (wasPressed && this.hovered !== null) {
-      this.pressed = this.hovered;
-      this.send(this.pressed, 'onPointerDown');
+    if (input.buttonsReleased.has(PRIMARY_BUTTON)) {
+      this.release(mouse, true);
     }
-    if (wasReleased && this.pressed !== null) {
-      const released = this.pressed;
-      this.pressed = null;
-      if (this.isUsable(released)) {
-        this.send(released, 'onPointerUp');
-        if (released === this.hovered) {
-          this.send(released, 'onClick');
+
+    for (const touch of input.touches.values()) {
+      let pointer = pointers.get(touch.id);
+      if (touch.began) {
+        const target = this.pick(touch.x, touch.y);
+        // A finger only gets a button that no other pointer is holding.
+        if (target !== null && !this.isPressed(target)) {
+          pointer = this.pointerOf(touch.id);
+          this.hover(pointer, target);
+          this.press(pointer);
         }
+      } else if (pointer && pointer.pressed !== null) {
+        // A finger that slides off its button stops looking pressed, and can slide back.
+        const under = this.pick(touch.x, touch.y);
+        this.hover(pointer, under === pointer.pressed ? under : null);
+      }
+      if (pointer && (touch.ended || pointer.pressed === null)) {
+        // A touch that was taken away is let go of, but it has not chosen anything.
+        this.release(pointer, !touch.cancelled);
+        this.hover(pointer, null);
+        pointers.delete(touch.id);
       }
     }
-    // A button that was destroyed or disabled while held down is no longer being pressed.
-    if (this.pressed !== null && !this.isUsable(this.pressed)) {
-      this.pressed = null;
+
+    for (const [id, pointer] of pointers) {
+      // A button that was destroyed or disabled while held down is no longer being pressed.
+      if (pointer.pressed !== null && !this.isUsable(pointer.pressed)) {
+        pointer.pressed = null;
+      }
+      // A finger the input has forgotten, as when the page lost the focus, is gone.
+      if (id !== MOUSE_POINTER && !input.touches.has(id)) {
+        pointers.delete(id);
+      }
     }
     this.markStates();
   }
 
-  /** Forgets what the pointer was doing. Called when the scene stops. */
+  /** Forgets what the pointers were doing. Called when the scene stops. */
   stop(): void {
-    this.hovered = null;
-    this.pressed = null;
+    this.pointers.clear();
     this.markStates();
   }
 
-  /** The interactable button under the pointer that is drawn on top, if there is one. */
-  private pick(): EntityId | null {
+  private pointerOf(id: number): PointerState {
+    let pointer = this.pointers.get(id);
+    if (!pointer) {
+      pointer = { hovered: null, pressed: null };
+      this.pointers.set(id, pointer);
+    }
+    return pointer;
+  }
+
+  /** Moves a pointer onto a button, or off every button, and tells those it leaves and enters. */
+  private hover(pointer: PointerState, target: EntityId | null): void {
+    if (target === pointer.hovered) {
+      return;
+    }
+    const left = pointer.hovered;
+    pointer.hovered = target;
+    if (left !== null) {
+      this.send(left, 'onPointerExit');
+    }
+    if (target !== null) {
+      this.send(target, 'onPointerEnter');
+    }
+  }
+
+  /** Presses the button a pointer is on, unless another pointer is holding it already. */
+  private press(pointer: PointerState): void {
+    const target = pointer.hovered;
+    if (target === null || this.isPressed(target)) {
+      return;
+    }
+    pointer.pressed = target;
+    this.send(target, 'onPointerDown');
+  }
+
+  /**
+   * Lets go of the button a pointer holds. With `deliberate` it was clicked if the pointer
+   * is still on it.
+   */
+  private release(pointer: PointerState, deliberate: boolean): void {
+    const released = pointer.pressed;
+    if (released === null) {
+      return;
+    }
+    pointer.pressed = null;
+    if (this.isUsable(released)) {
+      this.send(released, 'onPointerUp');
+      if (deliberate && released === pointer.hovered) {
+        this.send(released, 'onClick');
+      }
+    }
+  }
+
+  private isPressed(id: EntityId): boolean {
+    for (const pointer of this.pointers.values()) {
+      if (pointer.pressed === id) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private isHovered(id: EntityId): boolean {
+    for (const pointer of this.pointers.values()) {
+      if (pointer.hovered === id) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /** The interactable button at a place in the viewport that is drawn on top, if there is one. */
+  private pick(x: number, y: number): EntityId | null {
     const { scene, input } = this;
     // Most games in most frames have no button at all, and then the view is not needed.
     if (scene.registry.count(Button) === 0) {
@@ -108,8 +207,8 @@ export class ButtonSystem {
     if (!view) {
       return null;
     }
-    const { pointer, viewportSize } = input;
-    view.viewportToWorld(pointer.x, pointer.y, viewportSize.x, viewportSize.y, this.pointerWorld);
+    const { viewportSize } = input;
+    view.viewportToWorld(x, y, viewportSize.x, viewportSize.y, this.pointerWorld);
 
     let best: EntityId | null = null;
     let bestIsInteractable = false;
@@ -165,19 +264,21 @@ export class ButtonSystem {
     }
   }
 
-  /** Writes what the pointer is doing into the scene, where the renderer reads it. */
+  /** Writes what the pointers are doing into the scene, where the renderer reads it. */
   private markStates(): void {
     const { registry } = this.scene;
-    const { marked, hovered, pressed } = this;
+    const { marked } = this;
     for (let index = marked.length - 1; index >= 0; index--) {
       const id = marked[index]!;
-      if (id !== hovered && id !== pressed) {
+      if (!this.isHovered(id) && !this.isPressed(id)) {
         registry.remove(id, ButtonState);
         marked.splice(index, 1);
       }
     }
-    this.mark(hovered);
-    this.mark(pressed);
+    for (const pointer of this.pointers.values()) {
+      this.mark(pointer.hovered);
+      this.mark(pointer.pressed);
+    }
   }
 
   private mark(id: EntityId | null): void {
@@ -190,7 +291,7 @@ export class ButtonSystem {
       state = registry.add(id, ButtonState, new ButtonState());
       this.marked.push(id);
     }
-    state.hovered = id === this.hovered;
-    state.pressed = id === this.pressed;
+    state.hovered = this.isHovered(id);
+    state.pressed = this.isPressed(id);
   }
 }

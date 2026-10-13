@@ -1428,6 +1428,26 @@
           "summary": "Mouse wheel movement during this frame; positive scrolls down."
         },
         {
+          "name": "touches",
+          "kind": "property",
+          "static": false,
+          "readonly": true,
+          "signatures": [
+            "touches: TouchPoint[]"
+          ],
+          "summary": "The fingers on a touch screen, in the order they came down. Each call returns new objects that describe this frame. The list is empty on a device without a touch screen: the mouse is not a touch.\n\nThe first finger also moves the mouse pointer and presses the left mouse button, so a game written for the mouse works on a phone without touches."
+        },
+        {
+          "name": "touchCount",
+          "kind": "property",
+          "static": false,
+          "readonly": true,
+          "signatures": [
+            "touchCount: number"
+          ],
+          "summary": "How many fingers are on the screen now, not counting those lifted in this frame."
+        },
+        {
           "name": "getAxis",
           "kind": "method",
           "static": false,
@@ -2809,6 +2829,65 @@
             "timeScale: number"
           ],
           "summary": "Speed of game time. 1 is normal, 0.5 is slow motion, 0 freezes the game."
+        }
+      ]
+    },
+    {
+      "name": "TouchPoint",
+      "summary": "A finger on the screen, as scripts see it in `Input.touches`.",
+      "typeParameters": "",
+      "definition": "",
+      "kind": "interface",
+      "members": [
+        {
+          "name": "id",
+          "kind": "property",
+          "static": false,
+          "readonly": true,
+          "signatures": [
+            "id: number"
+          ],
+          "summary": "A number that stays the same for as long as this finger is down."
+        },
+        {
+          "name": "position",
+          "kind": "property",
+          "static": false,
+          "readonly": true,
+          "signatures": [
+            "position: Vec2"
+          ],
+          "summary": "Where the finger is, in pixels from the top-left corner of the game view."
+        },
+        {
+          "name": "worldPosition",
+          "kind": "property",
+          "static": false,
+          "readonly": true,
+          "signatures": [
+            "worldPosition: Vec2"
+          ],
+          "summary": "Where the finger is in world space, as seen through the primary camera."
+        },
+        {
+          "name": "began",
+          "kind": "property",
+          "static": false,
+          "readonly": true,
+          "signatures": [
+            "began: boolean"
+          ],
+          "summary": "True only during the frame in which the finger touched the screen."
+        },
+        {
+          "name": "ended",
+          "kind": "property",
+          "static": false,
+          "readonly": true,
+          "signatures": [
+            "ended: boolean"
+          ],
+          "summary": "True only during the frame in which the finger was lifted. It is the last frame the touch is listed in. A quick tap can begin and end in the same frame."
         }
       ]
     },

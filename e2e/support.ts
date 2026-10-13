@@ -4,6 +4,7 @@ import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { extname, resolve } from 'node:path';
 import type { FeatureTestReport } from '@rowan/feature-test';
+import { FEATURE_TEST_TOUCHES } from '../packages/feature-test/src/touches';
 
 /** Opens the editor and waits until the starter project is on screen. */
 export async function openEditor(page: Page): Promise<void> {
@@ -169,6 +170,47 @@ export async function playFeatureTestInput(page: Page, canvas: Locator): Promise
   await waitForCheck(page, 'onClick');
   await page.mouse.move(box.x + box.width * 0.8, box.y + box.height * 0.8);
   await waitForCheck(page, 'onPointerExit, after the other pointer callbacks in their order');
+
+  // Two fingers for TouchProbe: one somewhere empty, then one on the button it sits on.
+  const { first, second } = FEATURE_TEST_TOUCHES;
+  await dispatchTouch(canvas, 'pointerdown', first, true);
+  await waitForCheck(page, 'Input.touches reports a finger that touches the screen');
+  await dispatchTouch(canvas, 'pointerdown', second, false);
+  await waitForCheck(page, 'a second finger presses a button while the first is held');
+  await waitForCheck(page, 'Input.touchCount counts the fingers that are down');
+  await dispatchTouch(canvas, 'pointerup', second, false);
+  await waitForCheck(page, 'TouchPoint.ended is true in the frame a finger is lifted');
+  await dispatchTouch(canvas, 'pointerup', first, true);
+}
+
+/**
+ * Reports a finger to the page the way a touch screen does: as a pointer event of the
+ * `touch` kind on the game's canvas. `touch` is a place on the 1280x720 screen of the
+ * feature test, which is scaled to wherever the canvas is.
+ */
+async function dispatchTouch(
+  canvas: Locator,
+  type: 'pointerdown' | 'pointermove' | 'pointerup',
+  touch: { readonly id: number; readonly x: number; readonly y: number },
+  isPrimary: boolean,
+): Promise<void> {
+  await canvas.evaluate(
+    (element, { type, touch, isPrimary }) => {
+      const bounds = element.getBoundingClientRect();
+      element.dispatchEvent(
+        new PointerEvent(type, {
+          pointerType: 'touch',
+          pointerId: touch.id,
+          isPrimary,
+          button: 0,
+          clientX: bounds.left + (touch.x / 1280) * bounds.width,
+          clientY: bounds.top + (touch.y / 720) * bounds.height,
+          bubbles: true,
+        }),
+      );
+    },
+    { type, touch, isPrimary },
+  );
 }
 
 /** Waits for the feature test running in the page to finish and returns its report. */

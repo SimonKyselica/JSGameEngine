@@ -46,6 +46,10 @@ interface ButtonGame extends RunningGame {
   pointAtPixel(x: number, y: number): void;
   press(): void;
   release(): void;
+  /** Puts a finger down at a place in the world, moves it there, or lifts it. */
+  touch(id: number, x: number, y: number): void;
+  slide(id: number, x: number, y: number): void;
+  lift(id: number): void;
   /** Runs one frame and returns what was logged during it. */
   frame(): string[];
 }
@@ -81,6 +85,11 @@ async function startButtonGame(
     pointAtPixel: (x, y) => input.handlePointerMove(640 + x, 360 - y, 1280, 720),
     press: () => input.handlePointerDown(0),
     release: () => input.handlePointerUp(0),
+    touch: (id, x, y) =>
+      input.handleTouchStart(id, 640 + x * PIXELS_PER_UNIT, 360 - y * PIXELS_PER_UNIT, 1280, 720),
+    slide: (id, x, y) =>
+      input.handleTouchMove(id, 640 + x * PIXELS_PER_UNIT, 360 - y * PIXELS_PER_UNIT),
+    lift: (id) => input.handleTouchEnd(id),
     frame() {
       game.step();
       const messages = game.messages().slice(seen);
@@ -333,6 +342,120 @@ describe('ButtonSystem', () => {
     ]);
     game.pointAt(9, 9);
     expect(game.frame()).toEqual(['Play:exit']);
+  });
+
+  it('lets a finger press a button: enter, down, and on lifting up, click and exit', async () => {
+    const game = await startButtonGame((_scene, addButton) => addButton('Jump', 2, 1));
+    game.touch(1, 2, 1);
+    expect(game.frame()).toEqual(['Jump:enter', 'Jump:down']);
+    expect(game.frame()).toEqual([]);
+    game.lift(1);
+    expect(game.frame()).toEqual(['Jump:up', 'Jump:click', 'Jump:exit']);
+    expect(game.frame()).toEqual([]);
+  });
+
+  it('lets two fingers hold two buttons at once', async () => {
+    const game = await startButtonGame((_scene, addButton) => {
+      addButton('Left', -4, 0);
+      addButton('Jump', 4, 0);
+    });
+    game.touch(1, -4, 0);
+    expect(game.frame()).toEqual(['Left:enter', 'Left:down']);
+    game.touch(2, 4, 0);
+    expect(game.frame()).toEqual(['Jump:enter', 'Jump:down']);
+    // The first finger is still down while the second one comes and goes.
+    game.lift(2);
+    expect(game.frame()).toEqual(['Jump:up', 'Jump:click', 'Jump:exit']);
+    game.lift(1);
+    expect(game.frame()).toEqual(['Left:up', 'Left:click', 'Left:exit']);
+  });
+
+  it('does not click when a finger slides off the button before it is lifted', async () => {
+    const game = await startButtonGame((_scene, addButton) => addButton('Jump', 2, 1));
+    game.touch(1, 2, 1);
+    game.frame();
+    game.slide(1, 6, 4);
+    expect(game.frame()).toEqual(['Jump:exit']);
+    // Sliding back makes it the pressed button again.
+    game.slide(1, 2, 1);
+    expect(game.frame()).toEqual(['Jump:enter']);
+    game.slide(1, 6, 4);
+    game.frame();
+    game.lift(1);
+    expect(game.frame()).toEqual(['Jump:up']);
+  });
+
+  it('ignores a finger that comes down beside the buttons and slides onto one', async () => {
+    const game = await startButtonGame((_scene, addButton) => addButton('Jump', 2, 1));
+    game.touch(1, -6, -3);
+    game.frame();
+    game.slide(1, 2, 1);
+    game.lift(1);
+    expect(game.frame()).toEqual([]);
+  });
+
+  it('gives a button that one finger holds to no second pointer', async () => {
+    const game = await startButtonGame((_scene, addButton) => addButton('Jump', 2, 1));
+    game.touch(1, 2, 1);
+    game.frame();
+    game.touch(2, 2.2, 1.1);
+    expect(game.frame()).toEqual([]);
+    game.lift(2);
+    expect(game.frame()).toEqual([]);
+    game.lift(1);
+    expect(game.frame()).toEqual(['Jump:up', 'Jump:click', 'Jump:exit']);
+  });
+
+  it('counts a tap that comes and goes between two frames', async () => {
+    const game = await startButtonGame((_scene, addButton) => addButton('Jump', 2, 1));
+    game.touch(1, 2, 1);
+    game.lift(1);
+    expect(game.frame()).toEqual(['Jump:enter', 'Jump:down', 'Jump:up', 'Jump:click', 'Jump:exit']);
+  });
+
+  it('presses a button once when the first finger also acts as the mouse', async () => {
+    const game = await startButtonGame((_scene, addButton) => addButton('Jump', 2, 1));
+    // What the page reports for the first finger: a touch, and the pointer it drives.
+    game.touch(1, 2, 1);
+    game.game.input.handlePointerMove(640 + 2 * 72, 360 - 72, 1280, 720, true);
+    game.press();
+    expect(game.frame()).toEqual(['Jump:enter', 'Jump:down']);
+    game.lift(1);
+    game.release();
+    game.game.input.handlePointerLeave();
+    expect(game.frame()).toEqual(['Jump:up', 'Jump:click', 'Jump:exit']);
+  });
+
+  it('lets go without a click when the system takes a touch away', async () => {
+    const game = await startButtonGame((_scene, addButton) => addButton('Jump', 2, 1));
+    game.touch(1, 2, 1);
+    game.frame();
+    game.game.input.handleTouchCancel(1);
+    expect(game.frame()).toEqual(['Jump:up', 'Jump:exit']);
+  });
+
+  it('shows a button as pressed while a finger is on it', async () => {
+    const game = await startButtonGame((_scene, addButton) => addButton('Jump', 2, 1));
+    const jump = game.scene.findByName('Jump')!;
+    game.touch(1, 2, 1);
+    game.frame();
+    expect(jump.getComponent(ButtonState)).toMatchObject({ hovered: true, pressed: true });
+    game.slide(1, 7, 4);
+    game.frame();
+    expect(jump.getComponent(ButtonState)).toMatchObject({ hovered: false, pressed: true });
+    game.lift(1);
+    game.frame();
+    expect(jump.hasComponent(ButtonState)).toBe(false);
+  });
+
+  it('lets go of everything when the page loses the focus', async () => {
+    const game = await startButtonGame((_scene, addButton) => addButton('Jump', 2, 1));
+    game.touch(1, 2, 1);
+    game.frame();
+    game.game.input.releaseAll();
+    // The finger never came up as far as the page knows, so nothing was chosen.
+    expect(game.frame()).toEqual(['Jump:up', 'Jump:exit']);
+    expect(game.scene.findByName('Jump')!.hasComponent(ButtonState)).toBe(false);
   });
 
   it('does not ask for the camera view in a game without buttons', async () => {

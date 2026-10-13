@@ -62,7 +62,7 @@ export const REFERENCE_GROUPS: readonly { title: string; types: readonly string[
     ],
   },
   { title: 'UI', types: ['ScreenAnchor', 'HorizontalAnchor', 'VerticalAnchor', 'Button'] },
-  { title: 'Input', types: ['Input', 'MouseButton', 'AxisName'] },
+  { title: 'Input', types: ['Input', 'MouseButton', 'AxisName', 'TouchPoint'] },
   { title: 'Physics', types: ['Physics2D', 'RaycastHit', 'Collision'] },
   { title: 'Audio', types: ['AudioApi'] },
   { title: 'Math', types: ['Vec2', 'Vec2Tuple', 'Color', 'ColorTuple', 'MathUtils'] },
