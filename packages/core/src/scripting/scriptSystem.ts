@@ -162,7 +162,21 @@ export class ScriptSystem {
 
   /** Calls a pointer callback on the scripts of the entity whose button raised it. */
   dispatchPointerEvent(entity: Entity, callback: PointerCallback): void {
-    // A button can be clicked in the frame it appears, before its scripts were set up.
+    this.dispatch(entity, callback);
+  }
+
+  /** Tells the scripts of an entity that an animation of its animator has ended. */
+  dispatchAnimationEnd(entity: Entity, clip: string): void {
+    this.dispatch(entity, 'onAnimationEnd', clip);
+  }
+
+  /** Calls a callback on every script of one entity. */
+  private dispatch<K extends LifecycleHook>(
+    entity: Entity,
+    hook: K,
+    ...args: Parameters<NonNullable<ScriptLifecycle[K]>>
+  ): void {
+    // The entity may have appeared in this frame, before its scripts were set up.
     this.createEntityInstances(entity);
     const instances = this.byEntity.get(entity.id);
     if (!instances) {
@@ -170,7 +184,7 @@ export class ScriptSystem {
     }
     for (const instance of [...instances]) {
       if (this.prepare(instance)) {
-        this.call(instance, callback);
+        this.call(instance, hook, ...args);
       }
     }
   }

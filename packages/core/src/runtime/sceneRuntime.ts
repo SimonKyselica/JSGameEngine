@@ -1,3 +1,4 @@
+import { AnimationSystem } from '../animation/animationSystem';
 import type { AssetDatabase } from '../assets/assetDatabase';
 import { AudioApi, type AudioSystem } from '../audio/audioSystem';
 import { RowanError } from '../core/assert';
@@ -50,6 +51,7 @@ export class SceneRuntime implements SceneHost {
   readonly physics: PhysicsSystem;
   readonly scripts: ScriptSystem;
   readonly buttons: ButtonSystem;
+  readonly animations: AnimationSystem;
 
   private destroyQueue: PendingDestroy[] = [];
   private readonly prefabCache = new Map<string, unknown>();
@@ -83,6 +85,9 @@ export class SceneRuntime implements SceneHost {
       () => context.getCameraView(),
       (entity, callback) => this.scripts.dispatchPointerEvent(entity, callback),
     );
+    this.animations = new AnimationSystem(scene, (entity, clip) =>
+      this.scripts.dispatchAnimationEnd(entity, clip),
+    );
   }
 
   get isRunning(): boolean {
@@ -93,6 +98,7 @@ export class SceneRuntime implements SceneHost {
     this.running = true;
     this.physics.start();
     this.context.audio.startScene(this.scene);
+    this.animations.start();
     this.scripts.start();
   }
 
@@ -103,10 +109,15 @@ export class SceneRuntime implements SceneHost {
     this.scripts.dispatchContacts(contacts);
   }
 
-  /** One rendered frame: pointer callbacks, updates, late updates, then deferred destruction. */
+  /**
+   * One rendered frame: pointer callbacks, updates, animations, late updates, then deferred
+   * destruction.
+   */
   update(deltaTime: number): void {
     this.buttons.update();
     this.scripts.update(deltaTime);
+    // After the updates, so that an animation a script has just chosen shows in this frame.
+    this.animations.update(deltaTime);
     this.scripts.lateUpdate(deltaTime);
     this.flushDestroyQueue(deltaTime);
     this.context.audio.update();
@@ -118,6 +129,7 @@ export class SceneRuntime implements SceneHost {
     }
     this.running = false;
     this.buttons.stop();
+    this.animations.stop();
     this.scripts.stop();
     this.context.audio.stopScene();
     this.physics.stop();

@@ -30,6 +30,9 @@ interface DrawItem {
   readonly color: Color;
   flipX: boolean;
   flipY: boolean;
+  /** The part of the texture that is shown, when `hasRegion` says it is not all of it. */
+  readonly region: Rect;
+  hasRegion: boolean;
   /** 1 for what is on the screen, which is drawn over the world, and 0 for the world. */
   layer: number;
   sortingOrder: number;
@@ -86,7 +89,14 @@ export class SceneRenderer {
     this.renderer.beginFrame(clearColor);
     this.renderer.setViewProjection(view.viewProjection);
     for (const item of frameItems) {
-      this.renderer.drawQuad(item.matrix, item.texture, item.color, item.flipX, item.flipY);
+      this.renderer.drawQuad(
+        item.matrix,
+        item.texture,
+        item.color,
+        item.flipX,
+        item.flipY,
+        item.hasRegion ? item.region : null,
+      );
     }
     this.renderer.endFrame();
     this.texts.endFrame();
@@ -142,6 +152,9 @@ export class SceneRenderer {
         continue;
       }
       item.texture = sprite.texture === null ? null : this.textures.get(sprite.texture);
+      item.hasRegion =
+        item.texture !== null &&
+        getSpriteRegion(sprite, item.texture.width, item.texture.height, item.region) !== null;
       this.finish(item, scene, id, sprite.color);
       item.flipX = sprite.flipX;
       item.flipY = sprite.flipY;
@@ -212,6 +225,7 @@ export class SceneRenderer {
         ),
       );
       item.texture = texture;
+      item.hasRegion = false;
       this.finish(item, scene, id, text.color);
       item.flipX = false;
       item.flipY = false;
@@ -268,6 +282,8 @@ export class SceneRenderer {
         color: new Color(),
         flipX: false,
         flipY: false,
+        region: new Rect(),
+        hasRegion: false,
         layer: 0,
         sortingOrder: 0,
         sequence: 0,
@@ -340,9 +356,46 @@ export function createCameraView(cameraEntity: Entity, aspect: number): CameraVi
   );
 }
 
+/** How many frames a sprite sheet has along one side: a whole number, and at least one. */
+function getFrameCount(value: number): number {
+  return Number.isFinite(value) ? Math.max(1, Math.floor(value)) : 1;
+}
+
 /**
- * The size of a sprite in local units, before the entity's scale is applied: the texture
- * size divided by pixels-per-unit, or 1x1 for a sprite without a texture.
+ * The part of its texture that a sprite shows, as fractions of the texture with the origin
+ * in the top-left corner, or `null` when it shows all of it. `frame` is counted from left to
+ * right and from the top row down, and starts over past the last frame.
+ *
+ * @param textureWidth The size of the texture in pixels. Half a pixel is left out all round,
+ *   so that smoothing does not pull the neighbouring frames in at the edges.
+ */
+export function getSpriteRegion(
+  sprite: Readonly<SpriteRenderer>,
+  textureWidth: number,
+  textureHeight: number,
+  out = new Rect(),
+): Rect | null {
+  const columns = getFrameCount(sprite.columns);
+  const rows = getFrameCount(sprite.rows);
+  if (columns === 1 && rows === 1) {
+    return null;
+  }
+  const count = columns * rows;
+  const frame = Number.isFinite(sprite.frame) ? Math.floor(sprite.frame) : 0;
+  // A double modulo, so that a negative frame counts back from the end.
+  const index = ((frame % count) + count) % count;
+  const insetX = textureWidth > 0 ? 0.5 / textureWidth : 0;
+  const insetY = textureHeight > 0 ? 0.5 / textureHeight : 0;
+  out.x = (index % columns) / columns + insetX;
+  out.y = Math.floor(index / columns) / rows + insetY;
+  out.width = 1 / columns - 2 * insetX;
+  out.height = 1 / rows - 2 * insetY;
+  return out;
+}
+
+/**
+ * The size of a sprite in local units, before the entity's scale is applied: the size of
+ * one frame of its texture divided by pixels-per-unit, or 1x1 for a sprite without a texture.
  */
 export function getSpriteSize(
   sprite: SpriteRenderer,
@@ -356,5 +409,8 @@ export function getSpriteSize(
     return out.set(1, 1);
   }
   const pixelsPerUnit = sprite.pixelsPerUnit > 0 ? sprite.pixelsPerUnit : 100;
-  return out.set(width / pixelsPerUnit, height / pixelsPerUnit);
+  return out.set(
+    width / getFrameCount(sprite.columns) / pixelsPerUnit,
+    height / getFrameCount(sprite.rows) / pixelsPerUnit,
+  );
 }

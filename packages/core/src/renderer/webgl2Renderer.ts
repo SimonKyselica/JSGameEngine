@@ -2,6 +2,7 @@ import { RowanError } from '../core/assert';
 import { Signal } from '../core/signal';
 import type { Color } from '../math/color';
 import type { Mat3 } from '../math/mat3';
+import type { Rect } from '../math/rect';
 import type { Renderer2D, RenderStats, Texture, TextureFilter, TextureSource } from './renderer2d';
 import {
   createQuadIndices,
@@ -202,6 +203,7 @@ export class WebGL2Renderer implements Renderer2D {
     color: Readonly<Color>,
     flipX = false,
     flipY = false,
+    region: Readonly<Rect> | null = null,
   ): void {
     if (!this.resources) {
       return;
@@ -209,7 +211,7 @@ export class WebGL2Renderer implements Renderer2D {
     const handle = texture as WebGLTextureHandle | null;
     // A texture that lost its GPU data (context loss) falls back to solid color.
     const resolved = handle?.glTexture ? handle : this.resources.whiteTexture;
-    this.batch.add(transform, resolved, color, flipX, flipY);
+    this.batch.add(transform, resolved, color, flipX, flipY, handle?.glTexture ? region : null);
   }
 
   endFrame(): void {

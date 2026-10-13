@@ -23,6 +23,7 @@ import {
  */
 
 const MAGENTA = [255, 0, 255] as const;
+const CYAN = [0, 255, 255] as const;
 /** A word in large bold letters covers thousands of pixels; a failed text covers none. */
 const MIN_TEXT_PIXELS = 300;
 
@@ -57,6 +58,10 @@ async function expectExportedGameToPass(game: Page): Promise<void> {
   expect(Math.max(...corner)).toBeLessThan(90);
   // Above the disc the scene says "Finished" in magenta, a color nothing else in it has.
   expect(await countCanvasPixels(game, 'canvas', MAGENTA, 40)).toBeGreaterThan(MIN_TEXT_PIXELS);
+  // Beside the disc a sprite shows the last frame of a sheet of eight colors, the cyan one.
+  // The frame next to it is magenta, and none of that may show: all magenta is in the text
+  // above the disc, so the lower half of the picture has none.
+  expect(await countCanvasPixels(game, 'canvas', CYAN, 20)).toBeGreaterThan(MIN_TEXT_PIXELS);
 
   await expect(game).toHaveTitle('Rowan Feature Test');
   expect(pageErrors).toEqual([]);

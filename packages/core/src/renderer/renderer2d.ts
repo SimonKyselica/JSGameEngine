@@ -1,6 +1,7 @@
 import { Signal } from '../core/signal';
 import { Color } from '../math/color';
 import { Mat3 } from '../math/mat3';
+import type { Rect } from '../math/rect';
 
 export type TextureFilter = 'nearest' | 'linear';
 
@@ -50,6 +51,9 @@ export interface Renderer2D {
   /**
    * Draws a quad. `transform` maps the unit square centered on the origin
    * (-0.5..0.5 on both axes) to world space. A `null` texture draws a solid color.
+   *
+   * @param region The part of the texture to show, as fractions of its size with the
+   *   origin in the top-left corner. Without it the whole texture is shown.
    */
   drawQuad(
     transform: Readonly<Mat3>,
@@ -57,6 +61,7 @@ export interface Renderer2D {
     color: Readonly<Color>,
     flipX?: boolean,
     flipY?: boolean,
+    region?: Readonly<Rect> | null,
   ): void;
   endFrame(): void;
   dispose(): void;
@@ -68,6 +73,8 @@ export interface RecordedQuad {
   readonly color: Color;
   readonly flipX: boolean;
   readonly flipY: boolean;
+  /** The part of the texture that was shown, or `null` for all of it. */
+  readonly region: Rect | null;
 }
 
 /**
@@ -126,6 +133,7 @@ export class HeadlessRenderer implements Renderer2D {
     color: Readonly<Color>,
     flipX = false,
     flipY = false,
+    region: Readonly<Rect> | null = null,
   ): void {
     this.quads.push({
       transform: new Mat3().copy(transform),
@@ -133,6 +141,7 @@ export class HeadlessRenderer implements Renderer2D {
       color: new Color().copy(color),
       flipX,
       flipY,
+      region: region ? region.clone() : null,
     });
   }
 

@@ -1,6 +1,7 @@
 import { assert } from '../core/assert';
 import type { Color } from '../math/color';
 import type { Mat3 } from '../math/mat3';
+import type { Rect } from '../math/rect';
 
 /** Vertex layout: position (2), uv (2), color (4), texture slot (1). */
 export const FLOATS_PER_VERTEX = 9;
@@ -57,6 +58,7 @@ export class SpriteBatch<TTexture> {
     color: Readonly<Color>,
     flipX: boolean,
     flipY: boolean,
+    region: Readonly<Rect> | null = null,
   ): void {
     let slot = this.textures.indexOf(texture);
     if (
@@ -72,13 +74,18 @@ export class SpriteBatch<TTexture> {
     }
 
     const { a, b, c, d, tx, ty } = transform;
+    // The part of the texture the quad shows; a flip mirrors that part, not the whole texture.
+    const left = region ? region.x : 0;
+    const top = region ? region.y : 0;
+    const width = region ? region.width : 1;
+    const height = region ? region.height : 1;
     const vertices = this.vertices;
     let offset = this.quadCount * FLOATS_PER_QUAD;
     for (const [x, y, u, v] of CORNERS) {
       vertices[offset++] = a * x + c * y + tx;
       vertices[offset++] = b * x + d * y + ty;
-      vertices[offset++] = flipX ? 1 - u : u;
-      vertices[offset++] = flipY ? 1 - v : v;
+      vertices[offset++] = left + (flipX ? 1 - u : u) * width;
+      vertices[offset++] = top + (flipY ? 1 - v : v) * height;
       vertices[offset++] = color.r;
       vertices[offset++] = color.g;
       vertices[offset++] = color.b;

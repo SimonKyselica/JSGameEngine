@@ -2,6 +2,65 @@
   "engineVersion": "0.1.0",
   "types": [
     {
+      "name": "AnimationClip",
+      "summary": "One animation of a `SpriteAnimator`: a run of frames of the sprite sheet.",
+      "typeParameters": "",
+      "definition": "",
+      "kind": "interface",
+      "members": [
+        {
+          "name": "name",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "name: string"
+          ],
+          "summary": "The name the animation is played by."
+        },
+        {
+          "name": "firstFrame",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "firstFrame: number"
+          ],
+          "summary": "The first frame of the run, counted like `SpriteRenderer.frame`."
+        },
+        {
+          "name": "lastFrame",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "lastFrame: number"
+          ],
+          "summary": "The last frame of the run."
+        },
+        {
+          "name": "framesPerSecond",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "framesPerSecond: number"
+          ],
+          "summary": "How many frames are shown per second."
+        },
+        {
+          "name": "loop",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "loop: boolean"
+          ],
+          "summary": "Starts over after the last frame. Otherwise the animation stops on its last frame."
+        }
+      ]
+    },
+    {
       "name": "AssetsApi",
       "summary": "Asset lookups available to scripts as `this.assets`.",
       "typeParameters": "",
@@ -2107,6 +2166,16 @@
             "onClick?(): void"
           ],
           "summary": "Called after `onPointerUp` when the press ended on the button it began on. This is the callback for \"the player chose this\"."
+        },
+        {
+          "name": "onAnimationEnd",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "onAnimationEnd?(clip: string): void"
+          ],
+          "summary": "Called when an animation of the entity's `SpriteAnimator` that does not loop has shown its last frame. `clip` is the name of that animation."
         }
       ]
     },
@@ -2253,6 +2322,65 @@
       ]
     },
     {
+      "name": "SpriteAnimator",
+      "summary": "Plays animations on the entity's `SpriteRenderer` by changing its `frame` over time. The sprite's texture has to be a sprite sheet: set its `columns` and `rows`.\n\nA script switches animations by assigning the name of one to `clip`.",
+      "typeParameters": "",
+      "definition": "",
+      "kind": "class",
+      "members": [
+        {
+          "name": "clips",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "clips: AnimationClip[]"
+          ],
+          "summary": "The animations this entity has."
+        },
+        {
+          "name": "clip",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "clip: string"
+          ],
+          "summary": "The name of the animation that plays. Assigning another name starts that animation from its first frame; assigning the same name again changes nothing, so it is safe to do every frame. A name that no animation has leaves the sprite as it is."
+        },
+        {
+          "name": "playing",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "playing: boolean"
+          ],
+          "summary": "Whether the animation advances. Switch it off to freeze the sprite on its frame."
+        },
+        {
+          "name": "speed",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "speed: number"
+          ],
+          "summary": "How fast the animation plays: 1 is the speed its frames per second ask for, 2 twice that."
+        },
+        {
+          "name": "time",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "time: number"
+          ],
+          "summary": "How far into the animation it is, in seconds. Set it to 0 to play the animation again from the start."
+        }
+      ]
+    },
+    {
       "name": "SpriteRenderer",
       "summary": "Draws a textured or solid-colored quad.",
       "typeParameters": "",
@@ -2328,6 +2456,36 @@
             "visible: boolean"
           ],
           "summary": "A sprite that is not visible is not drawn. The rest of the entity keeps working."
+        },
+        {
+          "name": "columns",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "columns: number"
+          ],
+          "summary": "How many frames the texture holds side by side. A texture with several frames is a sprite sheet: the sprite shows one frame of it at a time, and is as large as one frame."
+        },
+        {
+          "name": "rows",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "rows: number"
+          ],
+          "summary": "How many rows of frames the texture holds."
+        },
+        {
+          "name": "frame",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "frame: number"
+          ],
+          "summary": "Which frame of the sprite sheet is shown. Frames are counted from 0, from left to right and from the top row down. A number past the last frame starts over at the first."
         }
       ]
     },

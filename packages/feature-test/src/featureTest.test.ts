@@ -252,6 +252,22 @@ describe('feature-test scene, run headless', () => {
     expect(quadAt(quads, 2, 3)).toBeDefined();
   });
 
+  it('draws one frame of a sprite sheet at a time', () => {
+    const quadOf = (quads: readonly RecordedQuad[]): RecordedQuad => quadAt(quads, 10, 2.5)!;
+    const { texture, region, transform } = quadOf(run.before.quads);
+    // Four columns and two rows of 16x16 pixels, at 16 pixels per unit: one unit square.
+    expect(texture).toEqual({ width: 64, height: 32 });
+    expect(rounded(transform.getScale().toArray())).toEqual([1, 1]);
+    // A quarter of the width and half of the height, less half a pixel all round.
+    expect(rounded([region!.width, region!.height])).toEqual(
+      rounded([0.25 - 1 / 64, 0.5 - 1 / 32]),
+    );
+    // By now the looping clip is over and the second one was stopped on its second frame,
+    // which is the second frame of the second row.
+    const frozen = quadOf(run.after.quads).region!;
+    expect(rounded([frozen.x, frozen.y])).toEqual(rounded([0.25 + 0.5 / 64, 0.5 + 0.5 / 32]));
+  });
+
   it('draws what is on the screen over the world, in pixels of the screen', () => {
     const { quads } = run.before;
     // The camera shows 12 units on a screen 720 pixels high: 60 pixels per unit. The
@@ -372,6 +388,7 @@ describe('feature-test scene coverage', () => {
     onPointerDown: true,
     onPointerUp: true,
     onClick: true,
+    onAnimationEnd: true,
   };
   const collisionFields: Record<keyof Collision, true> = { other: true, point: true, normal: true };
   const raycastFields: Record<keyof RaycastHit, true> = {

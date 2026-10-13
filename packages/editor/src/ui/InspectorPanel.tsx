@@ -9,6 +9,7 @@ import {
   isValidStoredValue,
   MathUtils,
   ScriptComponent,
+  SpriteAnimator,
   type AssetRecord,
   type AssetType,
   type Color,
@@ -163,6 +164,7 @@ function ComponentSection({ entity, type }: { entity: Entity; type: ComponentTyp
       </div>
       {open && (
         <div className="component-body">
+          {type === SpriteAnimator && <ClipsEditor entity={entity} />}
           {type === ScriptComponent ? (
             <ScriptsEditor entity={entity} />
           ) : (
@@ -344,6 +346,128 @@ function AssetField({ value, assetType, onChange }: AssetFieldProps): ReactEleme
         onChange={(id) => onChange(id === '' ? null : id)}
       />
     </span>
+  );
+}
+
+// --- Animation clips -----------------------------------------------------------------------------
+
+/** The animations of a Sprite Animator: for each a name, a run of frames, a speed and a loop switch. */
+function ClipsEditor({ entity }: { entity: Entity }): ReactElement {
+  const { session } = useEditor();
+  const animator = entity.requireComponent(SpriteAnimator);
+  /** Changes one value of one clip. Typing in a field is a single step to undo. */
+  const change = (index: number, field: string, mutate: () => void): void =>
+    session.edit(mutate, `${entity.uuid}:SpriteAnimator:clips:${index}:${field}`);
+
+  const addClip = (): void =>
+    session.edit(() => {
+      const last = animator.clips.at(-1);
+      const taken = new Set(animator.clips.map((clip) => clip.name));
+      let name = 'clip';
+      for (let number = 2; taken.has(name); number++) {
+        name = `clip ${number}`;
+      }
+      // A new clip continues where the one before it ends, as the rows of a sheet do.
+      const firstFrame = last ? last.lastFrame + 1 : 0;
+      animator.clips.push({
+        name,
+        firstFrame,
+        lastFrame: firstFrame,
+        framesPerSecond: 12,
+        loop: true,
+      });
+      if (animator.clip === '') {
+        animator.clip = name;
+      }
+    });
+
+  return (
+    <>
+      {animator.clips.map((clip, index) => (
+        <div className="script-binding" key={index} role="group" aria-label={`Clip ${index + 1}`}>
+          <div className="script-binding-header">
+            <TextField
+              ariaLabel="Clip name"
+              placeholder="Name"
+              value={clip.name}
+              onChange={(name) =>
+                change(index, 'name', () => {
+                  // The animator keeps playing a clip that is renamed while it is chosen.
+                  if (animator.clip === clip.name) {
+                    animator.clip = name;
+                  }
+                  clip.name = name;
+                })
+              }
+            />
+            <button
+              type="button"
+              className="icon-button"
+              aria-label="Remove clip"
+              title="Remove clip"
+              onClick={() => session.edit(() => animator.clips.splice(index, 1))}
+            >
+              <Icon name="close" size={12} />
+            </button>
+          </div>
+          <FieldRow label="Frames">
+            <span className="vector-field">
+              <NumberField
+                prefix="From"
+                ariaLabel="First frame"
+                value={clip.firstFrame}
+                min={0}
+                step={1}
+                onChange={(value) =>
+                  change(index, 'firstFrame', () => {
+                    clip.firstFrame = value;
+                  })
+                }
+              />
+              <NumberField
+                prefix="To"
+                ariaLabel="Last frame"
+                value={clip.lastFrame}
+                min={0}
+                step={1}
+                onChange={(value) =>
+                  change(index, 'lastFrame', () => {
+                    clip.lastFrame = value;
+                  })
+                }
+              />
+            </span>
+          </FieldRow>
+          <FieldRow label="Frames Per Second">
+            <NumberField
+              value={clip.framesPerSecond}
+              min={0}
+              step={1}
+              onChange={(value) =>
+                change(index, 'framesPerSecond', () => {
+                  clip.framesPerSecond = value;
+                })
+              }
+            />
+          </FieldRow>
+          <FieldRow label="Loop">
+            <input
+              type="checkbox"
+              checked={clip.loop}
+              onChange={(event) => {
+                const loop = event.currentTarget.checked;
+                session.edit(() => {
+                  clip.loop = loop;
+                });
+              }}
+            />
+          </FieldRow>
+        </div>
+      ))}
+      <button type="button" className="button add-script" onClick={addClip}>
+        Add Clip
+      </button>
+    </>
   );
 }
 

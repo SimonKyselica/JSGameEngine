@@ -16,6 +16,7 @@ import {
   ScreenAnchor,
   ScriptComponent,
   serializeScene,
+  SpriteAnimator,
   SpriteRenderer,
   TextRenderer,
   Vec2,
@@ -25,6 +26,21 @@ import {
 import { FEATURE_TEST_SCRIPTS } from './scripts';
 
 const TEXTURE_SIZE = 32;
+/** The sprite sheet: frames of this many pixels, in this many columns and rows. */
+const FRAME_SIZE = 16;
+const SHEET_COLUMNS = 4;
+const SHEET_ROWS = 2;
+/** One color per frame of the sheet, in frame order. The last one is cyan. */
+const SHEET_COLORS: readonly (readonly [number, number, number])[] = [
+  [255, 64, 64],
+  [255, 160, 64],
+  [255, 255, 64],
+  [64, 255, 64],
+  [64, 64, 255],
+  [160, 64, 255],
+  [255, 64, 255],
+  [0, 255, 255],
+];
 
 /**
  * Builds the feature-test project: a "Main" scene that uses every component and whose
@@ -65,6 +81,13 @@ export function createFeatureTestProject(): Project {
     }).id;
   const checker = createTexture('checker', drawChecker());
   const disc = createTexture('disc', drawDisc());
+  const sheet = assets.create({
+    name: 'Textures/sheet.png',
+    type: 'texture',
+    mimeType: 'image/png',
+    data: encodePng(SHEET_COLUMNS * FRAME_SIZE, SHEET_ROWS * FRAME_SIZE, drawSheet()),
+    meta: { width: SHEET_COLUMNS * FRAME_SIZE, height: SHEET_ROWS * FRAME_SIZE },
+  }).id;
 
   const createSound = (name: string, frequency: number, seconds: number): string =>
     assets.create({
@@ -171,6 +194,23 @@ export function createFeatureTestProject(): Project {
     visible: false,
   });
 
+  // A sprite sheet of eight frames in eight colors, and two animations over them.
+  const animated = at('Animated', 10, 2.5);
+  animated.addComponent(SpriteRenderer, {
+    texture: sheet,
+    pixelsPerUnit: FRAME_SIZE,
+    columns: SHEET_COLUMNS,
+    rows: SHEET_ROWS,
+  });
+  animated.addComponent(SpriteAnimator, {
+    clips: [
+      { name: 'blink', firstFrame: 0, lastFrame: 3, framesPerSecond: 30, loop: true },
+      { name: 'once', firstFrame: 4, lastFrame: 6, framesPerSecond: 30, loop: false },
+    ],
+    clip: 'blink',
+  });
+  attach(animated, 'AnimationProbe');
+
   // On the screen: a label in a corner, and a button where the hosts put the pointer, a
   // quarter of the way in from the top-left corner of the 1280x720 screen.
   const hudLabel = at('Hud Label', 24, -24);
@@ -272,6 +312,18 @@ export function createFeatureTestProject(): Project {
     color: new Color(0.4, 1, 0.5, 1),
   });
   attach(done, 'FinishProbe');
+  // The last frame of the sheet is the only cyan thing there is, so the browser tests can
+  // tell that a sprite shows the frame it was given and nothing of its neighbours.
+  const frame = finish.createEntity('Frame');
+  frame.transform.position.set(-5, 0);
+  frame.transform.scale.set(2, 2);
+  frame.addComponent(SpriteRenderer, {
+    texture: sheet,
+    pixelsPerUnit: FRAME_SIZE,
+    columns: SHEET_COLUMNS,
+    rows: SHEET_ROWS,
+    frame: SHEET_COLUMNS * SHEET_ROWS - 1,
+  });
   // In a color nothing else has, so the browser tests can tell that text reaches the screen.
   const verdict = finish.createEntity('Verdict');
   verdict.transform.position.set(0, 3.2);
@@ -315,6 +367,20 @@ function createBullet(
 }
 
 /** An opaque checkerboard of 8-pixel squares. The top-left square is white. */
+/** Every frame of the sheet filled with its own color, so each one can be told apart. */
+function drawSheet(): Uint8Array {
+  const width = SHEET_COLUMNS * FRAME_SIZE;
+  const height = SHEET_ROWS * FRAME_SIZE;
+  const pixels = new Uint8Array(width * height * 4);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const frame = Math.floor(y / FRAME_SIZE) * SHEET_COLUMNS + Math.floor(x / FRAME_SIZE);
+      pixels.set([...SHEET_COLORS[frame]!, 255], (y * width + x) * 4);
+    }
+  }
+  return pixels;
+}
+
 function drawChecker(): Uint8Array {
   const pixels = new Uint8Array(TEXTURE_SIZE * TEXTURE_SIZE * 4);
   for (let y = 0; y < TEXTURE_SIZE; y++) {

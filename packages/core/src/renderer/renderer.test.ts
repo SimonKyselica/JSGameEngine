@@ -4,13 +4,20 @@ import { encodePng } from '../assets/png';
 import { Logger } from '../core/logger';
 import { Color } from '../math/color';
 import { Mat3 } from '../math/mat3';
+import { Rect } from '../math/rect';
 import { Vec2 } from '../math/vec2';
 import { Button, Camera, ScreenAnchor, SpriteRenderer } from '../scene/components';
 import { Scene } from '../scene/scene';
 import { CameraView } from './cameraView';
 import { decodeImageHeadless } from './imageDecoder';
 import { HeadlessRenderer, type TextureSource } from './renderer2d';
-import { createCameraView, findPrimaryCamera, getSpriteSize, SceneRenderer } from './sceneRenderer';
+import {
+  createCameraView,
+  findPrimaryCamera,
+  getSpriteRegion,
+  getSpriteSize,
+  SceneRenderer,
+} from './sceneRenderer';
 import { createQuadIndices, FLOATS_PER_VERTEX, MAX_BATCH_QUADS, SpriteBatch } from './spriteBatch';
 import { HeadlessTextRasterizer } from './textLayout';
 import { TextureCache, type ImageDecoder } from './textureCache';
@@ -74,6 +81,32 @@ describe('SpriteBatch', () => {
     const batch = new SpriteBatch<string>(1, 1, vi.fn());
     batch.add(new Mat3(), 'tex', WHITE, true, true);
     expect([batch.vertices[2], batch.vertices[3]]).toEqual([1, 0]);
+  });
+
+  it('shows only a region of the texture when it is given one', () => {
+    const batch = new SpriteBatch<string>(4, 2, () => undefined);
+    const uvsOf = (flipX: boolean, flipY: boolean): number[][] => {
+      batch.flush();
+      batch.add(new Mat3(), 'sheet', WHITE, flipX, flipY, new Rect(0.25, 0.5, 0.25, 0.5));
+      return [0, 1, 2, 3].map((corner) => [
+        batch.vertices[corner * FLOATS_PER_VERTEX + 2]!,
+        batch.vertices[corner * FLOATS_PER_VERTEX + 3]!,
+      ]);
+    };
+    // Bottom-left, bottom-right, top-right, top-left of the quad; V is 0 at the top.
+    expect(uvsOf(false, false)).toEqual([
+      [0.25, 1],
+      [0.5, 1],
+      [0.5, 0.5],
+      [0.25, 0.5],
+    ]);
+    // A flip mirrors the region itself and never reaches the frames beside it.
+    expect(uvsOf(true, true)).toEqual([
+      [0.5, 0.5],
+      [0.25, 0.5],
+      [0.25, 1],
+      [0.5, 1],
+    ]);
   });
 
   it('shares a slot between quads with the same texture', () => {
@@ -361,6 +394,35 @@ describe('SceneRenderer', () => {
     expect(quad.flipY).toBe(true);
   });
 
+  it('draws one frame of a sprite sheet, at the size of that frame', async () => {
+    const { scene, assets, renderer, textures, sceneRenderer } = createRenderSetup();
+    const sheet = addTexture(assets, 'sheet.png', 128, 64);
+    await textures.preloadAll();
+    const sprite = scene.createEntity('Hero').addComponent(SpriteRenderer, {
+      texture: sheet,
+      pixelsPerUnit: 32,
+      columns: 4,
+      rows: 2,
+      frame: 6,
+    });
+    const view = new CameraView(new Vec2(), 0, 5, 2);
+
+    sceneRenderer.render(scene, view, Color.black());
+    const quad = renderer.quads[0]!;
+    // Four columns and two rows of 32x32 pixels: one unit square each.
+    expect(quad.transform.getScale().toArray()).toEqual([1, 1]);
+    // Frame 6 is the third in the second row. Half a pixel is left out all round.
+    expect(quad.region).toEqual(
+      new Rect(0.5 + 0.5 / 128, 0.5 + 0.5 / 64, 0.25 - 1 / 128, 0.5 - 1 / 64),
+    );
+
+    sprite.columns = 1;
+    sprite.rows = 1;
+    sceneRenderer.render(scene, view, Color.black());
+    expect(renderer.quads[0]!.region).toBeNull();
+    expect(renderer.quads[0]!.transform.getScale().toArray()).toEqual([4, 2]);
+  });
+
   it('skips invisible, transparent, inactive and off-screen sprites', () => {
     const { scene, renderer, sceneRenderer } = createRenderSetup();
     scene.createEntity('Visible').addComponent(SpriteRenderer);
@@ -523,6 +585,44 @@ describe('camera and sprite helpers', () => {
     expect(view.position.toArray()).toEqual([11, 10]);
     expect(view.halfHeight).toBe(3);
     expect(view.bounds.width).toBe(9);
+  });
+
+  it('finds the frames of a sprite sheet from left to right and from the top down', () => {
+    const sprite = Object.assign(new SpriteRenderer(), { columns: 3, rows: 2 });
+    const cellOf = (frame: number): number[] => {
+      sprite.frame = frame;
+      // Without a texture size nothing is left out at the edges, which keeps the numbers round.
+      const region = getSpriteRegion(sprite, 0, 0)!;
+      return [Math.round(region.x * 3), Math.round(region.y * 2)];
+    };
+    expect([0, 1, 2, 3, 4, 5].map(cellOf)).toEqual([
+      [0, 0],
+      [1, 0],
+      [2, 0],
+      [0, 1],
+      [1, 1],
+      [2, 1],
+    ]);
+    // Past the last frame it starts over; before the first it counts back from the end.
+    expect(cellOf(6)).toEqual([0, 0]);
+    expect(cellOf(-1)).toEqual([2, 1]);
+    expect(cellOf(4.9)).toEqual([1, 1]);
+    expect(cellOf(Number.NaN)).toEqual([0, 0]);
+  });
+
+  it('treats a sprite without a grid, or with a broken one, as a single frame', () => {
+    const sprite = new SpriteRenderer();
+    expect(getSpriteRegion(sprite, 64, 64)).toBeNull();
+    for (const broken of [0, -2, Number.NaN, Infinity]) {
+      sprite.columns = broken;
+      sprite.rows = broken;
+      expect(getSpriteRegion(sprite, 64, 64)).toBeNull();
+    }
+    const out = new Rect();
+    sprite.columns = 2;
+    sprite.rows = 1.9;
+    expect(getSpriteRegion(sprite, 64, 64, out)).toBe(out);
+    expect(out.height).toBeCloseTo(1 - 1 / 64);
   });
 
   it('falls back to a unit square for sprites without usable texture data', () => {

@@ -46,7 +46,8 @@ Help → Open Feature Test Project always opens a fresh copy.
   Textures and sounds are generated in code, so there are no binary files to maintain.
 - `src/scripts/*.ts`: the probe scripts, one per area (`MathProbe`, `EntityProbe`,
   `LifecycleProbe`, `PhysicsProbe`, `TriggerProbe`, `InputProbe`, `AudioProbe`, `RenderProbe`,
-  `TextProbe`, `UiProbe`, `Spawner` with `Bullet`), plus `TestHarness` and `FinishProbe`.
+  `TextProbe`, `UiProbe`, `AnimationProbe`, `Spawner` with `Bullet`), plus `TestHarness` and
+  `FinishProbe`.
 - `src/scripts.ts`: imports every script as text. **A new script file must be added here.**
 - `src/index.ts`: `createFeatureTestProject()`, the report accessors, and
   `driveFeatureTestInput`, which plays the input for the headless run.
@@ -62,7 +63,11 @@ test.check('Vec2.length', new Vec2(3, 4).length() === 5); // immediate
 test.near('Physics2D.getMass', physics.getMass(entity), 1); // number with tolerance
 test.expectLater('the ball bounced'); // in onStart
 test.pass('the ball bounced'); // later, when it happens
+test.settle('the ball bounced high', height > 2, `it reached ${height}`); // later, either way
 ```
+
+A check announced with `expectLater` has to be closed with `pass` or `settle`. `check` does not
+close it, and the scene would wait for it until the timeout.
 
 Give every check a unique name that states the fact being checked. If the check needs something
 in the scene, add the entity in `src/project.ts` and say in the script's doc comment what it

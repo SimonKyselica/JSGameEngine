@@ -64,6 +64,11 @@ export interface ScriptLifecycle {
    * callback for "the player chose this".
    */
   onClick?(): void;
+  /**
+   * Called when an animation of the entity's `SpriteAnimator` that does not loop has shown
+   * its last frame. `clip` is the name of that animation.
+   */
+  onAnimationEnd?(clip: string): void;
 }
 
 /** The callbacks a `Button` raises on the scripts of its entity. */

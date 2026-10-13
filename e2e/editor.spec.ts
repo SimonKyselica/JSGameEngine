@@ -165,6 +165,40 @@ test.describe('editor', () => {
     );
   });
 
+  test('sets up the clips of a sprite animator in the inspector', async ({ page }) => {
+    await openEditor(page);
+    await hierarchyRow(page, 'Player').click();
+    const inspector = page.getByRole('region', { name: 'Inspector' });
+    await inspector.getByRole('button', { name: 'Add Component' }).click();
+    await page.getByRole('menuitem', { name: 'Sprite Animator' }).click();
+
+    const addClip = inspector.getByRole('button', { name: 'Add Clip' });
+    const playing = inspector.getByRole('textbox', { name: 'Clip', exact: true });
+    await addClip.click();
+    const first = inspector.getByRole('group', { name: 'Clip 1' });
+    await expect(first.getByRole('textbox', { name: 'Clip name' })).toHaveValue('clip');
+    // The first clip of an animator is the one that plays.
+    await expect(playing).toHaveValue('clip');
+
+    // Renaming the clip that plays keeps it playing.
+    await first.getByRole('textbox', { name: 'Clip name' }).fill('walk');
+    await expect(playing).toHaveValue('walk');
+    const lastFrame = first.getByRole('spinbutton', { name: 'Last frame' });
+    await lastFrame.fill('3');
+    await lastFrame.blur();
+
+    // The next clip starts where this one ends, as the rows of a sprite sheet do.
+    await addClip.click();
+    const second = inspector.getByRole('group', { name: 'Clip 2' });
+    await expect(second.getByRole('spinbutton', { name: 'First frame' })).toHaveValue('4');
+    await expect(second.getByRole('checkbox', { name: 'Loop' })).toBeChecked();
+
+    await second.getByRole('button', { name: 'Remove clip' }).click();
+    await expect(inspector.getByRole('group', { name: /^Clip \d/ })).toHaveCount(1);
+    await chooseMenu(page, 'Edit', 'Undo');
+    await expect(inspector.getByRole('group', { name: /^Clip \d/ })).toHaveCount(2);
+  });
+
   test('selects an entity by clicking it in the scene view and moves it with the gizmo', async ({
     page,
   }) => {

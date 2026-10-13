@@ -74,6 +74,9 @@ export class SpriteRenderer {
       sortingOrder: { type: 'number', step: 1 },
       pixelsPerUnit: { type: 'number', min: 0.01 },
       visible: { type: 'boolean' },
+      columns: { type: 'number', min: 1, step: 1 },
+      rows: { type: 'number', min: 1, step: 1 },
+      frame: { type: 'number', min: 0, step: 1 },
     },
   };
 
@@ -91,6 +94,105 @@ export class SpriteRenderer {
   pixelsPerUnit = 100;
   /** A sprite that is not visible is not drawn. The rest of the entity keeps working. */
   visible = true;
+  /**
+   * How many frames the texture holds side by side. A texture with several frames is a
+   * sprite sheet: the sprite shows one frame of it at a time, and is as large as one frame.
+   */
+  columns = 1;
+  /** How many rows of frames the texture holds. */
+  rows = 1;
+  /**
+   * Which frame of the sprite sheet is shown. Frames are counted from 0, from left to right
+   * and from the top row down. A number past the last frame starts over at the first.
+   */
+  frame = 0;
+}
+
+/** One animation of a `SpriteAnimator`: a run of frames of the sprite sheet. */
+export interface AnimationClip {
+  /** The name the animation is played by. */
+  name: string;
+  /** The first frame of the run, counted like `SpriteRenderer.frame`. */
+  firstFrame: number;
+  /** The last frame of the run. */
+  lastFrame: number;
+  /** How many frames are shown per second. */
+  framesPerSecond: number;
+  /** Starts over after the last frame. Otherwise the animation stops on its last frame. */
+  loop: boolean;
+}
+
+/**
+ * Plays animations on the entity's `SpriteRenderer` by changing its `frame` over time. The
+ * sprite's texture has to be a sprite sheet: set its `columns` and `rows`.
+ *
+ * A script switches animations by assigning the name of one to `clip`.
+ */
+export class SpriteAnimator {
+  static readonly schema: ComponentSchema = {
+    name: 'SpriteAnimator',
+    displayName: 'Sprite Animator',
+    category: 'Rendering',
+    removable: true,
+    fields: {
+      clips: { type: 'json', parse: parseAnimationClips },
+      clip: { type: 'string' },
+      playing: { type: 'boolean' },
+      speed: { type: 'number', min: 0, step: 0.1 },
+      time: { type: 'number', min: 0, step: 0.1 },
+    },
+  };
+
+  /** The animations this entity has. */
+  clips: AnimationClip[] = [];
+  /**
+   * The name of the animation that plays. Assigning another name starts that animation from
+   * its first frame; assigning the same name again changes nothing, so it is safe to do every
+   * frame. A name that no animation has leaves the sprite as it is.
+   */
+  clip = '';
+  /** Whether the animation advances. Switch it off to freeze the sprite on its frame. */
+  playing = true;
+  /** How fast the animation plays: 1 is the speed its frames per second ask for, 2 twice that. */
+  speed = 1;
+  /**
+   * How far into the animation it is, in seconds. Set it to 0 to play the animation again
+   * from the start.
+   */
+  time = 0;
+}
+
+function parseAnimationClips(value: unknown, path: string): AnimationClip[] {
+  if (!Array.isArray(value)) {
+    throw new RowanError(`${path}: expected an array of animation clips`);
+  }
+  return value.map((item: unknown, index) => {
+    const itemPath = `${path}[${index}]`;
+    if (typeof item !== 'object' || item === null || Array.isArray(item)) {
+      throw new RowanError(`${itemPath}: expected an object`);
+    }
+    const clip = item as Partial<Record<keyof AnimationClip, unknown>>;
+    if (typeof clip.name !== 'string') {
+      throw new RowanError(`${itemPath}.name: expected a string`);
+    }
+    const number = (
+      key: 'firstFrame' | 'lastFrame' | 'framesPerSecond',
+      fallback: number,
+    ): number => {
+      const raw = clip[key] ?? fallback;
+      if (typeof raw !== 'number' || !Number.isFinite(raw)) {
+        throw new RowanError(`${itemPath}.${key}: expected a finite number`);
+      }
+      return raw;
+    };
+    return {
+      name: clip.name,
+      firstFrame: number('firstFrame', 0),
+      lastFrame: number('lastFrame', 0),
+      framesPerSecond: number('framesPerSecond', 12),
+      loop: clip.loop !== false,
+    };
+  });
 }
 
 export const TEXT_FONTS = ['sans-serif', 'serif', 'monospace'] as const;
@@ -486,6 +588,7 @@ export const COMPONENT_TYPES: readonly ComponentType[] = [
   Identity,
   Transform,
   SpriteRenderer,
+  SpriteAnimator,
   TextRenderer,
   Camera,
   Rigidbody2D,

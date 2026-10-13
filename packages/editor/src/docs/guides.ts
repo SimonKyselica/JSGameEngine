@@ -1,4 +1,6 @@
 import { slugify, type DocBlock, type GuidePage } from './docTypes';
+import attack from './examples/Attack.ts?raw';
+import characterAnimation from './examples/CharacterAnimation.ts?raw';
 import countdown from './examples/Countdown.ts?raw';
 import jukebox from './examples/Jukebox.ts?raw';
 import keyboardMover from './examples/KeyboardMover.ts?raw';
@@ -101,6 +103,10 @@ export const GUIDES: readonly GuidePage[] = [
           '`onPointerDown()`, `onPointerUp()`, `onClick()`',
           'When the button is pressed, let go, and chosen. See [Screen and buttons](guide/ui).',
         ],
+        [
+          '`onAnimationEnd(clip)`',
+          "When an animation of the entity's [SpriteAnimator](api/SpriteAnimator) that does not loop has shown its last frame.",
+        ],
         ['`onDestroy()`', 'When the entity is destroyed or the scene ends.'],
       ),
       p(
@@ -112,6 +118,7 @@ export const GUIDES: readonly GuidePage[] = [
         'Buttons look at the pointer, and the pointer callbacks they raise run.',
         '`onUpdate` runs for every script.',
         'Timers started with `after` and `every` that are due call back.',
+        'Animations advance, and `onAnimationEnd` runs for those that have ended.',
         '`onLateUpdate` runs for every script.',
         'Entities passed to `this.destroy` are removed, and their scripts get `onDestroy`.',
       ),
@@ -324,6 +331,39 @@ this.destroy(other, 2.5);  // in two and a half seconds`),
         'A repeating timer does not drift. When a frame is longer than the interval, the calls that were missed are made in that frame. The interval must be at least 0.001 seconds.',
         'Write the callback as an arrow function, `() => this.fire()`, so that `this` is still the script inside it.',
       ),
+    ],
+  },
+  {
+    id: 'animation',
+    title: 'Animation',
+    summary: 'Sprite sheets, and playing animations from them with the Sprite Animator.',
+    blocks: [
+      h('Sprite sheets'),
+      p(
+        'A sprite sheet is one image that holds the frames of an animation side by side, in a grid. To use one, give the [SpriteRenderer](api/SpriteRenderer) its texture and say how the grid is laid out with **Columns** and **Rows**. The sprite then shows a single frame, chosen with **Frame**, and is as large as that one frame.',
+      ),
+      list(
+        'Frames are counted from 0, from left to right and from the top row down. In a sheet of 4 columns, frame 4 is the first one in the second row.',
+        'All frames have the same size: the width of the image divided by the columns, and its height divided by the rows.',
+        'A script can show any frame directly with `sprite.frame = 3`. That is all an animation is: the frame changing over time.',
+      ),
+      h('The Sprite Animator'),
+      p(
+        'A [SpriteAnimator](api/SpriteAnimator) component changes the frame for you. Add it to the entity with the sprite, press **Add Clip** for every animation, and give each clip a name, the frames it runs **From** and **To**, a speed in **Frames Per Second**, and whether it should **Loop**. The **Clip** field says which one plays when the scene starts.',
+      ),
+      p('A script switches animations by assigning the name of a clip:'),
+      code(characterAnimation),
+      list(
+        'Assigning the name that is already playing changes nothing, so a script can choose the animation every frame, as above. A different name starts that clip from its first frame.',
+        '`playing` freezes and resumes the animation, and `speed` plays it faster or slower.',
+        '`time` is how far into the clip it is, in seconds. Set it to 0 to play the clip again from the start.',
+        'Animations run on game time, so `this.time.timeScale` slows them down and stops them with everything else.',
+      ),
+      h('Playing an animation once'),
+      p(
+        'A clip with **Loop** switched off stops on its last frame. When it gets there, the scripts of the entity get `onAnimationEnd` with the name of the clip, which is the moment to move on to the next one:',
+      ),
+      code(attack),
     ],
   },
   {

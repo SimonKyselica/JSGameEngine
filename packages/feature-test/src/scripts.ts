@@ -1,3 +1,4 @@
+import AnimationProbe from './scripts/AnimationProbe.ts?raw';
 import AudioProbe from './scripts/AudioProbe.ts?raw';
 import Bullet from './scripts/Bullet.ts?raw';
 import Counter from './scripts/Counter.ts?raw';
@@ -24,6 +25,7 @@ import UiProbe from './scripts/UiProbe.ts?raw';
  * compiles scripts itself.
  */
 export const FEATURE_TEST_SCRIPTS: Readonly<Record<string, string>> = {
+  AnimationProbe,
   AudioProbe,
   Bullet,
   Counter,

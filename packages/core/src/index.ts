@@ -25,6 +25,7 @@ export * from './scene/scene';
 export * from './scene/schema';
 export * from './scene/serializer';
 
+export * from './animation/animationSystem';
 export * from './assets/asset';
 export * from './assets/assetDatabase';
 export * from './assets/png';

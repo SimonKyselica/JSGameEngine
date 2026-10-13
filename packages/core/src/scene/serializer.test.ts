@@ -13,6 +13,7 @@ import {
   Rigidbody2D,
   ScreenAnchor,
   ScriptComponent,
+  SpriteAnimator,
   SpriteRenderer,
   TextRenderer,
 } from './components';
@@ -54,6 +55,16 @@ function createFullScene(): Scene {
     flipX: true,
     sortingOrder: 4,
     pixelsPerUnit: 32,
+    columns: 4,
+    rows: 2,
+    frame: 5,
+  });
+  player.addComponent(SpriteAnimator, {
+    clips: [{ name: 'run', firstFrame: 4, lastFrame: 7, framesPerSecond: 8, loop: false }],
+    clip: 'run',
+    playing: false,
+    speed: 1.5,
+    time: 0.25,
   });
   player.addComponent(TextRenderer, {
     text: 'Player 1\nReady',
@@ -125,6 +136,9 @@ describe('component schemas', () => {
       sortingOrder: 0,
       pixelsPerUnit: 100,
       visible: true,
+      columns: 1,
+      rows: 1,
+      frame: 0,
     });
   });
 
@@ -144,6 +158,11 @@ describe('component schemas', () => {
     [BoxCollider2D, { size: [1, 'a'] }, 'size[1]: expected a finite number'],
     [SpriteRenderer, { color: [1, 1] }, 'expected an array of 3 to 4 numbers'],
     [SpriteRenderer, { texture: 5 }, 'expected an asset id or null'],
+    [SpriteAnimator, { clips: {} }, 'expected an array of animation clips'],
+    [SpriteAnimator, { clips: ['walk'] }, 'clips[0]: expected an object'],
+    [SpriteAnimator, { clips: [{ firstFrame: 0 }] }, 'clips[0].name: expected a string'],
+    [SpriteAnimator, { clips: [{ name: 'a', lastFrame: '3' }] }, 'clips[0].lastFrame'],
+    [SpriteAnimator, { clip: 4 }, 'expected a string'],
     [TextRenderer, { text: 5 }, 'expected a string'],
     [TextRenderer, { font: 'Comic Sans' }, 'expected one of "sans-serif", "serif", "monospace"'],
     [TextRenderer, { align: 'justify' }, 'expected one of "left", "center", "right"'],
@@ -164,6 +183,14 @@ describe('component schemas', () => {
   it('rejects data that is not an object', () => {
     expect(() => deserializeComponent(new Camera(), Camera.schema, [], 'c')).toThrow(RowanError);
     expect(() => deserializeComponent(new Camera(), Camera.schema, null, 'c')).toThrow(RowanError);
+  });
+
+  it('fills in what an animation clip leaves out', () => {
+    const animator = new SpriteAnimator();
+    deserializeComponent(animator, SpriteAnimator.schema, { clips: [{ name: 'idle' }] }, 'c');
+    expect(animator.clips).toEqual([
+      { name: 'idle', firstFrame: 0, lastFrame: 0, framesPerSecond: 12, loop: true },
+    ]);
   });
 
   it('accepts three-channel colors and fills in script binding defaults', () => {
@@ -208,6 +235,7 @@ describe('scene serialization', () => {
       'Identity',
       'Transform',
       'SpriteRenderer',
+      'SpriteAnimator',
       'TextRenderer',
       'Rigidbody2D',
       'BoxCollider2D',
@@ -217,6 +245,18 @@ describe('scene serialization', () => {
       'Button',
       'Script',
     ]);
+    expect(data.entities[1]!.components.SpriteRenderer).toMatchObject({
+      columns: 4,
+      rows: 2,
+      frame: 5,
+    });
+    expect(data.entities[1]!.components.SpriteAnimator).toEqual({
+      clips: [{ name: 'run', firstFrame: 4, lastFrame: 7, framesPerSecond: 8, loop: false }],
+      clip: 'run',
+      playing: false,
+      speed: 1.5,
+      time: 0.25,
+    });
     expect(data.entities[1]!.components.ScreenAnchor).toEqual({
       horizontal: 'right',
       vertical: 'bottom',

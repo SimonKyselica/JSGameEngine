@@ -82,11 +82,19 @@ export default class TestHarness extends Behaviour implements ScriptLifecycle {
 
   /** Passes a check announced with {@link TestHarness.expectLater}. */
   pass(name: string): void {
+    this.settle(name, true);
+  }
+
+  /**
+   * Records the outcome of a check announced with {@link TestHarness.expectLater}, for
+   * checks that can turn out either way once the thing they wait for has happened.
+   */
+  settle(name: string, passed: boolean, detail = ''): void {
     const index = this.report.pending.indexOf(name);
     if (index !== -1) {
       this.report.pending.splice(index, 1);
     }
-    this.check(name, true);
+    this.check(name, passed, detail);
   }
 
   onUpdate(): void {
