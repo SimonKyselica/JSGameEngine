@@ -46,10 +46,10 @@ Help → Open Feature Test Project always opens a fresh copy.
 
 - `src/project.ts`: builds the project: assets, the Main and Finish scenes, the Bullet prefab.
   Textures and sounds are generated in code, so there are no binary files to maintain.
-- `src/scripts/*.ts`: the probe scripts, one per area (`MathProbe`, `EntityProbe`,
-  `LifecycleProbe`, `PhysicsProbe`, `TriggerProbe`, `InputProbe`, `AudioProbe`, `RenderProbe`,
-  `TextProbe`, `UiProbe`, `AnimationProbe`, `LayerProbe`, `StorageProbe`, `TouchProbe`, `TilemapProbe`, `Spawner` with `Bullet`), plus `TestHarness` and
-  `FinishProbe`.
+- `src/scripts/*.ts`: the probe scripts, one per area (`MathProbe`, `EntityProbe`, `LifecycleProbe`,
+  `PhysicsProbe`, `TriggerProbe`, `InputProbe`, `AudioProbe`, `RenderProbe`, `TextProbe`, `UiProbe`,
+  `AnimationProbe`, `LayerProbe`, `StorageProbe`, `TouchProbe`, `TilemapProbe`, `ParticleProbe`,
+  `Spawner` with `Bullet`), plus `TestHarness` and `FinishProbe`.
 - `src/scripts.ts`: imports every script as text. **A new script file must be added here.**
 - `src/index.ts`: `createFeatureTestProject()`, the report accessors, and
   `driveFeatureTestInput`, which plays the input for the headless run.

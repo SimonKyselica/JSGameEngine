@@ -10,6 +10,8 @@ import {
   ButtonState,
   Camera,
   Hierarchy,
+  ParticleEmitter,
+  ParticleState,
   ScreenAnchor,
   SpriteRenderer,
   TextRenderer,
@@ -43,6 +45,8 @@ interface DrawItem {
 
 /** Shown when a scene has no camera, so the problem is obvious rather than a blank frame. */
 const NO_CAMERA_COLOR = Color.black();
+/** The color of something that has none of its own, before a button tints it. */
+const WHITE: Readonly<Color> = Color.white();
 
 export interface SceneRenderStats {
   /** Sprites and texts submitted to the renderer in the last frame. */
@@ -62,6 +66,7 @@ export class SceneRenderer {
   private readonly rect = new Rect();
   private readonly bounds = new Mat3();
   private readonly inverse = new Mat3();
+  private readonly screen = new Mat3();
   /** Stands in for the tiles of one map, to work out the color and layer they all share. */
   private readonly mapItem: DrawItem = createDrawItem();
 
@@ -235,6 +240,67 @@ export class SceneRenderer {
           item.sequence = count;
           count++;
         }
+      }
+    }
+
+    for (const [id, emitter, particles] of scene.registry.view(ParticleEmitter, ParticleState)) {
+      const entity = scene.getEntity(id);
+      if (particles.count === 0 || !entity.activeInHierarchy) {
+        continue;
+      }
+      const texture = emitter.texture === null ? null : this.textures.get(emitter.texture);
+      const shared = this.mapItem;
+      this.finish(shared, scene, id, WHITE);
+      const tint = shared.color;
+      const { startColor, endColor, startSize, endSize } = emitter;
+      const { bounds } = view;
+      // The particles of an emitter on the screen are placed in its pixels.
+      const screen = particles.onScreen ? scene.getScreenToWorld(this.screen) : null;
+      // How far a particle reaches from its center in the world, for each unit of its size.
+      // On the screen it is turned along with the camera, so there its corners count.
+      const reach = screen ? screen.getScale(this.size).x * Math.SQRT1_2 : 0.5;
+      for (let index = 0; index < particles.count; index++) {
+        const lifetime = particles.lifetime[index]!;
+        // How far the particle is through its life, from 0 to 1.
+        const progress = lifetime > 0 ? Math.min(particles.age[index]! / lifetime, 1) : 1;
+        const size = startSize + (endSize - startSize) * progress;
+        const alpha = (startColor.a + (endColor.a - startColor.a) * progress) * tint.a;
+        // Written so that a size of NaN, which a script can produce, is skipped as well.
+        if (!(size > 0) || !(alpha > 0)) {
+          continue;
+        }
+        // Particles are on their own; they do not turn or scale with the emitter. The item
+        // is only kept when the particle is in sight: `count` moves on further down.
+        const item = this.itemAt(count);
+        item.matrix.set(size, 0, 0, size, particles.x[index]!, particles.y[index]!);
+        if (screen) {
+          item.matrix.premultiply(screen);
+        }
+        const center = item.matrix.getTranslation(this.corner);
+        const extent = size * reach;
+        if (
+          center.x + extent < bounds.minX ||
+          center.x - extent > bounds.maxX ||
+          center.y + extent < bounds.minY ||
+          center.y - extent > bounds.maxY
+        ) {
+          culled++;
+          continue;
+        }
+        item.texture = texture;
+        item.hasRegion = false;
+        item.color.set(
+          (startColor.r + (endColor.r - startColor.r) * progress) * tint.r,
+          (startColor.g + (endColor.g - startColor.g) * progress) * tint.g,
+          (startColor.b + (endColor.b - startColor.b) * progress) * tint.b,
+          alpha,
+        );
+        item.layer = shared.layer;
+        item.flipX = false;
+        item.flipY = false;
+        item.sortingOrder = emitter.sortingOrder;
+        item.sequence = count;
+        count++;
       }
     }
 

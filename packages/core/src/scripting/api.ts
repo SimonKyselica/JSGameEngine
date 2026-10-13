@@ -20,6 +20,7 @@ export {
   Camera,
   CircleCollider2D,
   Identity,
+  ParticleEmitter,
   Rigidbody2D,
   ScreenAnchor,
   ScriptComponent,

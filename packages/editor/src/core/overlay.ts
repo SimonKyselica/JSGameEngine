@@ -2,6 +2,7 @@ import {
   BoxCollider2D,
   Camera,
   CircleCollider2D,
+  ParticleEmitter,
   Vec2,
   type CameraView,
   type Entity,
@@ -31,6 +32,7 @@ const COLORS = {
   highlight: '#ffffff',
   selection: '#ff9f43',
   collider: '#5ee27a',
+  emitter: '#ffd166',
   button: '#ff7ad9',
   camera: 'rgba(255, 255, 255, 0.55)',
 } as const;
@@ -83,6 +85,7 @@ export function drawOverlay(context: CanvasRenderingContext2D, options: OverlayO
   }
   if (selected) {
     drawColliders(context, selected, toScreen);
+    drawEmitter(context, selected, toScreen);
     drawSelection(context, selected, options, toScreen);
     if (options.tool) {
       drawGizmo(
@@ -216,6 +219,41 @@ function drawColliders(
     });
     strokePolygon(context, points, COLORS.collider, 1.5);
   }
+}
+
+/**
+ * Shows where a particle emitter sends its particles: the two edges of its fan, as long as
+ * a particle gets in its lifetime. Particles only exist while the game runs, so without
+ * this there would be nothing to see of an emitter in the scene view.
+ */
+function drawEmitter(
+  context: CanvasRenderingContext2D,
+  entity: Entity,
+  toScreen: (point: Readonly<Vec2>) => Vec2,
+): void {
+  const emitter = entity.getComponent(ParticleEmitter);
+  if (!emitter) {
+    return;
+  }
+  const { scene } = entity;
+  const origin = entity.worldPosition;
+  // On the screen the speed of a particle is in pixels, as its particles are.
+  const unit = scene.isOnScreen(entity) ? scene.getScreenToWorld().getScale().x : 1;
+  const reach = Math.min(Math.max(Math.abs(emitter.speed * emitter.lifetime) * unit, 0.5), 8);
+  const middle = entity.worldRotation + emitter.direction;
+  const start = toScreen(origin);
+  context.strokeStyle = COLORS.emitter;
+  context.lineWidth = 1.5;
+  context.beginPath();
+  for (const side of [-0.5, 0.5]) {
+    const angle = middle + side * emitter.spread;
+    const end = toScreen(
+      new Vec2(origin.x + Math.cos(angle) * reach, origin.y + Math.sin(angle) * reach),
+    );
+    context.moveTo(start.x, start.y);
+    context.lineTo(end.x, end.y);
+  }
+  context.stroke();
 }
 
 function drawSelection(

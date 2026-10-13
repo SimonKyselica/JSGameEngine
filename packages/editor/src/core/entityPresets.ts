@@ -6,6 +6,7 @@ import {
   CircleCollider2D,
   Color,
   encodePng,
+  ParticleEmitter,
   Rigidbody2D,
   ScreenAnchor,
   SpriteRenderer,
@@ -22,6 +23,7 @@ export const ENTITY_PRESETS = [
   { id: 'sprite', label: 'Sprite' },
   { id: 'text', label: 'Text' },
   { id: 'tilemap', label: 'Tilemap' },
+  { id: 'particles', label: 'Particles' },
   { id: 'camera', label: 'Camera' },
   { id: 'physics-box', label: 'Physics Box' },
   { id: 'physics-circle', label: 'Physics Circle' },
@@ -73,6 +75,17 @@ export function createPresetEntity(
       break;
     case 'text':
       entity.addComponent(TextRenderer);
+      break;
+    case 'particles':
+      // A small fire: warm sparks that rise, shrink and fade.
+      entity.addComponent(ParticleEmitter, {
+        rate: 40,
+        lifetime: 1.2,
+        speed: 1.5,
+        startSize: 0.25,
+        startColor: new Color(1, 0.75, 0.25, 1),
+        endColor: new Color(1, 0.2, 0.1, 0),
+      });
       break;
     case 'tilemap': {
       // As large as the view of a new camera, with a floor to stand on and to paint from.

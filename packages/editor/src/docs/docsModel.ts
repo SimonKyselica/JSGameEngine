@@ -46,6 +46,7 @@ export const REFERENCE_GROUPS: readonly { title: string; types: readonly string[
       'SpriteAnimator',
       'AnimationClip',
       'Tilemap',
+      'ParticleEmitter',
       'TextRenderer',
       'TextFont',
       'TextAlign',

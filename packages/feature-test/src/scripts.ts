@@ -9,6 +9,7 @@ import InputProbe from './scripts/InputProbe.ts?raw';
 import LayerProbe from './scripts/LayerProbe.ts?raw';
 import LifecycleProbe from './scripts/LifecycleProbe.ts?raw';
 import MathProbe from './scripts/MathProbe.ts?raw';
+import ParticleProbe from './scripts/ParticleProbe.ts?raw';
 import PhysicsProbe from './scripts/PhysicsProbe.ts?raw';
 import RenderProbe from './scripts/RenderProbe.ts?raw';
 import Spawner from './scripts/Spawner.ts?raw';
@@ -40,6 +41,7 @@ export const FEATURE_TEST_SCRIPTS: Readonly<Record<string, string>> = {
   LayerProbe,
   LifecycleProbe,
   MathProbe,
+  ParticleProbe,
   PhysicsProbe,
   RenderProbe,
   Spawner,

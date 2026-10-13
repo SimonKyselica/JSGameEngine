@@ -3,6 +3,7 @@ import {
   BoxCollider2D,
   Button,
   Camera,
+  CameraView,
   CircleCollider2D,
   decodeImageHeadless,
   encodePng,
@@ -11,6 +12,7 @@ import {
   Identity,
   MemoryStorageBackend,
   NullAudioBackend,
+  ParticleEmitter,
   Project,
   Rect,
   Rigidbody2D,
@@ -884,6 +886,7 @@ describe('entity presets', () => {
       sprite: [SpriteRenderer],
       text: [TextRenderer],
       tilemap: [Tilemap],
+      particles: [ParticleEmitter],
       camera: [Camera],
       'physics-box': [SpriteRenderer, Rigidbody2D, BoxCollider2D],
       'physics-circle': [SpriteRenderer, Rigidbody2D, CircleCollider2D],
@@ -1369,5 +1372,66 @@ describe('overlay', () => {
     expect(calls).toContain('clearRect');
     expect(calls).toContain('arc');
     expect(calls.filter((call) => call === 'stroke').length).toBeGreaterThan(10);
+  });
+
+  it('shows the fan a selected particle emitter sends its particles into', () => {
+    const lines: number[][] = [];
+    let pen: number[] = [0, 0];
+    const context = new Proxy(
+      {},
+      {
+        get: (_target, property: string) => {
+          return (...args: number[]) => {
+            if (property === 'moveTo') {
+              pen = args;
+            } else if (property === 'lineTo') {
+              lines.push([...pen, ...args].map((value) => Math.round(value)));
+            }
+          };
+        },
+        set: () => true,
+      },
+    ) as unknown as CanvasRenderingContext2D;
+
+    const scene = new Scene();
+    const entity = scene.createEntity('Fountain');
+    // Straight up, a quarter turn wide, reaching 2 units: speed 2 for a lifetime of 1.
+    entity.addComponent(ParticleEmitter, { spread: Math.PI / 2, speed: 2, lifetime: 1 });
+    const draw = (selected: typeof entity | null): number[][] => {
+      lines.length = 0;
+      drawOverlay(context, {
+        scene,
+        assets: new Project().assets,
+        textMeasurer: new HeadlessTextRasterizer(),
+        // 10 world units on 400 pixels: 40 pixels per unit, the origin at (400, 200).
+        view: new CameraView(new Vec2(), 0, 5, 2),
+        width: 800,
+        height: 400,
+        selected,
+        tool: null,
+        activeHandle: null,
+        gameAspect: 16 / 9,
+      });
+      return lines.map((line) => [...line]);
+    };
+
+    /** The lines that are only drawn while the emitter is selected. */
+    const drawFan = (): number[][] => {
+      const drawnWithout = new Set(draw(null).map((line) => line.join(',')));
+      return draw(entity).filter((line) => !drawnWithout.has(line.join(',')));
+    };
+    // Two edges from the entity, 2 units long, 45 degrees to the left and right of "up".
+    const fan = [
+      [400, 200, 457, 143],
+      [400, 200, 343, 143],
+    ];
+    expect(drawFan()).toEqual(fan);
+
+    // On the screen the speed is in pixels. A camera that shows the 720 pixels of the
+    // screen as 7.2 units makes 200 of them the same 2 units.
+    scene.createEntity('Camera').addComponent(Camera, { orthographicSize: 3.6 });
+    entity.addComponent(ScreenAnchor);
+    entity.requireComponent(ParticleEmitter).speed = 200;
+    expect(drawFan()).toEqual(fan);
   });
 });

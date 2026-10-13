@@ -526,6 +526,38 @@ test.describe('editor', () => {
     await expect.poll(grass).toBeLessThan(before * 0.8);
   });
 
+  test('sends out particles while the game runs, and none while the scene is edited', async ({
+    page,
+  }) => {
+    await openEditor(page);
+    await chooseMenu(page, 'Entity', 'Particles');
+    await expect(hierarchyRow(page, 'Particles')).toHaveClass(/selected/);
+    const inspector = page.getByRole('region', { name: 'Inspector' });
+    await expect(inspector.getByText('Particle Emitter')).toBeVisible();
+    // Particles of a whole unit that do not shrink, so that there is plenty to count.
+    for (const name of ['Start Size', 'End Size']) {
+      const field = inspector.getByRole('spinbutton', { name });
+      await field.fill('1');
+      await field.blur();
+    }
+
+    // The color a particle of a new emitter starts out with. It turns red and fades after
+    // that, so only the youngest ones are counted: still a few thousand pixels.
+    const sparks = (): Promise<number> => countCanvasPixels(page, GL_CANVAS, [255, 191, 64], 30);
+    const FLYING = 1000;
+    const idle = await sparks();
+    expect(idle).toBeLessThan(FLYING / 4);
+
+    await page.getByRole('button', { name: 'Play', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Stop', exact: true })).toBeVisible();
+    await expect.poll(sparks).toBeGreaterThan(idle + FLYING);
+
+    // Particles belong to the running game. Nothing of them is left in the scene.
+    await page.getByRole('button', { name: 'Stop', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Play', exact: true })).toBeVisible();
+    await expect.poll(sparks).toBeLessThan(idle + FLYING / 4);
+  });
+
   test('pauses and steps the game one frame at a time', async ({ page }) => {
     await openEditor(page);
     await hierarchyRow(page, 'Player').click();

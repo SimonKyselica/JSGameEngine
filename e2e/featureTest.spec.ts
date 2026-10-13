@@ -24,8 +24,11 @@ import {
 
 const MAGENTA = [255, 0, 255] as const;
 const CYAN = [0, 255, 255] as const;
+const YELLOW = [255, 255, 0] as const;
 /** A word in large bold letters covers thousands of pixels; a failed text covers none. */
 const MIN_TEXT_PIXELS = 300;
+/** A handful of particles of half a unit cover more than this, however small the game is shown. */
+const MIN_PARTICLE_PIXELS = 1000;
 
 async function openFeatureTestProject(page: Page): Promise<void> {
   await openEditor(page);
@@ -62,6 +65,10 @@ async function expectExportedGameToPass(game: Page): Promise<void> {
   // The frame next to it is magenta, and none of that may show: all magenta is in the text
   // above the disc, so the lower half of the picture has none.
   expect(await countCanvasPixels(game, 'canvas', CYAN, 20)).toBeGreaterThan(MIN_TEXT_PIXELS);
+  // To the right of the disc a fountain sends out yellow particles, more of them by the moment.
+  await expect
+    .poll(() => countCanvasPixels(game, 'canvas', YELLOW, 20))
+    .toBeGreaterThan(MIN_PARTICLE_PIXELS);
 
   // What the scripts saved is in the browser's own storage, where the next visit finds it.
   const saved = await game.evaluate(() =>

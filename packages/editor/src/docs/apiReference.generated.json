@@ -1618,6 +1618,175 @@
       ]
     },
     {
+      "name": "ParticleEmitter",
+      "summary": "Sends out particles: many small squares or images that fly off, change size and color and disappear. Smoke, sparks, dust, trails and explosions are made of them.\n\nParticles are sent out at the entity's position and then go their own way through the world; they do not follow the entity afterwards. They only exist while the game runs.\n\nUnder a `ScreenAnchor` the particles stay on the screen instead, and every size, speed and distance of the emitter is in pixels of the project's resolution, like all else there.",
+      "typeParameters": "",
+      "definition": "",
+      "kind": "class",
+      "members": [
+        {
+          "name": "emitting",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "emitting: boolean"
+          ],
+          "summary": "Whether particles are sent out continuously, `rate` of them per second."
+        },
+        {
+          "name": "rate",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "rate: number"
+          ],
+          "summary": "How many particles are sent out per second while `emitting`. They leave at even intervals, whatever the frame rate is."
+        },
+        {
+          "name": "lifetime",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "lifetime: number"
+          ],
+          "summary": "How long a particle lives, in seconds."
+        },
+        {
+          "name": "speed",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "speed: number"
+          ],
+          "summary": "How fast a particle flies off, in world units per second."
+        },
+        {
+          "name": "direction",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "direction: number"
+          ],
+          "summary": "The direction particles fly off in, as an angle in radians counter-clockwise from the entity's right. The default points up."
+        },
+        {
+          "name": "spread",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "spread: number"
+          ],
+          "summary": "How far the particles fan out around `direction`, as the full angle of the fan in radians. 0 sends them all the same way and a full turn sends them everywhere."
+        },
+        {
+          "name": "gravity",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "gravity: Vec2"
+          ],
+          "summary": "How the speed of a particle changes per second, in world units: (0, -5) pulls it down."
+        },
+        {
+          "name": "startSize",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "startSize: number"
+          ],
+          "summary": "The size of a particle when it appears, in world units."
+        },
+        {
+          "name": "endSize",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "endSize: number"
+          ],
+          "summary": "The size of a particle when it disappears. It changes evenly in between."
+        },
+        {
+          "name": "startColor",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "startColor: Color"
+          ],
+          "summary": "The color of a particle when it appears."
+        },
+        {
+          "name": "endColor",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "endColor: Color"
+          ],
+          "summary": "The color of a particle when it disappears. An alpha of 0 makes it fade out."
+        },
+        {
+          "name": "texture",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "texture: string | null"
+          ],
+          "summary": "The image of a particle: a texture asset id. Without one a particle is a square."
+        },
+        {
+          "name": "maxParticles",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "maxParticles: number"
+          ],
+          "summary": "How many particles can be alive at once. When they all are, no new one is sent out."
+        },
+        {
+          "name": "sortingOrder",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "sortingOrder: number"
+          ],
+          "summary": "Particles with a higher order are drawn on top. The order is shared with sprites."
+        },
+        {
+          "name": "particleCount",
+          "kind": "property",
+          "static": false,
+          "readonly": true,
+          "signatures": [
+            "particleCount: number"
+          ],
+          "summary": "How many particles of this emitter are alive right now."
+        },
+        {
+          "name": "burst",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "burst(count: number): void"
+          ],
+          "summary": "Sends out a number of particles at once, whether or not the emitter is `emitting`: an explosion, a puff of dust on landing. They appear with the next frame."
+        }
+      ]
+    },
+    {
       "name": "Physics2D",
       "summary": "The physics functions available to scripts as `this.physics`.",
       "typeParameters": "",

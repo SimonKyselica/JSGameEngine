@@ -42,13 +42,15 @@ A/D and make jump with Space, a ground and a few crates. Press Play in the toolb
 **Engine**
 
 - Entities with components: Transform (with parent/child hierarchy), Sprite Renderer, Sprite
-  Animator, Tilemap, Text Renderer, Camera, Rigidbody 2D, Box Collider 2D, Circle Collider 2D,
-  Audio Source, Screen Anchor, Button and Script.
+  Animator, Tilemap, Particle Emitter, Text Renderer, Camera, Rigidbody 2D, Box Collider 2D,
+  Circle Collider 2D, Audio Source, Screen Anchor, Button and Script.
 - A batched WebGL2 sprite renderer with sorting, tinting, flipping and off-screen culling.
 - Sprite sheets and animation: a sprite shows one frame of a grid of frames, and a Sprite
   Animator plays named clips over them, which scripts switch with `animator.clip = 'walk'`.
 - Tilemaps: levels painted from a tileset with a brush in the scene view. A solid map is a
   wall for the physics, and scripts can read and change its cells.
+- Particles: emitters for smoke, sparks and explosions, with a rate, a lifetime, a fan of
+  directions, gravity, and a size and color that change over a particle's life.
 - Text in the browser's sans-serif, serif and monospace fonts, with several lines, alignment,
   bold and italic. It is sorted together with sprites and stays sharp at every size.
 - Basic UI. A Screen Anchor places an entity on the screen instead of in the world, in pixels

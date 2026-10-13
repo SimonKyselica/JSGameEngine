@@ -6,6 +6,7 @@ import type { Logger } from '../core/logger';
 import { Input, type InputState } from '../input/input';
 import { type Vec2 } from '../math/vec2';
 import type { CollisionLayers } from '../physics/collisionLayers';
+import { ParticleSystem } from '../particles/particleSystem';
 import { Physics2D, PhysicsSystem } from '../physics/physicsSystem';
 import type { CameraView } from '../renderer/cameraView';
 import { findPrimaryCamera } from '../renderer/sceneRenderer';
@@ -58,6 +59,7 @@ export class SceneRuntime implements SceneHost {
   readonly scripts: ScriptSystem;
   readonly buttons: ButtonSystem;
   readonly animations: AnimationSystem;
+  readonly particles: ParticleSystem;
 
   private destroyQueue: PendingDestroy[] = [];
   private readonly prefabCache = new Map<string, unknown>();
@@ -95,6 +97,7 @@ export class SceneRuntime implements SceneHost {
     this.animations = new AnimationSystem(scene, (entity, clip) =>
       this.scripts.dispatchAnimationEnd(entity, clip),
     );
+    this.particles = new ParticleSystem(scene);
   }
 
   get isRunning(): boolean {
@@ -106,6 +109,7 @@ export class SceneRuntime implements SceneHost {
     this.physics.start();
     this.context.audio.startScene(this.scene);
     this.animations.start();
+    this.particles.start();
     this.scripts.start();
   }
 
@@ -125,6 +129,7 @@ export class SceneRuntime implements SceneHost {
     this.scripts.update(deltaTime);
     // After the updates, so that an animation a script has just chosen shows in this frame.
     this.animations.update(deltaTime);
+    this.particles.update(deltaTime);
     this.scripts.lateUpdate(deltaTime);
     this.flushDestroyQueue(deltaTime);
     this.context.audio.update();
@@ -138,6 +143,8 @@ export class SceneRuntime implements SceneHost {
     this.buttons.stop();
     this.animations.stop();
     this.scripts.stop();
+    // After the scripts, which may still send out a last burst on their way out.
+    this.particles.stop();
     this.context.audio.stopScene();
     this.physics.stop();
     this.destroyQueue = [];

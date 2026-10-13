@@ -6,6 +6,7 @@ import digger from './examples/Digger.ts?raw';
 import highScore from './examples/HighScore.ts?raw';
 import jukebox from './examples/Jukebox.ts?raw';
 import keyboardMover from './examples/KeyboardMover.ts?raw';
+import landingDust from './examples/LandingDust.ts?raw';
 import levelExit from './examples/LevelExit.ts?raw';
 import lifecycleLogger from './examples/LifecycleLogger.ts?raw';
 import menuButton from './examples/MenuButton.ts?raw';
@@ -438,6 +439,58 @@ this.destroy(other, 2.5);  // in two and a half seconds`),
       code(digger),
       note(
         'Change tiles with `setTile`, `fill` and `resize` rather than by writing into `tiles` directly. The walls of a solid map are only rebuilt for changes made through those methods.',
+      ),
+    ],
+  },
+  {
+    id: 'particles',
+    title: 'Particles',
+    summary: 'Smoke, sparks, dust and explosions with the Particle Emitter component.',
+    blocks: [
+      p(
+        'A [ParticleEmitter](api/ParticleEmitter) component sends out particles: many small squares or images that fly off, change size and color, and disappear. **Entity → Particles** creates one that looks like a small fire. Particles exist only while the game runs; in the scene view a selected emitter shows the fan it sends them into.',
+      ),
+      h('Shaping the effect'),
+      table(
+        ['Field', 'What it does'],
+        ['`rate`', 'How many particles are sent out per second while `emitting` is on.'],
+        ['`lifetime`', 'How long a particle lives, in seconds.'],
+        [
+          '`speed`, `direction`, `spread`',
+          'How fast particles fly off, which way, and how far they fan out around that way. A spread of a full turn sends them everywhere.',
+        ],
+        [
+          '`gravity`',
+          'How their speed changes per second. `(0, -5)` pulls them down, a positive Y makes them rise faster.',
+        ],
+        [
+          '`startSize`, `endSize`',
+          'How large a particle is when it appears and when it disappears.',
+        ],
+        [
+          '`startColor`, `endColor`',
+          'Its color at both ends of its life. An alpha of 0 at the end fades it out.',
+        ],
+        ['`texture`', 'An image for the particles. Without one they are squares.'],
+        ['`maxParticles`', 'How many can be alive at once. When all are, no new one is sent out.'],
+      ),
+      list(
+        'Smoke: a low speed, a small spread, a size that grows, and an end color with an alpha of 0.',
+        'Sparks: a high speed, a wide spread, gravity that pulls down, and a short lifetime.',
+        'A fountain: straight up with a small spread, and gravity that pulls back down.',
+        'A trail: a speed of 0 on an entity that moves, so the particles mark where it has been.',
+      ),
+      h('Bursts'),
+      p(
+        'For something that happens once, switch `emitting` off and call `burst` with the number of particles to send out at that moment:',
+      ),
+      code(landingDust),
+      list(
+        'Particles are sent out at the position of the entity and then go their own way. They stay behind when the entity moves on, which is what makes a trail.',
+        '`direction` is relative to the entity, so an emitter that turns with its entity keeps pointing the same way out of it.',
+        '`particleCount` says how many are alive, for example to remove an explosion once it is over.',
+        'Particles leave at even intervals, so a stream looks the same at every frame rate. They run on game time and stand still while `this.time.timeScale` is 0.',
+        'Under a [ScreenAnchor](api/ScreenAnchor) the particles stay on the screen, and the sizes, the speed and the gravity are in pixels like everything else there: confetti over a "You win" needs a speed of a few hundred.',
       ),
     ],
   },

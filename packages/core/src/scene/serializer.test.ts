@@ -10,6 +10,7 @@ import {
   CircleCollider2D,
   COMPONENT_TYPES,
   getComponentTypeByName,
+  ParticleEmitter,
   Rigidbody2D,
   ScreenAnchor,
   ScriptComponent,
@@ -65,6 +66,22 @@ function createFullScene(): Scene {
     playing: false,
     speed: 1.5,
     time: 0.25,
+  });
+  player.addComponent(ParticleEmitter, {
+    emitting: false,
+    rate: 50,
+    lifetime: 0.5,
+    speed: 4,
+    direction: 1,
+    spread: 0.5,
+    gravity: new Vec2(0, -9),
+    startSize: 0.4,
+    endSize: 0.1,
+    startColor: new Color(1, 0.5, 0, 1),
+    endColor: new Color(1, 0, 0, 0.25),
+    texture: 'spark-id',
+    maxParticles: 64,
+    sortingOrder: 3,
   });
   player.addComponent(TextRenderer, {
     text: 'Player 1\nReady',
@@ -163,6 +180,10 @@ describe('component schemas', () => {
     [SpriteAnimator, { clips: [{ firstFrame: 0 }] }, 'clips[0].name: expected a string'],
     [SpriteAnimator, { clips: [{ name: 'a', lastFrame: '3' }] }, 'clips[0].lastFrame'],
     [SpriteAnimator, { clip: 4 }, 'expected a string'],
+    [ParticleEmitter, { rate: 'many' }, 'expected a finite number'],
+    [ParticleEmitter, { gravity: [0] }, 'expected an array of 2 numbers'],
+    [ParticleEmitter, { startColor: 'red' }, 'expected an array of 3 to 4 numbers'],
+    [ParticleEmitter, { texture: 5 }, 'expected an asset id or null'],
     [TextRenderer, { text: 5 }, 'expected a string'],
     [TextRenderer, { font: 'Comic Sans' }, 'expected one of "sans-serif", "serif", "monospace"'],
     [TextRenderer, { align: 'justify' }, 'expected one of "left", "center", "right"'],
@@ -236,6 +257,7 @@ describe('scene serialization', () => {
       'Transform',
       'SpriteRenderer',
       'SpriteAnimator',
+      'ParticleEmitter',
       'TextRenderer',
       'Rigidbody2D',
       'BoxCollider2D',
@@ -256,6 +278,23 @@ describe('scene serialization', () => {
       playing: false,
       speed: 1.5,
       time: 0.25,
+    });
+    // What an emitter has sent out is not part of a scene: only its settings are.
+    expect(data.entities[1]!.components.ParticleEmitter).toEqual({
+      emitting: false,
+      rate: 50,
+      lifetime: 0.5,
+      speed: 4,
+      direction: 1,
+      spread: 0.5,
+      gravity: [0, -9],
+      startSize: 0.4,
+      endSize: 0.1,
+      startColor: [1, 0.5, 0, 1],
+      endColor: [1, 0, 0, 0.25],
+      texture: 'spark-id',
+      maxParticles: 64,
+      sortingOrder: 3,
     });
     expect(data.entities[1]!.components.ScreenAnchor).toEqual({
       horizontal: 'right',

@@ -8,6 +8,7 @@ import {
   createDefaultSettings,
   createPrefab,
   encodePng,
+  ParticleEmitter,
   encodeWav,
   generateTone,
   Project,
@@ -232,6 +233,36 @@ export function createFeatureTestProject(): Project {
   const tileBall = box(at('Tile Ball', 3.75, -4.2), 0.3, 0.3, new Color(1, 0.6, 0.2, 1));
   tileBall.addComponent(Rigidbody2D);
 
+  // Two particle emitters at the bottom, under the gap between the two floors. "Sparks" runs
+  // by itself, so that the host can count what it draws; "Burst" waits for the probe on it.
+  at('Sparks', -3, -5).addComponent(ParticleEmitter, {
+    rate: 30,
+    lifetime: 10,
+    speed: 0.5,
+    spread: 0,
+    startSize: 0.2,
+    endSize: 0.2,
+    startColor: new Color(1, 0.2, 0.8, 1),
+    endColor: new Color(1, 0.2, 0.8, 1),
+  });
+  const burst = at('Burst', -1.5, -5);
+  burst.addComponent(ParticleEmitter, {
+    emitting: false,
+    rate: 30,
+    lifetime: 0.2,
+    speed: 3,
+    direction: 0,
+    spread: 1,
+    gravity: new Vec2(0, -4),
+    startSize: 0.3,
+    endSize: 0.1,
+    startColor: new Color(1, 0.2, 0.8, 1),
+    endColor: new Color(1, 0.2, 0.8, 0),
+    maxParticles: 8,
+    sortingOrder: 6,
+  });
+  attach(burst, 'ParticleProbe');
+
   // On the screen: a label in a corner, and a button where the hosts put the pointer, a
   // quarter of the way in from the top-left corner of the 1280x720 screen.
   const hudLabel = at('Hud Label', 24, -24);
@@ -349,6 +380,20 @@ export function createFeatureTestProject(): Project {
     color: new Color(0.4, 1, 0.5, 1),
   });
   attach(done, 'FinishProbe');
+  // A fountain of yellow squares, the only yellow there is, so the browser tests can tell
+  // that particles reach the screen.
+  const fountain = finish.createEntity('Fountain');
+  fountain.transform.position.set(5, -2);
+  fountain.addComponent(ParticleEmitter, {
+    rate: 40,
+    lifetime: 2,
+    speed: 1.5,
+    spread: Math.PI * 2,
+    startSize: 0.5,
+    endSize: 0.5,
+    startColor: new Color(1, 1, 0, 1),
+    endColor: new Color(1, 1, 0, 1),
+  });
   // The last frame of the sheet is the only cyan thing there is, so the browser tests can
   // tell that a sprite shows the frame it was given and nothing of its neighbours.
   const frame = finish.createEntity('Frame');

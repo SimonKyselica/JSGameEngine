@@ -354,6 +354,137 @@ function parseTiles(value: unknown, path: string): number[] {
   });
 }
 
+/** The most particles one emitter can have alive. It keeps a mistyped number from eating the memory. */
+export const MAX_PARTICLES = 10000;
+
+/**
+ * Sends out particles: many small squares or images that fly off, change size and color and
+ * disappear. Smoke, sparks, dust, trails and explosions are made of them.
+ *
+ * Particles are sent out at the entity's position and then go their own way through the
+ * world; they do not follow the entity afterwards. They only exist while the game runs.
+ *
+ * Under a `ScreenAnchor` the particles stay on the screen instead, and every size, speed and
+ * distance of the emitter is in pixels of the project's resolution, like all else there.
+ */
+export class ParticleEmitter {
+  static readonly schema: ComponentSchema = {
+    name: 'ParticleEmitter',
+    displayName: 'Particle Emitter',
+    category: 'Rendering',
+    removable: true,
+    fields: {
+      emitting: { type: 'boolean' },
+      rate: { type: 'number', min: 0 },
+      lifetime: { type: 'number', min: 0.01, step: 0.1 },
+      speed: { type: 'number', step: 0.1 },
+      direction: { type: 'angle' },
+      spread: { type: 'angle' },
+      gravity: { type: 'vec2' },
+      startSize: { type: 'number', min: 0, step: 0.05 },
+      endSize: { type: 'number', min: 0, step: 0.05 },
+      startColor: { type: 'color' },
+      endColor: { type: 'color' },
+      texture: { type: 'asset', assetType: 'texture' },
+      maxParticles: { type: 'number', min: 0, max: MAX_PARTICLES, step: 1 },
+      sortingOrder: { type: 'number', step: 1 },
+    },
+  };
+
+  /** Whether particles are sent out continuously, `rate` of them per second. */
+  emitting = true;
+  /**
+   * How many particles are sent out per second while `emitting`. They leave at even
+   * intervals, whatever the frame rate is.
+   */
+  rate = 20;
+  /** How long a particle lives, in seconds. */
+  lifetime = 1;
+  /** How fast a particle flies off, in world units per second. */
+  speed = 2;
+  /**
+   * The direction particles fly off in, as an angle in radians counter-clockwise from the
+   * entity's right. The default points up.
+   */
+  direction = Math.PI / 2;
+  /**
+   * How far the particles fan out around `direction`, as the full angle of the fan in
+   * radians. 0 sends them all the same way and a full turn sends them everywhere.
+   */
+  spread = Math.PI / 4;
+  /** How the speed of a particle changes per second, in world units: (0, -5) pulls it down. */
+  gravity = new Vec2(0, 0);
+  /** The size of a particle when it appears, in world units. */
+  startSize = 0.2;
+  /** The size of a particle when it disappears. It changes evenly in between. */
+  endSize = 0;
+  /** The color of a particle when it appears. */
+  startColor = Color.white();
+  /** The color of a particle when it disappears. An alpha of 0 makes it fade out. */
+  endColor = new Color(1, 1, 1, 0);
+  /** The image of a particle: a texture asset id. Without one a particle is a square. */
+  texture: string | null = null;
+  /** How many particles can be alive at once. When they all are, no new one is sent out. */
+  maxParticles = 200;
+  /** Particles with a higher order are drawn on top. The order is shared with sprites. */
+  sortingOrder = 0;
+
+  #pending = 0;
+  #count = 0;
+
+  /** How many particles of this emitter are alive right now. */
+  get particleCount(): number {
+    return this.#count;
+  }
+
+  /**
+   * Sends out a number of particles at once, whether or not the emitter is `emitting`: an
+   * explosion, a puff of dust on landing. They appear with the next frame.
+   */
+  burst(count: number): void {
+    if (Number.isFinite(count) && count > 0) {
+      this.#pending = Math.min(this.#pending + Math.floor(count), MAX_PARTICLES);
+    }
+  }
+
+  /** For the particle system: the particles asked for with `burst` since the last call. */
+  _takeBursts(): number {
+    const pending = this.#pending;
+    this.#pending = 0;
+    return pending;
+  }
+
+  /** For the particle system: records how many particles are alive. */
+  _setParticleCount(count: number): void {
+    this.#count = count;
+  }
+}
+
+/**
+ * The particles of one emitter that are alive. The particle system attaches it while a game
+ * runs and the renderer reads it; it is never saved with a scene. The arrays hold one
+ * value per particle, and only the first `count` entries are in use.
+ */
+export class ParticleState {
+  count = 0;
+  x = new Float32Array(0);
+  y = new Float32Array(0);
+  velocityX = new Float32Array(0);
+  velocityY = new Float32Array(0);
+  /** How long each particle has lived, and how long it will live in all, in seconds. */
+  age = new Float32Array(0);
+  lifetime = new Float32Array(0);
+  /** The part of a particle that is still owed from the frames before: a rate rarely divides evenly. */
+  owed = 0;
+  /** The state of the emitter's own random numbers, so that a game plays the same every time. */
+  seed = 1;
+  /**
+   * Whether the positions are on the screen, in pixels from its middle, rather than in the
+   * world. That is the case for an emitter under a `ScreenAnchor`.
+   */
+  onScreen = false;
+}
+
 export const TEXT_FONTS = ['sans-serif', 'serif', 'monospace'] as const;
 /**
  * The fonts text can be drawn in. Each one stands for the browser's own font of that kind, so
@@ -749,6 +880,7 @@ export const COMPONENT_TYPES: readonly ComponentType[] = [
   SpriteRenderer,
   SpriteAnimator,
   Tilemap,
+  ParticleEmitter,
   TextRenderer,
   Camera,
   Rigidbody2D,

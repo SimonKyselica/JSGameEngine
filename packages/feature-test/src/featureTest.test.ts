@@ -304,6 +304,29 @@ describe('feature-test scene, run headless', () => {
     expect(tiles[0]!.color.a).toBe(0.9);
   });
 
+  it('draws the particles an emitter has sent out', () => {
+    // "Sparks" sends out 30 a second, straight up from (-3, -5) at half a unit per second,
+    // and none has died yet. The picture is taken after 19 frames, one of which a probe
+    // ran at half speed: 18.5 frames of game time, which is nine particles and a quarter.
+    const sparks = run.before.quads.filter((quad) => {
+      const center = quad.transform.getTranslation();
+      // The text "Frame Counter" is at the same x, at the top of the scene.
+      return Math.abs(center.x + 3) < 1e-6 && center.y < 0;
+    });
+    expect(sparks).toHaveLength(9);
+    expect(sparks.every((quad) => quad.color.toHex() === '#ff33cc')).toBe(true);
+    expect(sparks.every((quad) => quad.texture === null)).toBe(true);
+    expect(rounded(sparks[0]!.transform.getScale().toArray())).toEqual([0.2, 0.2]);
+    // The oldest one is drawn first and has risen the furthest. They left a 30th of a
+    // second apart, which at this speed is a 60th of a unit, although one frame was short.
+    const heights = sparks.map((quad) => quad.transform.getTranslation().y);
+    const gaps = heights.slice(1).map((height, index) => heights[index]! - height);
+    expect(gaps.every((gap) => Math.abs(gap - 1 / 60) < 1e-5)).toBe(true);
+    // A quarter of a particle was still owed when the picture was taken: the newest has
+    // been on its way for a quarter of a 30th of a second.
+    expect(heights[8]).toBeCloseTo(-5 + 0.5 * (0.25 / 30), 5);
+  });
+
   it('draws what is on the screen over the world, in pixels of the screen', () => {
     const { quads } = run.before;
     // The camera shows 12 units on a screen 720 pixels high: 60 pixels per unit. The
