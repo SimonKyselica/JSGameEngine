@@ -19,6 +19,7 @@ import {
   ScriptComponent,
   SpriteRenderer,
   TextRenderer,
+  Tilemap,
   Transform,
   Vec2,
   type InputState,
@@ -41,6 +42,8 @@ import {
   getEntityBounds,
   getSpriteCorners,
   getTextCorners,
+  getTilemapCell,
+  getTilemapCorners,
   pickEntity,
   type VisualSources,
 } from './picking';
@@ -814,6 +817,64 @@ describe('play mode', () => {
   });
 });
 
+describe('painting tiles', () => {
+  function createPaintSession(): { session: EditorSession; map: Tilemap } {
+    const session = new EditorSession(new Project());
+    session.createEntity('tilemap');
+    return { session, map: session.selectedEntity!.requireComponent(Tilemap) };
+  }
+  /** The middle of a cell of the new map, which starts at (-9, -5) with cells of one unit. */
+  const cell = (column: number, row: number): Vec2 => new Vec2(-9 + column + 0.5, -5 + row + 0.5);
+
+  it('puts the brush into the cell under the pointer', () => {
+    const { session, map } = createPaintSession();
+    session.setTileBrush(2);
+    expect(session.paintTile(cell(4, 3))).toBe(true);
+    expect(map.getTile(4, 3)).toBe(2);
+    // Painting what is already there, or beside the map, changes nothing.
+    expect(session.paintTile(cell(4, 3))).toBe(false);
+    expect(session.paintTile(new Vec2(100, 100))).toBe(false);
+  });
+
+  it('erases with the eraser', () => {
+    const { session, map } = createPaintSession();
+    session.setTileBrush(-1);
+    expect(map.getTile(0, 0)).toBe(0);
+    expect(session.paintTile(cell(0, 0))).toBe(true);
+    expect(map.getTile(0, 0)).toBe(-1);
+  });
+
+  it('undoes a whole stroke in one step', () => {
+    const { session, map } = createPaintSession();
+    const tilesOf = (): Tilemap => session.selectedEntity!.requireComponent(Tilemap);
+    session.setTileBrush(3);
+    session.beginDrag();
+    const changed = [cell(1, 4), cell(2, 4), cell(3, 4)].map((point) => session.paintTile(point));
+    session.endDrag(changed.some(Boolean));
+    expect([1, 2, 3].map((column) => map.getTile(column, 4))).toEqual([3, 3, 3]);
+
+    session.undo();
+    expect([1, 2, 3].map((column) => tilesOf().getTile(column, 4))).toEqual([-1, -1, -1]);
+    session.redo();
+    expect([1, 2, 3].map((column) => tilesOf().getTile(column, 4))).toEqual([3, 3, 3]);
+  });
+
+  it('does nothing without a tilemap selected', () => {
+    const session = new EditorSession(new Project());
+    session.createEntity('sprite');
+    expect(session.paintTile(new Vec2())).toBe(false);
+    session.selectEntity(null);
+    expect(session.paintTile(new Vec2())).toBe(false);
+  });
+
+  it('remembers the tool and the tile that were chosen', () => {
+    const { session } = createPaintSession();
+    session.setTool('paint');
+    session.setTileBrush(1);
+    expect([session.tool, session.tileBrush]).toEqual(['paint', 1]);
+  });
+});
+
 describe('entity presets', () => {
   it('creates every preset with the components its name promises', () => {
     const session = new EditorSession(new Project());
@@ -822,6 +883,7 @@ describe('entity presets', () => {
       empty: [],
       sprite: [SpriteRenderer],
       text: [TextRenderer],
+      tilemap: [Tilemap],
       camera: [Camera],
       'physics-box': [SpriteRenderer, Rigidbody2D, BoxCollider2D],
       'physics-circle': [SpriteRenderer, Rigidbody2D, CircleCollider2D],
@@ -857,6 +919,28 @@ describe('entity presets', () => {
     // In the middle of the screen, where the camera looks.
     expect(button.worldPosition.toArray()).toEqual([0, 0]);
     expect(scene.isOnScreen(background!)).toBe(true);
+  });
+
+  it('builds a tilemap with a floor, walls to stand on and a tileset of its own', () => {
+    const session = new EditorSession(new Project());
+    const { scene, project } = session;
+    const entity = createPresetEntity(scene, project.assets, 'tilemap', null);
+    const map = entity.requireComponent(Tilemap);
+
+    expect([map.width, map.height, map.columns, map.rows]).toEqual([18, 10, 4, 1]);
+    expect(map.solid).toBe(true);
+    // The bottom row is filled with the first tile; everything above it is empty.
+    expect(map.tiles.slice(0, 18).every((tile) => tile === 0)).toBe(true);
+    expect(map.tiles.slice(18).every((tile) => tile === -1)).toBe(true);
+    // Centered on the origin, where a new camera looks.
+    expect(entity.transform.position.toArray()).toEqual([-9, -5]);
+
+    const tileset = project.assets.get(map.texture!)!;
+    expect(tileset.meta).toEqual({ width: 64, height: 16 });
+    // A second map shares the tileset instead of adding another copy of it.
+    const second = createPresetEntity(scene, project.assets, 'tilemap', null);
+    expect(second.requireComponent(Tilemap).texture).toBe(map.texture);
+    expect(project.assets.list('texture')).toHaveLength(1);
   });
 
   it('puts new screen text into the top-left corner of the screen', () => {
@@ -1063,6 +1147,46 @@ describe('picking', () => {
     text.text = '';
     // An entity with a text is picked by its text only, like one with a sprite.
     expect(pickEntity(scene, sources, new Vec2(), 5)).toBeNull();
+  });
+
+  it('finds the cell of a tilemap under a point, through its position, rotation and scale', () => {
+    const { scene } = createScene();
+    const entity = scene.createEntity('Level');
+    entity.transform.position.set(10, 0);
+    const map = entity.addComponent(Tilemap, { tileSize: 2 });
+    map.resize(3, 2);
+
+    expect(getTilemapCell(entity, new Vec2(10.1, 0.1))).toEqual({ column: 0, row: 0 });
+    expect(getTilemapCell(entity, new Vec2(15.9, 3.9))).toEqual({ column: 2, row: 1 });
+    expect(getTilemapCell(entity, new Vec2(9.9, 1))).toBeNull();
+    expect(getTilemapCell(entity, new Vec2(12, 4.1))).toBeNull();
+
+    // Turned a quarter turn, the first row of the map runs upwards.
+    entity.transform.rotation = Math.PI / 2;
+    expect(getTilemapCell(entity, new Vec2(9, 5))).toEqual({ column: 2, row: 0 });
+    entity.transform.scale.set(0, 1);
+    expect(getTilemapCell(entity, new Vec2(10, 1))).toBeNull();
+    expect(getTilemapCell(scene.createEntity('Plain'), new Vec2())).toBeNull();
+  });
+
+  it('picks a tilemap by its tiles, and frames the whole map', () => {
+    const { scene, sources } = createScene();
+    const entity = scene.createEntity('Level');
+    const map = entity.addComponent(Tilemap);
+    map.resize(4, 2);
+    map.setTile(3, 1, 0);
+
+    expect(pickEntity(scene, sources, new Vec2(3.5, 1.5), 0)).toBe(entity);
+    // An empty cell is not the map: what is behind it can be clicked.
+    expect(pickEntity(scene, sources, new Vec2(0.5, 0.5), 5)).toBeNull();
+    expect(getTilemapCorners(entity)!.map((corner) => corner.toArray())).toEqual([
+      [0, 0],
+      [4, 0],
+      [4, 2],
+      [0, 2],
+    ]);
+    const bounds = getEntityBounds(entity, sources);
+    expect([bounds.minX, bounds.minY, bounds.maxX, bounds.maxY]).toEqual([0, 0, 4, 2]);
   });
 
   it('includes the area of a button in the bounds of an entity', () => {

@@ -8,6 +8,7 @@ import {
   Rect,
   SpriteRenderer,
   TextRenderer,
+  Tilemap,
   UNIT_QUAD_CORNERS,
   Vec2,
   type AssetDatabase,
@@ -37,6 +38,46 @@ function getTextMatrix(entity: Entity, text: TextRenderer, measurer: TextMeasure
   return entity.scene
     .getWorldMatrix(entity)
     .multiply(new Mat3(rect.width, 0, 0, rect.height, rect.centerX, rect.centerY));
+}
+
+/** The matrix that maps the unit square to the area a tilemap covers in world space. */
+function getTilemapMatrix(entity: Entity, map: Tilemap): Mat3 {
+  const width = map.width * map.tileSize;
+  const height = map.height * map.tileSize;
+  // The map starts at the entity and extends to the right and upwards.
+  return entity.scene
+    .getWorldMatrix(entity)
+    .multiply(new Mat3(width, 0, 0, height, width / 2, height / 2));
+}
+
+/** The world-space corners of the area of an entity's tilemap, or `null` when it has none. */
+export function getTilemapCorners(entity: Entity): Vec2[] | null {
+  const map = entity.getComponent(Tilemap);
+  if (!map) {
+    return null;
+  }
+  const matrix = getTilemapMatrix(entity, map);
+  return UNIT_QUAD_CORNERS.map(([x, y]) => matrix.transformPoint(new Vec2(x, y)));
+}
+
+/**
+ * The cell of an entity's tilemap that a world-space point is in, or `null` when the point
+ * is outside the map or the entity has no usable map.
+ */
+export function getTilemapCell(
+  entity: Entity,
+  point: Readonly<Vec2>,
+): { column: number; row: number } | null {
+  const map = entity.getComponent(Tilemap);
+  const inverse = entity.scene.getWorldMatrix(entity);
+  if (!map || !(map.tileSize > 0) || !inverse.invert()) {
+    return null;
+  }
+  const local = inverse.transformPoint(point);
+  const column = Math.floor(local.x / map.tileSize);
+  const row = Math.floor(local.y / map.tileSize);
+  const inside = column >= 0 && row >= 0 && column < map.width && row < map.height;
+  return inside ? { column, row } : null;
 }
 
 /**
@@ -74,6 +115,15 @@ export function pickEntity(
       consider(entity, getSpriteMatrix(entity, sprite, sources.assets), sprite.sortingOrder);
     }
   }
+  for (const [id, map] of scene.registry.view(Tilemap)) {
+    const entity = scene.getEntity(id);
+    // A map is picked by a cell that has a tile, not by the empty room around its tiles.
+    const cell = map.visible && entity.activeInHierarchy ? getTilemapCell(entity, point) : null;
+    if (cell && map.getTile(cell.column, cell.row) >= 0 && map.sortingOrder >= bestOrder) {
+      best = entity;
+      bestOrder = map.sortingOrder;
+    }
+  }
   // Texts are drawn after the sprites, so they are also considered after them.
   for (const [id, text] of scene.registry.view(TextRenderer)) {
     const entity = scene.getEntity(id);
@@ -87,7 +137,10 @@ export function pickEntity(
 
   let closest = iconRadius;
   for (const entity of scene.entities()) {
-    const hasVisual = entity.hasComponent(SpriteRenderer) || entity.hasComponent(TextRenderer);
+    const hasVisual =
+      entity.hasComponent(SpriteRenderer) ||
+      entity.hasComponent(TextRenderer) ||
+      entity.hasComponent(Tilemap);
     if (hasVisual || !entity.activeInHierarchy) {
       continue;
     }
@@ -141,6 +194,7 @@ export function getEntityBounds(entity: Entity, sources: VisualSources): Rect {
       ...(getSpriteCorners(current, sources.assets) ?? []),
       ...(getTextCorners(current, sources.textMeasurer) ?? []),
       ...(getButtonCorners(current) ?? []),
+      ...(getTilemapCorners(current) ?? []),
     ];
     points.push(...(corners.length > 0 ? corners : [current.worldPosition]));
     for (const child of current.children) {

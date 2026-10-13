@@ -14,7 +14,13 @@ import {
   type GizmoLayout,
   type TransformTool,
 } from './gizmos';
-import { getButtonCorners, getSpriteCorners, getTextCorners, type VisualSources } from './picking';
+import {
+  getButtonCorners,
+  getSpriteCorners,
+  getTextCorners,
+  getTilemapCorners,
+  type VisualSources,
+} from './picking';
 
 const COLORS = {
   gridMinor: 'rgba(255, 255, 255, 0.05)',
@@ -221,6 +227,8 @@ function drawSelection(
   const outlines = [
     getSpriteCorners(entity, sources.assets),
     getTextCorners(entity, sources.textMeasurer),
+    // The whole map, tiles or not, so that its empty cells can be found and painted.
+    getTilemapCorners(entity),
   ];
   for (const corners of outlines) {
     if (corners) {

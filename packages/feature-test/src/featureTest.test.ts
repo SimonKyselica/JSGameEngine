@@ -284,6 +284,26 @@ describe('feature-test scene, run headless', () => {
     expect(rounded([frozen.x, frozen.y])).toEqual(rounded([0.25 + 0.5 / 64, 0.5 + 0.5 / 32]));
   });
 
+  it('draws the tiles of a tilemap, each from its part of the tileset', () => {
+    const { quads } = run.before;
+    // Three cells of half a unit, starting at (3, -5.6).
+    const tiles = [3.25, 3.75, 4.25].map((x) => quadAt(quads, x, -5.35)!);
+    expect(tiles.map((quad) => rounded(quad.transform.getScale().toArray()))).toEqual([
+      [0.5, 0.5],
+      [0.5, 0.5],
+      [0.5, 0.5],
+    ]);
+    // Tiles 0, 5 and 7 of a tileset of four columns and two rows.
+    expect(
+      tiles.map((quad) => rounded([quad.region!.x - 0.5 / 64, quad.region!.y - 0.5 / 32])),
+    ).toEqual([
+      [0, 0],
+      [0.25, 0.5],
+      [0.75, 0.5],
+    ]);
+    expect(tiles[0]!.color.a).toBe(0.9);
+  });
+
   it('draws what is on the screen over the world, in pixels of the screen', () => {
     const { quads } = run.before;
     // The camera shows 12 units on a screen 720 pixels high: 60 pixels per unit. The

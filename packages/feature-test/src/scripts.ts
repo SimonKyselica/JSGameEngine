@@ -16,6 +16,7 @@ import StorageProbe from './scripts/StorageProbe.ts?raw';
 import support from './scripts/support.ts?raw';
 import TestHarness from './scripts/TestHarness.ts?raw';
 import TextProbe from './scripts/TextProbe.ts?raw';
+import TilemapProbe from './scripts/TilemapProbe.ts?raw';
 import TouchProbe from './scripts/TouchProbe.ts?raw';
 import TriggerProbe from './scripts/TriggerProbe.ts?raw';
 import UiProbe from './scripts/UiProbe.ts?raw';
@@ -46,6 +47,7 @@ export const FEATURE_TEST_SCRIPTS: Readonly<Record<string, string>> = {
   support,
   TestHarness,
   TextProbe,
+  TilemapProbe,
   TouchProbe,
   TriggerProbe,
   UiProbe,

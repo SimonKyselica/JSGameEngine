@@ -8,8 +8,10 @@ import {
   Identity,
   isValidStoredValue,
   MathUtils,
+  MAX_TILEMAP_SIDE,
   ScriptComponent,
   SpriteAnimator,
+  Tilemap,
   type AssetRecord,
   type AssetType,
   type Color,
@@ -184,6 +186,7 @@ function ComponentSection({ entity, type }: { entity: Entity; type: ComponentTyp
       {open && (
         <div className="component-body">
           {type === SpriteAnimator && <ClipsEditor entity={entity} />}
+          {type === Tilemap && <TilemapEditor entity={entity} />}
           {type === ScriptComponent ? (
             <ScriptsEditor entity={entity} />
           ) : (
@@ -365,6 +368,131 @@ function AssetField({ value, assetType, onChange }: AssetFieldProps): ReactEleme
         onChange={(id) => onChange(id === '' ? null : id)}
       />
     </span>
+  );
+}
+
+// --- Tilemaps ------------------------------------------------------------------------------------
+
+/** More tiles than this are not offered in the palette; no tileset a person picks from has them. */
+const MAX_PALETTE_TILES = 1024;
+
+/** The size of a tilemap, and the palette that its tiles are painted from. */
+function TilemapEditor({ entity }: { entity: Entity }): ReactElement {
+  const { session, assetUrls } = useEditor();
+  const map = entity.requireComponent(Tilemap);
+  const texture = map.texture === null ? undefined : session.project.assets.get(map.texture);
+  const url = texture ? assetUrls.get(texture) : null;
+  const columns = Math.max(1, Math.floor(map.columns) || 1);
+  const rows = Math.max(1, Math.floor(map.rows) || 1);
+  const tileCount = Math.min(columns * rows, MAX_PALETTE_TILES);
+
+  /** Picking a tile is only useful for painting, so it also takes up the brush. */
+  const choose = (tile: number): void => {
+    session.setTileBrush(tile);
+    session.setTool('paint');
+  };
+  /** Where one tile is in the tileset, for a background image that shows the whole tileset. */
+  const position = (index: number, count: number): string =>
+    count > 1 ? `${(index / (count - 1)) * 100}%` : '0%';
+
+  return (
+    <>
+      <MapSizeFields
+        // A new size, from here or from an undo, starts the fields over.
+        key={`${entity.uuid}:${map.width}x${map.height}`}
+        width={map.width}
+        height={map.height}
+        onResize={(width, height) => session.edit(() => map.resize(width, height))}
+      />
+      <div className="tile-palette" role="radiogroup" aria-label="Tile to paint with">
+        <button
+          type="button"
+          role="radio"
+          className="tile-swatch eraser"
+          aria-checked={session.tileBrush < 0}
+          aria-label="Eraser"
+          title="Eraser"
+          onClick={() => choose(-1)}
+        >
+          <Icon name="close" size={12} />
+        </button>
+        {Array.from({ length: tileCount }, (_, tile) => (
+          <button
+            key={tile}
+            type="button"
+            role="radio"
+            className="tile-swatch"
+            aria-checked={session.tileBrush === tile}
+            aria-label={`Tile ${tile}`}
+            title={`Tile ${tile}`}
+            style={
+              url
+                ? {
+                    backgroundImage: `url(${url})`,
+                    backgroundSize: `${columns * 100}% ${rows * 100}%`,
+                    backgroundPosition: `${position(tile % columns, columns)} ${position(
+                      Math.floor(tile / columns),
+                      rows,
+                    )}`,
+                  }
+                : undefined
+            }
+            onClick={() => choose(tile)}
+          />
+        ))}
+      </div>
+      <p className="inspector-hint">
+        Pick a tile, then paint in the scene view with the brush tool (B).
+      </p>
+    </>
+  );
+}
+
+interface MapSizeFieldsProps {
+  readonly width: number;
+  readonly height: number;
+  readonly onResize: (width: number, height: number) => void;
+}
+
+/**
+ * The size of a map, applied with a button. Applying it while it is being typed would cut
+ * the map down to 2 cells on the way from 18 to 20, and what is cut off is lost.
+ */
+function MapSizeFields({ width, height, onResize }: MapSizeFieldsProps): ReactElement {
+  const [draft, setDraft] = useState({ width, height });
+  const changed = draft.width !== width || draft.height !== height;
+  return (
+    <FieldRow label="Map Size">
+      <span className="vector-field">
+        <NumberField
+          prefix="W"
+          ariaLabel="Map width"
+          value={draft.width}
+          min={0}
+          max={MAX_TILEMAP_SIDE}
+          step={1}
+          onChange={(value) => setDraft({ ...draft, width: Math.floor(value) })}
+        />
+        <NumberField
+          prefix="H"
+          ariaLabel="Map height"
+          value={draft.height}
+          min={0}
+          max={MAX_TILEMAP_SIDE}
+          step={1}
+          onChange={(value) => setDraft({ ...draft, height: Math.floor(value) })}
+        />
+        <button
+          type="button"
+          className="button"
+          disabled={!changed}
+          title="Cells that are cut off are lost; new cells are empty"
+          onClick={() => onResize(draft.width, draft.height)}
+        >
+          Resize
+        </button>
+      </span>
+    </FieldRow>
   );
 }
 

@@ -533,7 +533,7 @@ function Editor({ workspace, store, onReplaceProject }: EditorProps): ReactEleme
         event.preventDefault();
         session.deleteEntity(entity);
       } else if (!modifier && !event.altKey) {
-        const tools = { q: 'hand', w: 'move', e: 'rotate', r: 'scale' } as const;
+        const tools = { q: 'hand', w: 'move', e: 'rotate', r: 'scale', b: 'paint' } as const;
         if (key in tools) {
           session.setTool(tools[key as keyof typeof tools]);
         } else if (key === 'f') {

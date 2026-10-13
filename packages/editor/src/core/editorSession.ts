@@ -24,6 +24,7 @@ import {
   type Scene,
   type ScriptPropertyDefinitions,
   type Unsubscribe,
+  Tilemap,
   type Vec2,
 } from '@rowan/core';
 import { SourceScriptProvider } from '@rowan/core/compiler';
@@ -31,6 +32,7 @@ import { importAsset, type ImportFile } from './assetImport';
 import { ConsoleStore } from './consoleStore';
 import { createPresetEntity, type EntityPresetId } from './entityPresets';
 import type { TransformTool } from './gizmos';
+import { getTilemapCell } from './picking';
 import { History } from './history';
 import { PlayController } from './playController';
 import type { ProjectStore } from './projectStore';
@@ -41,7 +43,7 @@ export type Selection =
   | { readonly kind: 'asset'; readonly id: string }
   | null;
 
-export type Tool = 'hand' | TransformTool;
+export type Tool = 'hand' | TransformTool | 'paint';
 
 /** What the inspector needs to know about a script: its properties, or why it is broken. */
 export interface ScriptInfo {
@@ -70,6 +72,8 @@ export class EditorSession {
   sceneAssetId: string;
   selection: Selection = null;
   tool: Tool = 'move';
+  /** The tile the paint tool puts into the cells of a tilemap. -1 is the eraser. */
+  tileBrush = 0;
   /** Snap mode: gizmo drags snap to fixed increments unless the modifier key is held. */
   snapping = false;
   /** True when the project has changes that are not in the project store yet. */
@@ -169,6 +173,29 @@ export class EditorSession {
   setTool(tool: Tool): void {
     this.tool = tool;
     this.notify();
+  }
+
+  /** Chooses the tile the paint tool paints with; -1 erases. */
+  setTileBrush(tile: number): void {
+    this.tileBrush = tile;
+    this.notify();
+  }
+
+  /**
+   * Paints the brush into the cell of the selected entity's tilemap that a world-space
+   * point is in. Returns `true` when that changed a cell. Call it between
+   * {@link EditorSession.beginDrag} and {@link EditorSession.endDrag}, so that a whole
+   * stroke is one step to undo.
+   */
+  paintTile(point: Readonly<Vec2>): boolean {
+    const entity = this.selectedEntity;
+    const map = entity?.getComponent(Tilemap);
+    const cell = entity && map ? getTilemapCell(entity, point) : null;
+    if (!map || !cell || map.getTile(cell.column, cell.row) === this.tileBrush) {
+      return false;
+    }
+    map.setTile(cell.column, cell.row, this.tileBrush);
+    return true;
   }
 
   /** Turns snap mode on or off. It is an editor preference, not part of the project. */

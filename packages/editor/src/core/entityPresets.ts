@@ -10,6 +10,7 @@ import {
   ScreenAnchor,
   SpriteRenderer,
   TextRenderer,
+  Tilemap,
   Vec2,
   type AssetDatabase,
   type Entity,
@@ -20,6 +21,7 @@ export const ENTITY_PRESETS = [
   { id: 'empty', label: 'Empty Entity' },
   { id: 'sprite', label: 'Sprite' },
   { id: 'text', label: 'Text' },
+  { id: 'tilemap', label: 'Tilemap' },
   { id: 'camera', label: 'Camera' },
   { id: 'physics-box', label: 'Physics Box' },
   { id: 'physics-circle', label: 'Physics Circle' },
@@ -36,6 +38,19 @@ export type EntityPresetId = (typeof ENTITY_PRESETS)[number]['id'];
 const BUTTON_SIZE = new Vec2(220, 64);
 /** Font sizes on the screen are in pixels, where the 0.5 of a text in the world would vanish. */
 const SCREEN_FONT_SIZE = 32;
+
+/** A new tilemap: this many cells, drawn from a small tileset that is made on the spot. */
+const TILEMAP_WIDTH = 18;
+const TILEMAP_HEIGHT = 10;
+const TILESET_ASSET_NAME = 'Sprites/tiles.png';
+const TILE_PIXELS = 16;
+/** The tiles of that tileset: grass, earth, stone and water. */
+const TILESET_COLORS: readonly (readonly [number, number, number])[] = [
+  [86, 168, 92],
+  [140, 98, 62],
+  [128, 132, 140],
+  [64, 132, 214],
+];
 
 const CIRCLE_ASSET_NAME = 'Sprites/circle.png';
 const CIRCLE_SIZE = 64;
@@ -59,6 +74,20 @@ export function createPresetEntity(
     case 'text':
       entity.addComponent(TextRenderer);
       break;
+    case 'tilemap': {
+      // As large as the view of a new camera, with a floor to stand on and to paint from.
+      entity.transform.position.set(-TILEMAP_WIDTH / 2, -TILEMAP_HEIGHT / 2);
+      const map = entity.addComponent(Tilemap, {
+        texture: ensureTilesetTexture(assets),
+        columns: TILESET_COLORS.length,
+        solid: true,
+      });
+      map.resize(TILEMAP_WIDTH, TILEMAP_HEIGHT);
+      for (let column = 0; column < TILEMAP_WIDTH; column++) {
+        map.setTile(column, 0, 0);
+      }
+      break;
+    }
     case 'camera':
       // Only the first camera in a scene should claim to be the primary one.
       entity.addComponent(Camera, { primary: scene.registry.count(Camera) === 0 });
@@ -127,6 +156,37 @@ function ensureCircleTexture(assets: AssetDatabase): string {
     data: encodePng(CIRCLE_SIZE, CIRCLE_SIZE, drawCircle(CIRCLE_SIZE)),
     meta: { width: CIRCLE_SIZE, height: CIRCLE_SIZE },
   }).id;
+}
+
+function ensureTilesetTexture(assets: AssetDatabase): string {
+  const existing = assets.findByName(TILESET_ASSET_NAME, 'texture');
+  if (existing) {
+    return existing.id;
+  }
+  const width = TILESET_COLORS.length * TILE_PIXELS;
+  return assets.create({
+    name: TILESET_ASSET_NAME,
+    type: 'texture',
+    mimeType: 'image/png',
+    data: encodePng(width, TILE_PIXELS, drawTileset()),
+    meta: { width, height: TILE_PIXELS },
+  }).id;
+}
+
+/** One square per color, each with a darker rim so that neighbouring tiles can be told apart. */
+function drawTileset(): Uint8Array {
+  const width = TILESET_COLORS.length * TILE_PIXELS;
+  const pixels = new Uint8Array(width * TILE_PIXELS * 4);
+  for (let y = 0; y < TILE_PIXELS; y++) {
+    for (let x = 0; x < width; x++) {
+      const [red, green, blue] = TILESET_COLORS[Math.floor(x / TILE_PIXELS)]!;
+      const inTile = x % TILE_PIXELS;
+      const onRim = inTile === 0 || y === 0 || inTile === TILE_PIXELS - 1 || y === TILE_PIXELS - 1;
+      const shade = onRim ? 0.8 : 1;
+      pixels.set([red * shade, green * shade, blue * shade, 255], (y * width + x) * 4);
+    }
+  }
+  return pixels;
 }
 
 /** A white disc on a transparent background with a one-pixel soft edge. */

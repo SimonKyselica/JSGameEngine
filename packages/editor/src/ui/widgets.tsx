@@ -14,6 +14,7 @@ const ICON_PATHS = {
   rotate: 'M20 12a8 8 0 1 1-2.6-5.9M20 4v5h-5',
   scale: 'M4 20h7M4 20v-7M4 20 20 4m0 0h-7m7 0v7',
   magnet: 'M6 4v7a6 6 0 0 0 12 0V4h-4v7a2 2 0 0 1-4 0V4zM6 8h4M14 8h4',
+  brush: 'M15 4l5 5-9 9H6v-5zM13 6l5 5M4 21h16',
   play: 'M7 4.5v15l12-7.5z',
   stop: 'M6 6h12v12H6z',
   pause: 'M8 5v14M16 5v14',

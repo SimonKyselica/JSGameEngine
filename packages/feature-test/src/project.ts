@@ -19,6 +19,7 @@ import {
   SpriteAnimator,
   SpriteRenderer,
   TextRenderer,
+  Tilemap,
   Vec2,
   type Entity,
   type ScriptPropertyValue,
@@ -213,6 +214,23 @@ export function createFeatureTestProject(): Project {
     clip: 'blink',
   });
   attach(animated, 'AnimationProbe');
+
+  // A solid tilemap of three tiles at the bottom of the view, with a body falling onto it.
+  const level = at('Level', 3, -5.6);
+  const levelMap = level.addComponent(Tilemap, {
+    texture: sheet,
+    columns: SHEET_COLUMNS,
+    rows: SHEET_ROWS,
+    tileSize: 0.5,
+    color: new Color(1, 1, 1, 0.9),
+    sortingOrder: 2,
+    solid: true,
+  });
+  levelMap.resize(3, 1);
+  [0, 5, 7].forEach((tile, column) => levelMap.setTile(column, 0, tile));
+  attach(level, 'TilemapProbe');
+  const tileBall = box(at('Tile Ball', 3.75, -4.2), 0.3, 0.3, new Color(1, 0.6, 0.2, 1));
+  tileBall.addComponent(Rigidbody2D);
 
   // On the screen: a label in a corner, and a button where the hosts put the pointer, a
   // quarter of the way in from the top-left corner of the 1280x720 screen.

@@ -201,6 +201,159 @@ function parseAnimationClips(value: unknown, path: string): AnimationClip[] {
   });
 }
 
+/** The value of a cell of a `Tilemap` that has no tile in it. */
+export const EMPTY_TILE = -1;
+
+/**
+ * A grid of tiles drawn from one image, for levels that are built out of repeating pieces:
+ * ground, walls, platforms.
+ *
+ * The image, the tileset, is divided into `columns` and `rows` of tiles, numbered like the
+ * frames of a sprite sheet: from 0, from left to right and from the top row down. The map
+ * says which of them goes where. Its cells are `tileSize` world units large; cell (0, 0) is
+ * the bottom-left one and has its bottom-left corner at the entity's position.
+ */
+export class Tilemap {
+  static readonly schema: ComponentSchema = {
+    name: 'Tilemap',
+    displayName: 'Tilemap',
+    category: 'Rendering',
+    removable: true,
+    fields: {
+      texture: { type: 'asset', assetType: 'texture' },
+      columns: { type: 'number', min: 1, step: 1 },
+      rows: { type: 'number', min: 1, step: 1 },
+      tileSize: { type: 'number', min: 0.01, step: 0.1 },
+      // Changed together through `resize`, which keeps the tiles where they are.
+      width: { type: 'number', hidden: true },
+      height: { type: 'number', hidden: true },
+      tiles: { type: 'json', parse: parseTiles },
+      color: { type: 'color' },
+      sortingOrder: { type: 'number', step: 1 },
+      visible: { type: 'boolean' },
+      solid: { type: 'boolean' },
+    },
+  };
+
+  /** The tileset: a texture asset id. Without one, every tile is a square in `color`. */
+  texture: string | null = null;
+  /** How many tiles the tileset holds side by side. */
+  columns = 1;
+  /** How many rows of tiles the tileset holds. */
+  rows = 1;
+  /** The size of one cell of the map in world units, before the entity's scale is applied. */
+  tileSize = 1;
+  /** How many cells the map is wide. Change it with `resize`. */
+  width = 0;
+  /** How many cells the map is high. Change it with `resize`. */
+  height = 0;
+  /**
+   * The tile in every cell, row by row from the bottom row up, each row from left to right.
+   * -1 is an empty cell. Read and change it with `getTile` and `setTile`.
+   */
+  tiles: number[] = [];
+  /** Tint multiplied with the tiles. */
+  color = Color.white();
+  /** Maps with a higher order are drawn on top. The order is shared with sprites and texts. */
+  sortingOrder = 0;
+  /** A map that is not visible is not drawn. If it is solid, it still is. */
+  visible = true;
+  /** Makes every cell that has a tile a wall: bodies collide with it. */
+  solid = false;
+
+  #revision = 0;
+
+  /**
+   * Counts the changes made with `setTile`, `fill` and `resize`. The engine watches it to
+   * know when the walls of a solid map have to be rebuilt.
+   */
+  get revision(): number {
+    return this.#revision;
+  }
+
+  /** The tile in a cell, or -1 when the cell is empty or outside the map. */
+  getTile(column: number, row: number): number {
+    if (!this.contains(column, row)) {
+      return EMPTY_TILE;
+    }
+    const tile = this.tiles[row * this.width + column];
+    return typeof tile === 'number' && tile >= 0 ? tile : EMPTY_TILE;
+  }
+
+  /** Puts a tile into a cell; -1 empties it. A cell outside the map is left alone. */
+  setTile(column: number, row: number, tile: number): void {
+    if (!this.contains(column, row)) {
+      return;
+    }
+    const index = row * this.width + column;
+    // The cells before this one may be missing in a map that was put together by hand.
+    for (let fill = this.tiles.length; fill < index; fill++) {
+      this.tiles[fill] = EMPTY_TILE;
+    }
+    const next = Number.isFinite(tile) && tile >= 0 ? Math.floor(tile) : EMPTY_TILE;
+    if (this.tiles[index] !== next) {
+      this.tiles[index] = next;
+      this.#revision++;
+    }
+  }
+
+  /** Puts the same tile into every cell; -1 empties the map. */
+  fill(tile: number): void {
+    const next = Number.isFinite(tile) && tile >= 0 ? Math.floor(tile) : EMPTY_TILE;
+    this.tiles = new Array<number>(this.width * this.height).fill(next);
+    this.#revision++;
+  }
+
+  /**
+   * Changes how many cells the map has. The tiles stay where they are, counted from the
+   * bottom-left corner; cells that are cut off are lost and new cells are empty.
+   */
+  resize(width: number, height: number): void {
+    const nextWidth = toCellCount(width);
+    const nextHeight = toCellCount(height);
+    const tiles = new Array<number>(nextWidth * nextHeight).fill(EMPTY_TILE);
+    for (let row = 0; row < Math.min(this.height, nextHeight); row++) {
+      for (let column = 0; column < Math.min(this.width, nextWidth); column++) {
+        tiles[row * nextWidth + column] = this.getTile(column, row);
+      }
+    }
+    this.width = nextWidth;
+    this.height = nextHeight;
+    this.tiles = tiles;
+    this.#revision++;
+  }
+
+  private contains(column: number, row: number): boolean {
+    return (
+      Number.isInteger(column) &&
+      Number.isInteger(row) &&
+      column >= 0 &&
+      row >= 0 &&
+      column < this.width &&
+      row < this.height
+    );
+  }
+}
+
+/** The largest map a side can have. It keeps a mistyped number from freezing the editor. */
+export const MAX_TILEMAP_SIDE = 1024;
+
+function toCellCount(value: number): number {
+  return Number.isFinite(value) ? Math.min(Math.max(0, Math.floor(value)), MAX_TILEMAP_SIDE) : 0;
+}
+
+function parseTiles(value: unknown, path: string): number[] {
+  if (!Array.isArray(value)) {
+    throw new RowanError(`${path}: expected an array of tile numbers`);
+  }
+  return value.map((item: unknown, index) => {
+    if (typeof item !== 'number' || !Number.isFinite(item)) {
+      throw new RowanError(`${path}[${index}]: expected a finite number`);
+    }
+    return item >= 0 ? Math.floor(item) : EMPTY_TILE;
+  });
+}
+
 export const TEXT_FONTS = ['sans-serif', 'serif', 'monospace'] as const;
 /**
  * The fonts text can be drawn in. Each one stands for the browser's own font of that kind, so
@@ -595,6 +748,7 @@ export const COMPONENT_TYPES: readonly ComponentType[] = [
   Transform,
   SpriteRenderer,
   SpriteAnimator,
+  Tilemap,
   TextRenderer,
   Camera,
   Rigidbody2D,

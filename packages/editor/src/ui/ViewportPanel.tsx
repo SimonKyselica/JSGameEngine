@@ -8,23 +8,31 @@ import {
   NullAudioBackend,
   SceneRenderer,
   TextureCache,
+  Tilemap,
   Vec2,
   WebAudioBackend,
   WebGL2Renderer,
   type AudioBackend,
 } from '@rowan/core';
+import type { Tool } from '../core/editorSession';
 import {
   applyGizmoDrag,
   hitTestGizmo,
   isSnapActive,
   type GizmoDragStart,
   type GizmoHandle,
+  type TransformTool,
 } from '../core/gizmos';
 import { drawOverlay, getGizmoLayout } from '../core/overlay';
 import { pickEntity } from '../core/picking';
 import { DRAG_TYPES, useEditor } from './editorContext';
 
 export type ViewportMode = 'scene' | 'game';
+
+/** The tool as far as gizmos are concerned: the hand and the brush have none. */
+function getTransformTool(tool: Tool): TransformTool | null {
+  return tool === 'hand' || tool === 'paint' ? null : tool;
+}
 
 const SCENE_BACKGROUND = new Color(0.16, 0.17, 0.19, 1);
 const MAX_PIXEL_RATIO = 2;
@@ -38,6 +46,7 @@ const DRAG_THRESHOLD = 3;
 
 type Interaction =
   | { readonly kind: 'pan'; lastX: number; lastY: number }
+  | { readonly kind: 'paint'; changed: boolean }
   | { readonly kind: 'gizmo'; readonly start: GizmoDragStart; changed: boolean }
   | { readonly kind: 'click'; readonly startX: number; readonly startY: number };
 
@@ -189,7 +198,7 @@ export function ViewportPanel({
         width: rect.width,
         height: rect.height,
         selected: session.selectedEntity,
-        tool: session.tool === 'hand' ? null : session.tool,
+        tool: getTransformTool(session.tool),
         activeHandle: interaction?.kind === 'gizmo' ? interaction.start.handle : hoverRef.current,
         gameAspect: gameWidth / gameHeight,
       });
@@ -219,16 +228,13 @@ export function ViewportPanel({
 
   const findHandle = (screen: Vec2): GizmoHandle | null => {
     const entity = session.selectedEntity;
-    if (!entity || session.tool === 'hand') {
+    const tool = getTransformTool(session.tool);
+    if (!entity || !tool) {
       return null;
     }
     const { width, height } = sizeRef.current;
     const view = viewport.camera.toView(width / height);
-    return hitTestGizmo(
-      session.tool,
-      getGizmoLayout(entity, session.tool, view, width, height),
-      screen,
-    );
+    return hitTestGizmo(tool, getGizmoLayout(entity, tool, view, width, height), screen);
   };
 
   const handlePointerDown = (event: React.PointerEvent<HTMLCanvasElement>): void => {
@@ -241,8 +247,16 @@ export function ViewportPanel({
     }
 
     const entity = session.selectedEntity;
+    if (session.tool === 'paint' && entity?.hasComponent(Tilemap)) {
+      // A stroke, from the press to the release, is one step to undo.
+      session.beginDrag();
+      interactionRef.current = { kind: 'paint', changed: session.paintTile(world) };
+      session.notify();
+      return;
+    }
     const handle = findHandle(screen);
-    if (entity && handle && session.tool !== 'hand') {
+    const tool = getTransformTool(session.tool);
+    if (entity && handle && tool) {
       const { width, height } = sizeRef.current;
       const view = viewport.camera.toView(width / height);
       session.beginDrag();
@@ -256,7 +270,7 @@ export function ViewportPanel({
           scale: entity.transform.scale.clone(),
           pointer: screen,
           pointerWorld: world,
-          layout: getGizmoLayout(entity, session.tool, view, width, height),
+          layout: getGizmoLayout(entity, tool, view, width, height),
         },
       };
       return;
@@ -281,6 +295,13 @@ export function ViewportPanel({
       interaction.lastY = event.clientY;
       return;
     }
+    if (interaction.kind === 'paint') {
+      if (session.paintTile(world)) {
+        interaction.changed = true;
+        session.notify();
+      }
+      return;
+    }
     const entity = session.selectedEntity;
     if (interaction.kind !== 'gizmo' || !entity) {
       return;
@@ -303,7 +324,7 @@ export function ViewportPanel({
   const handlePointerUp = (event: React.PointerEvent<HTMLCanvasElement>): void => {
     const interaction = interactionRef.current;
     interactionRef.current = null;
-    if (interaction?.kind === 'gizmo') {
+    if (interaction?.kind === 'gizmo' || interaction?.kind === 'paint') {
       session.endDrag(interaction.changed);
     } else if (interaction?.kind === 'click') {
       const moved = Math.hypot(
@@ -375,7 +396,8 @@ export function ViewportPanel({
         aria-label="Scene view"
         style={{
           pointerEvents: mode === 'scene' ? 'auto' : 'none',
-          cursor: session.tool === 'hand' ? 'grab' : 'default',
+          cursor:
+            session.tool === 'hand' ? 'grab' : session.tool === 'paint' ? 'crosshair' : 'default',
         }}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}

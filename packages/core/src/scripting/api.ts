@@ -26,6 +26,7 @@ export {
   SpriteAnimator,
   SpriteRenderer,
   TextRenderer,
+  Tilemap,
   Transform,
   type AnimationClip,
   type BodyType,

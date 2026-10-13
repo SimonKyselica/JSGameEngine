@@ -2764,6 +2764,175 @@
       "members": []
     },
     {
+      "name": "Tilemap",
+      "summary": "A grid of tiles drawn from one image, for levels that are built out of repeating pieces: ground, walls, platforms.\n\nThe image, the tileset, is divided into `columns` and `rows` of tiles, numbered like the frames of a sprite sheet: from 0, from left to right and from the top row down. The map says which of them goes where. Its cells are `tileSize` world units large; cell (0, 0) is the bottom-left one and has its bottom-left corner at the entity's position.",
+      "typeParameters": "",
+      "definition": "",
+      "kind": "class",
+      "members": [
+        {
+          "name": "texture",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "texture: string | null"
+          ],
+          "summary": "The tileset: a texture asset id. Without one, every tile is a square in `color`."
+        },
+        {
+          "name": "columns",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "columns: number"
+          ],
+          "summary": "How many tiles the tileset holds side by side."
+        },
+        {
+          "name": "rows",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "rows: number"
+          ],
+          "summary": "How many rows of tiles the tileset holds."
+        },
+        {
+          "name": "tileSize",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "tileSize: number"
+          ],
+          "summary": "The size of one cell of the map in world units, before the entity's scale is applied."
+        },
+        {
+          "name": "width",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "width: number"
+          ],
+          "summary": "How many cells the map is wide. Change it with `resize`."
+        },
+        {
+          "name": "height",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "height: number"
+          ],
+          "summary": "How many cells the map is high. Change it with `resize`."
+        },
+        {
+          "name": "tiles",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "tiles: number[]"
+          ],
+          "summary": "The tile in every cell, row by row from the bottom row up, each row from left to right. -1 is an empty cell. Read and change it with `getTile` and `setTile`."
+        },
+        {
+          "name": "color",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "color: Color"
+          ],
+          "summary": "Tint multiplied with the tiles."
+        },
+        {
+          "name": "sortingOrder",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "sortingOrder: number"
+          ],
+          "summary": "Maps with a higher order are drawn on top. The order is shared with sprites and texts."
+        },
+        {
+          "name": "visible",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "visible: boolean"
+          ],
+          "summary": "A map that is not visible is not drawn. If it is solid, it still is."
+        },
+        {
+          "name": "solid",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "solid: boolean"
+          ],
+          "summary": "Makes every cell that has a tile a wall: bodies collide with it."
+        },
+        {
+          "name": "revision",
+          "kind": "property",
+          "static": false,
+          "readonly": true,
+          "signatures": [
+            "revision: number"
+          ],
+          "summary": "Counts the changes made with `setTile`, `fill` and `resize`. The engine watches it to know when the walls of a solid map have to be rebuilt."
+        },
+        {
+          "name": "getTile",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "getTile(column: number, row: number): number"
+          ],
+          "summary": "The tile in a cell, or -1 when the cell is empty or outside the map."
+        },
+        {
+          "name": "setTile",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "setTile(column: number, row: number, tile: number): void"
+          ],
+          "summary": "Puts a tile into a cell; -1 empties it. A cell outside the map is left alone."
+        },
+        {
+          "name": "fill",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "fill(tile: number): void"
+          ],
+          "summary": "Puts the same tile into every cell; -1 empties the map."
+        },
+        {
+          "name": "resize",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "resize(width: number, height: number): void"
+          ],
+          "summary": "Changes how many cells the map has. The tiles stay where they are, counted from the bottom-left corner; cells that are cut off are lost and new cells are empty."
+        }
+      ]
+    },
+    {
       "name": "Time",
       "summary": "Frame timing as seen by scripts (`this.time`). All durations are in seconds.",
       "typeParameters": "",

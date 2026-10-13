@@ -464,6 +464,68 @@ test.describe('editor', () => {
     await expect(page.getByRole('log')).toContainText('Saved game data cleared.');
   });
 
+  test('paints a level with tiles, and takes a stroke back with undo', async ({ page }) => {
+    await openEditor(page);
+    await chooseMenu(page, 'Entity', 'Tilemap');
+    await expect(hierarchyRow(page, 'Tilemap')).toHaveClass(/selected/);
+    const inspector = page.getByRole('region', { name: 'Inspector' });
+    const palette = inspector.getByRole('radiogroup', { name: 'Tile to paint with' });
+    // The eraser and the four tiles of the tileset a new map comes with.
+    await expect(palette.getByRole('radio')).toHaveCount(5);
+
+    // Picking a tile takes up the brush.
+    await palette.getByRole('radio', { name: 'Tile 3' }).click();
+    await expect(page.getByRole('button', { name: /Paint Tiles/ })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+
+    // Tile 3 is water, a blue of its own; tile 0, the floor of a new map, is about as green
+    // as the ground of the starter scene. A stroke of tiles covers several thousand pixels.
+    // The smoothed edge of the blue player sprite can match the water by chance, but that is
+    // a few hundred pixels at most, so the two are told apart by how many there are.
+    const water = (): Promise<number> => countCanvasPixels(page, GL_CANVAS, [64, 132, 214], 12);
+    const grass = (): Promise<number> => countCanvasPixels(page, GL_CANVAS, [86, 168, 92], 12);
+    const PAINTED = 3000;
+    const NOT_PAINTED = 1000;
+    expect(await water()).toBeLessThan(NOT_PAINTED);
+    await expect.poll(grass).toBeGreaterThan(PAINTED);
+
+    const scene = page.getByLabel('Scene view');
+    const box = (await scene.boundingBox())!;
+    const centerX = box.x + box.width / 2;
+    const y = box.y + box.height / 2 - 60;
+    await page.mouse.move(centerX - 80, y);
+    await page.mouse.down();
+    await page.mouse.move(centerX + 80, y, { steps: 8 });
+    await page.mouse.up();
+    await expect.poll(water).toBeGreaterThan(PAINTED);
+
+    // The whole stroke is one step.
+    await chooseMenu(page, 'Edit', 'Undo');
+    await expect.poll(water).toBeLessThan(NOT_PAINTED);
+    await chooseMenu(page, 'Edit', 'Redo');
+    await expect.poll(water).toBeGreaterThan(PAINTED);
+
+    // The eraser takes tiles away again.
+    await palette.getByRole('radio', { name: 'Eraser' }).click();
+    await page.mouse.move(centerX - 90, y);
+    await page.mouse.down();
+    await page.mouse.move(centerX + 90, y, { steps: 10 });
+    await page.mouse.up();
+    await expect.poll(water).toBeLessThan(NOT_PAINTED);
+
+    // A map that is made narrower loses the floor beyond its new edge. The ground of the
+    // scene is as green as the floor and stays, so the green shrinks without disappearing.
+    const before = await grass();
+    const width = inspector.getByRole('spinbutton', { name: 'Map width' });
+    const resize = inspector.getByRole('button', { name: 'Resize' });
+    await expect(resize).toBeDisabled();
+    await width.fill('6');
+    await resize.click();
+    await expect.poll(grass).toBeLessThan(before * 0.8);
+  });
+
   test('pauses and steps the game one frame at a time', async ({ page }) => {
     await openEditor(page);
     await hierarchyRow(page, 'Player').click();

@@ -2,6 +2,7 @@ import { slugify, type DocBlock, type GuidePage } from './docTypes';
 import attack from './examples/Attack.ts?raw';
 import characterAnimation from './examples/CharacterAnimation.ts?raw';
 import countdown from './examples/Countdown.ts?raw';
+import digger from './examples/Digger.ts?raw';
 import highScore from './examples/HighScore.ts?raw';
 import jukebox from './examples/Jukebox.ts?raw';
 import keyboardMover from './examples/KeyboardMover.ts?raw';
@@ -401,6 +402,43 @@ this.destroy(other, 2.5);  // in two and a half seconds`),
         'A clip with **Loop** switched off stops on its last frame. When it gets there, the scripts of the entity get `onAnimationEnd` with the name of the clip, which is the moment to move on to the next one:',
       ),
       code(attack),
+    ],
+  },
+  {
+    id: 'tilemaps',
+    title: 'Tilemaps',
+    summary:
+      'Building levels out of tiles: painting them in the editor and changing them from scripts.',
+    blocks: [
+      p(
+        'A [Tilemap](api/Tilemap) component is a grid of cells, each of which shows one tile of an image, the tileset. It is how ground, walls and platforms are made without placing a sprite for every piece. **Entity → Tilemap** creates one with a small tileset to start from.',
+      ),
+      h('Painting a level'),
+      steps(
+        'Select the entity with the Tilemap. Its inspector shows the tiles of the tileset as a palette.',
+        'Click a tile in the palette. That also switches to the brush tool, which is **B** on the keyboard or the brush in the toolbar.',
+        'Click and drag in the scene view to paint. The first entry of the palette is the eraser.',
+        'To make the map larger or smaller, change **Map Size** and press **Resize**. Tiles stay where they are, counted from the bottom-left corner.',
+      ),
+      h('Using your own tiles'),
+      list(
+        'A tileset is an image with tiles of the same size side by side. Give it to the Tilemap as its **Texture** and say how it is divided with **Columns** and **Rows**, as for a sprite sheet.',
+        'Tiles are numbered from 0, from left to right and from the top row down.',
+        '**Tile Size** is how large a cell is in the world. It does not depend on how many pixels a tile has.',
+        'Without a texture every tile is a plain square in the **Color** of the map, which is enough to block out a level.',
+      ),
+      h('Walls'),
+      p(
+        'With **Solid** switched on, every cell that has a tile is a wall that bodies collide with. The map does not move; tiles next to each other in a row form one smooth surface. The map is on the collision layer of its entity, like any collider.',
+      ),
+      h('From a script'),
+      p(
+        'Cells are addressed by column and row. Cell (0, 0) is the bottom-left one and has its corner at the position of the entity. `getTile` reads a cell and `setTile` changes it; -1 is an empty cell. A solid map follows such changes, so a script can dig holes and build bridges:',
+      ),
+      code(digger),
+      note(
+        'Change tiles with `setTile`, `fill` and `resize` rather than by writing into `tiles` directly. The walls of a solid map are only rebuilt for changes made through those methods.',
+      ),
     ],
   },
   {

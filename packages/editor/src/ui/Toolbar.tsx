@@ -11,6 +11,7 @@ const TOOLS: readonly { tool: Tool; icon: IconName; label: string; key: string }
   { tool: 'move', icon: 'move', label: 'Move', key: 'W' },
   { tool: 'rotate', icon: 'rotate', label: 'Rotate', key: 'E' },
   { tool: 'scale', icon: 'scale', label: 'Scale', key: 'R' },
+  { tool: 'paint', icon: 'brush', label: 'Paint Tiles', key: 'B' },
 ];
 
 const MODIFIER_NAME = MOD.replace('+', '');

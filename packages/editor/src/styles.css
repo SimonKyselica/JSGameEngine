@@ -529,6 +529,44 @@ span.tab {
   text-transform: uppercase;
 }
 
+.tile-palette {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  padding: 4px 0;
+}
+
+.tile-swatch {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  background-color: #5a5f6a;
+  color: var(--text);
+  cursor: pointer;
+  /* Tiles are a few pixels large and are shown much larger here. */
+  image-rendering: pixelated;
+}
+
+.tile-swatch.eraser {
+  background-color: var(--bg-field);
+}
+
+.tile-swatch[aria-checked='true'] {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.inspector-hint {
+  margin: 2px 0 6px;
+  color: var(--text-dim);
+  font-size: 11px;
+}
+
 .layer-add {
   display: flex;
   gap: 6px;

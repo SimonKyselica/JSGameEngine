@@ -13,6 +13,7 @@ import {
   ScreenAnchor,
   SpriteRenderer,
   TextRenderer,
+  Tilemap,
 } from '../scene/components';
 import type { Entity } from '../scene/entity';
 import type { Scene } from '../scene/scene';
@@ -60,6 +61,9 @@ export class SceneRenderer {
   private readonly corner = new Vec2();
   private readonly rect = new Rect();
   private readonly bounds = new Mat3();
+  private readonly inverse = new Mat3();
+  /** Stands in for the tiles of one map, to work out the color and layer they all share. */
+  private readonly mapItem: DrawItem = createDrawItem();
 
   constructor(
     private readonly renderer: Renderer2D,
@@ -161,6 +165,77 @@ export class SceneRenderer {
       item.sortingOrder = sprite.sortingOrder;
       item.sequence = count;
       count++;
+    }
+
+    for (const [id, map] of scene.registry.view(Tilemap)) {
+      // Written so that a tile size of NaN, which a script can produce, is skipped as well.
+      if (!map.visible || map.color.a <= 0 || !(map.tileSize > 0) || map.tileSize === Infinity) {
+        continue;
+      }
+      const entity = scene.getEntity(id);
+      if (!entity.activeInHierarchy) {
+        continue;
+      }
+      const world = scene.getWorldMatrix(entity, this.bounds);
+      if (!this.inverse.copy(world).invert()) {
+        continue;
+      }
+      // Only the cells the camera sees are drawn, so the size of a map costs nothing.
+      const { tileSize, width, tiles } = map;
+      const visible = this.getLocalBounds(view, this.inverse);
+      const firstColumn = Math.max(0, Math.floor(visible.minX / tileSize));
+      // A cell that begins exactly where the view ends is not in it, hence the ceiling.
+      const lastColumn = Math.min(width - 1, Math.ceil(visible.maxX / tileSize) - 1);
+      const firstRow = Math.max(0, Math.floor(visible.minY / tileSize));
+      const lastRow = Math.min(map.height - 1, Math.ceil(visible.maxY / tileSize) - 1);
+      if (firstColumn > lastColumn || firstRow > lastRow) {
+        culled++;
+        continue;
+      }
+
+      const texture = map.texture === null ? null : this.textures.get(map.texture);
+      const shared = this.mapItem;
+      this.finish(shared, scene, id, map.color);
+      for (let row = firstRow; row <= lastRow; row++) {
+        for (let column = firstColumn; column <= lastColumn; column++) {
+          const tile = tiles[row * width + column];
+          // Also false for a cell that is missing from a map put together by hand.
+          if (!(tile !== undefined && tile >= 0)) {
+            continue;
+          }
+          const item = this.itemAt(count);
+          item.matrix
+            .copy(world)
+            .multiply(
+              SCALE_SCRATCH.set(
+                tileSize,
+                0,
+                0,
+                tileSize,
+                (column + 0.5) * tileSize,
+                (row + 0.5) * tileSize,
+              ),
+            );
+          item.texture = texture;
+          item.hasRegion =
+            texture !== null &&
+            getFrameRegion(
+              map.columns,
+              map.rows,
+              tile,
+              texture.width,
+              texture.height,
+              item.region,
+            ) !== null;
+          item.color.copy(shared.color);
+          item.layer = shared.layer;
+          item.flipX = false;
+          item.flipY = false;
+          item.sortingOrder = map.sortingOrder;
+          item.sequence = count;
+          count++;
+        }
+      }
     }
 
     const pixelsPerUnit = 1 / view.getWorldUnitsPerPixel(this.renderer.height);
@@ -276,21 +351,36 @@ export class SceneRenderer {
   private itemAt(index: number): DrawItem {
     let item = this.items[index];
     if (!item) {
-      item = {
-        matrix: new Mat3(),
-        texture: null,
-        color: new Color(),
-        flipX: false,
-        flipY: false,
-        region: new Rect(),
-        hasRegion: false,
-        layer: 0,
-        sortingOrder: 0,
-        sequence: 0,
-      };
+      item = createDrawItem();
       this.items.push(item);
     }
     return item;
+  }
+
+  /**
+   * The rectangle the camera sees, in the local space of something whose inverse world
+   * matrix is given: the smallest one around the four corners of the view.
+   */
+  private getLocalBounds(view: CameraView, inverse: Readonly<Mat3>): Rect {
+    const { bounds } = view;
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    for (const [x, y] of UNIT_QUAD_CORNERS) {
+      this.corner.set(x < 0 ? bounds.minX : bounds.maxX, y < 0 ? bounds.minY : bounds.maxY);
+      inverse.transformPoint(this.corner, this.corner);
+      minX = Math.min(minX, this.corner.x);
+      minY = Math.min(minY, this.corner.y);
+      maxX = Math.max(maxX, this.corner.x);
+      maxY = Math.max(maxY, this.corner.y);
+    }
+    const rect = this.rect;
+    rect.x = minX;
+    rect.y = minY;
+    rect.width = maxX - minX;
+    rect.height = maxY - minY;
+    return rect;
   }
 
   /** Tests the quad's world-space bounding box against the camera bounds. */
@@ -312,6 +402,21 @@ export class SceneRenderer {
 }
 
 const SCALE_SCRATCH = new Mat3();
+
+function createDrawItem(): DrawItem {
+  return {
+    matrix: new Mat3(),
+    texture: null,
+    color: new Color(),
+    flipX: false,
+    flipY: false,
+    region: new Rect(),
+    hasRegion: false,
+    layer: 0,
+    sortingOrder: 0,
+    sequence: 0,
+  };
+}
 
 export const UNIT_QUAD_CORNERS: readonly (readonly [x: number, y: number])[] = [
   [-0.5, -0.5],
@@ -375,13 +480,35 @@ export function getSpriteRegion(
   textureHeight: number,
   out = new Rect(),
 ): Rect | null {
-  const columns = getFrameCount(sprite.columns);
-  const rows = getFrameCount(sprite.rows);
+  return getFrameRegion(
+    sprite.columns,
+    sprite.rows,
+    sprite.frame,
+    textureWidth,
+    textureHeight,
+    out,
+  );
+}
+
+/**
+ * The part of a texture that one frame of a grid of frames takes up: a frame of a sprite
+ * sheet, or a tile of a tileset. `null` when the grid is a single frame, the whole texture.
+ */
+export function getFrameRegion(
+  gridColumns: number,
+  gridRows: number,
+  frameNumber: number,
+  textureWidth: number,
+  textureHeight: number,
+  out = new Rect(),
+): Rect | null {
+  const columns = getFrameCount(gridColumns);
+  const rows = getFrameCount(gridRows);
   if (columns === 1 && rows === 1) {
     return null;
   }
   const count = columns * rows;
-  const frame = Number.isFinite(sprite.frame) ? Math.floor(sprite.frame) : 0;
+  const frame = Number.isFinite(frameNumber) ? Math.floor(frameNumber) : 0;
   // A double modulo, so that a negative frame counts back from the end.
   const index = ((frame % count) + count) % count;
   const insetX = textureWidth > 0 ? 0.5 / textureWidth : 0;

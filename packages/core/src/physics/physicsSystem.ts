@@ -12,7 +12,7 @@ import { RowanError } from '../core/assert';
 import type { Unsubscribe } from '../core/signal';
 import type { ComponentClass, EntityId } from '../ecs/registry';
 import { Vec2 } from '../math/vec2';
-import { BoxCollider2D, CircleCollider2D, Rigidbody2D } from '../scene/components';
+import { BoxCollider2D, CircleCollider2D, Rigidbody2D, Tilemap } from '../scene/components';
 import type { Entity } from '../scene/entity';
 import type { Scene } from '../scene/scene';
 import { CollisionLayers } from './collisionLayers';
@@ -26,7 +26,14 @@ const TRANSFORM_EPSILON = 1e-6;
 const DEFAULT_RAYCAST_DISTANCE = 1000;
 
 /** An entity gets a physics body when it has at least one of these. */
-const BODY_COMPONENTS: readonly ComponentClass[] = [Rigidbody2D, BoxCollider2D, CircleCollider2D];
+const BODY_COMPONENTS: readonly ComponentClass[] = [
+  Rigidbody2D,
+  BoxCollider2D,
+  CircleCollider2D,
+  Tilemap,
+];
+/** How much the walls of a solid tilemap resist sliding. The same as a new collider. */
+const TILE_FRICTION = 0.4;
 
 export type ContactEventKind = 'collisionEnter' | 'collisionExit' | 'triggerEnter' | 'triggerExit';
 
@@ -66,6 +73,8 @@ interface BodyRecord {
   readonly body: Body;
   readonly box: ColliderState;
   readonly circle: ColliderState;
+  /** The walls of a solid tilemap: one box for every run of tiles in a row. */
+  readonly tiles: { fixtures: Fixture[]; readonly values: number[] };
   /** True once the Rigidbody2D's initial velocity has been given to the body. */
   launched: boolean;
   /** The transform last exchanged with the body, used to detect moves made by game code. */
@@ -385,6 +394,7 @@ export class PhysicsSystem {
       body,
       box: { fixture: null, synced: false, values: [] },
       circle: { fixture: null, synced: false, values: [] },
+      tiles: { fixtures: [], values: [] },
       launched: false,
       lastX: position.x,
       lastY: position.y,
@@ -471,6 +481,79 @@ export class PhysicsSystem {
     const scale = this.scene.getWorldScale(entity, this.scratchScale);
     this.syncBox(record, entity.getComponent(BoxCollider2D), scale);
     this.syncCircle(record, entity.getComponent(CircleCollider2D), scale);
+    this.syncTiles(record, entity.getComponent(Tilemap), scale);
+  }
+
+  /**
+   * Gives a solid tilemap its walls. Tiles that lie side by side in a row become one box, so
+   * that a body sliding along them does not catch on the seams and the simulation has far
+   * fewer shapes to look at. The walls are rebuilt only when something they depend on changes.
+   */
+  private syncTiles(record: BodyRecord, map: Tilemap | undefined, scale: Vec2): void {
+    const state = record.tiles;
+    const next = this.scratchValues;
+    next.length = 0;
+    if (map?.solid) {
+      const layer = record.entity.layer;
+      next.push(
+        map.revision,
+        map.width,
+        map.height,
+        map.tileSize * scale.x,
+        map.tileSize * scale.y,
+        this.layers.getCategory(layer),
+        this.layers.getMask(layer),
+      );
+    }
+    let changed = next.length !== state.values.length;
+    for (let index = 0; index < next.length; index++) {
+      if (state.values[index] !== next[index]) {
+        changed = true;
+      }
+    }
+    if (!changed) {
+      return;
+    }
+    state.values.length = 0;
+    state.values.push(...next);
+    for (const fixture of state.fixtures) {
+      record.body.destroyFixture(fixture);
+    }
+    state.fixtures = [];
+    if (!map?.solid) {
+      return;
+    }
+
+    const cellWidth = map.tileSize * scale.x;
+    const cellHeight = map.tileSize * scale.y;
+    const halfHeight = Math.abs(cellHeight) / 2;
+    const filterCategoryBits = state.values[5]!;
+    const filterMaskBits = state.values[6]!;
+    for (let row = 0; row < map.height; row++) {
+      let runStart = -1;
+      // One step past the last column, where every run that is still open ends.
+      for (let column = 0; column <= map.width; column++) {
+        const filled = column < map.width && map.getTile(column, row) >= 0;
+        if (filled && runStart === -1) {
+          runStart = column;
+        } else if (!filled && runStart !== -1) {
+          const halfWidth = (Math.abs(cellWidth) * (column - runStart)) / 2;
+          const centerX = ((runStart + column) / 2) * cellWidth;
+          const centerY = (row + 0.5) * cellHeight;
+          if (isUsableShape(halfWidth, halfHeight, centerX, centerY)) {
+            state.fixtures.push(
+              record.body.createFixture({
+                shape: new BoxShape(halfWidth, halfHeight, { x: centerX, y: centerY }, 0),
+                friction: TILE_FRICTION,
+                filterCategoryBits,
+                filterMaskBits,
+              }),
+            );
+          }
+          runStart = -1;
+        }
+      }
+    }
   }
 
   private syncBox(record: BodyRecord, collider: BoxCollider2D | undefined, scale: Vec2): void {
