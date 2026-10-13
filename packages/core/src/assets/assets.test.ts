@@ -213,7 +213,12 @@ describe('Project', () => {
     const settings = createDefaultSettings();
     expect(settings.name).toBe('New Project');
     expect(settings.startScene).toBeNull();
-    expect(settings.physics).toEqual({ gravity: [0, -9.81], fixedTimeStep: 1 / 60 });
+    expect(settings.physics).toEqual({
+      gravity: [0, -9.81],
+      fixedTimeStep: 1 / 60,
+      layers: ['Default'],
+      ignoredLayerPairs: [],
+    });
     expect(settings.rendering).toEqual({ width: 1280, height: 720, pixelArt: false });
   });
 
@@ -292,7 +297,12 @@ describe('Project', () => {
     });
     expect(settings.name).toBe('New Project');
     expect(settings.startScene).toBeNull();
-    expect(settings.physics).toEqual({ gravity: [0, -9.81], fixedTimeStep: 1 / 60 });
+    expect(settings.physics).toEqual({
+      gravity: [0, -9.81],
+      fixedTimeStep: 1 / 60,
+      layers: ['Default'],
+      ignoredLayerPairs: [],
+    });
     expect(settings.rendering).toEqual({ width: 640, height: 720, pixelArt: true });
     expect(parseSettings({ physics: { gravity: [1, 2] } }).physics.gravity).toEqual([1, 2]);
   });

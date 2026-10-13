@@ -14,6 +14,7 @@ export class Identity {
     fields: {
       name: { type: 'string' },
       tag: { type: 'string' },
+      layer: { type: 'string' },
       active: { type: 'boolean' },
     },
   };
@@ -24,6 +25,11 @@ export class Identity {
   name = 'Entity';
   /** A free-form label for finding groups of entities from scripts. */
   tag = '';
+  /**
+   * The collision layer the entity's colliders are on. Which layers collide with which is
+   * set up in the project settings.
+   */
+  layer = 'Default';
   /** Inactive entities, and all of their descendants, are not updated, simulated or drawn. */
   active = true;
 }

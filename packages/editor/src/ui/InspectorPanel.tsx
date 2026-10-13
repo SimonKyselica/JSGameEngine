@@ -60,6 +60,7 @@ function EntityInspector({ entity }: { entity: Entity }): ReactElement {
   const { session } = useEditor();
   const menu = useContextMenu();
   const editKey = (field: string): string => `${entity.uuid}:Identity:${field}`;
+  const { layers } = session.project.settings.physics;
 
   const addable = COMPONENT_TYPES.filter(
     (type) => type.schema.removable && !entity.hasComponent(type),
@@ -108,6 +109,24 @@ function EntityInspector({ entity }: { entity: Entity }): ReactElement {
             session.edit(() => {
               entity.tag = tag;
             }, editKey('tag'))
+          }
+        />
+      </FieldRow>
+      <FieldRow label="Layer">
+        <SelectField
+          value={entity.layer}
+          options={[
+            ...layers.map((layer) => ({ value: layer, label: layer })),
+            // A layer that was removed from the project stays visible instead of silently
+            // turning into another one. The physics treats it as the default layer.
+            ...(layers.includes(entity.layer)
+              ? []
+              : [{ value: entity.layer, label: `${entity.layer} (missing)` }]),
+          ]}
+          onChange={(layer) =>
+            session.edit(() => {
+              entity.layer = layer;
+            })
           }
         />
       </FieldRow>

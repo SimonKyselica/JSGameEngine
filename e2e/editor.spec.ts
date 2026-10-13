@@ -400,6 +400,37 @@ test.describe('editor', () => {
     expect(await readNumber(page, 'Position Y')).toBe(0);
   });
 
+  test('lets an entity fall through a layer that the project tells it to ignore', async ({
+    page,
+  }) => {
+    await openEditor(page);
+    await chooseMenu(page, 'File', 'Project Settings…');
+    const dialog = page.getByRole('dialog', { name: 'Project Settings' });
+    const addLayer = dialog.getByRole('button', { name: 'Add Layer' });
+    await expect(addLayer).toBeDisabled();
+    await dialog.getByRole('textbox', { name: 'New layer name' }).fill('Ghost');
+    await addLayer.click();
+
+    const pair = dialog.getByRole('checkbox', { name: 'Default collides with Ghost' });
+    await expect(pair).toBeChecked();
+    await pair.uncheck();
+    await expect(dialog.getByRole('checkbox', { name: 'Ghost collides with Ghost' })).toBeChecked();
+    // The default layer cannot be removed; the new one can.
+    await expect(dialog.getByRole('button', { name: 'Remove layer Default' })).toHaveCount(0);
+    await expect(dialog.getByRole('button', { name: 'Remove layer Ghost' })).toBeVisible();
+    await dialog.getByRole('button', { name: 'Done' }).click();
+
+    await hierarchyRow(page, 'Player').click();
+    const inspector = page.getByRole('region', { name: 'Inspector' });
+    await inspector.getByRole('combobox', { name: 'Layer' }).selectOption('Ghost');
+
+    await page.getByRole('button', { name: 'Play', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Stop', exact: true })).toBeVisible();
+    // The ground is on the default layer and its top is at y = -2.5. The player used to
+    // come to rest on it at y = -2; as a ghost it keeps falling.
+    await expect.poll(async () => readNumber(page, 'Position Y')).toBeLessThan(-6);
+  });
+
   test('pauses and steps the game one frame at a time', async ({ page }) => {
     await openEditor(page);
     await hierarchyRow(page, 'Player').click();

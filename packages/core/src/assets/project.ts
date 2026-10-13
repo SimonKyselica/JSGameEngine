@@ -1,5 +1,10 @@
 import { RowanError } from '../core/assert';
 import { generateUuid } from '../core/uuid';
+import {
+  createDefaultLayers,
+  parseCollisionLayers,
+  type CollisionLayerSettings,
+} from '../physics/collisionLayers';
 import { ASSET_TYPES, type AssetData, type AssetMetaValue, type AssetRecord } from './asset';
 import { AssetDatabase } from './assetDatabase';
 
@@ -7,7 +12,7 @@ export const PROJECT_FORMAT = 'rowan.project';
 /** Bump when the project manifest layout changes, and add a migration in `parseManifest`. */
 export const PROJECT_VERSION = 1;
 
-export interface PhysicsSettings {
+export interface PhysicsSettings extends CollisionLayerSettings {
   gravity: [x: number, y: number];
   /** Seconds per physics step. */
   fixedTimeStep: number;
@@ -48,7 +53,7 @@ export function createDefaultSettings(name = 'New Project'): ProjectSettings {
   return {
     name,
     startScene: null,
-    physics: { gravity: [0, -9.81], fixedTimeStep: 1 / 60 },
+    physics: { gravity: [0, -9.81], fixedTimeStep: 1 / 60, ...createDefaultLayers() },
     rendering: { width: 1280, height: 720, pixelArt: false },
   };
 }
@@ -146,6 +151,8 @@ export function parseSettings(data: unknown): ProjectSettings {
           ? [gravity[0]!, gravity[1]!]
           : defaults.physics.gravity,
       fixedTimeStep: positiveOr(physics.fixedTimeStep, defaults.physics.fixedTimeStep),
+      // Projects saved before there were layers have none, and get the default one.
+      ...parseCollisionLayers(physics.layers, physics.ignoredLayerPairs),
     },
     rendering: {
       width: Math.round(positiveOr(rendering.width, defaults.rendering.width)),

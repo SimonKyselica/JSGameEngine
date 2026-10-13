@@ -6,6 +6,7 @@ import DestroyReporter from './scripts/DestroyReporter.ts?raw';
 import EntityProbe from './scripts/EntityProbe.ts?raw';
 import FinishProbe from './scripts/FinishProbe.ts?raw';
 import InputProbe from './scripts/InputProbe.ts?raw';
+import LayerProbe from './scripts/LayerProbe.ts?raw';
 import LifecycleProbe from './scripts/LifecycleProbe.ts?raw';
 import MathProbe from './scripts/MathProbe.ts?raw';
 import PhysicsProbe from './scripts/PhysicsProbe.ts?raw';
@@ -33,6 +34,7 @@ export const FEATURE_TEST_SCRIPTS: Readonly<Record<string, string>> = {
   EntityProbe,
   FinishProbe,
   InputProbe,
+  LayerProbe,
   LifecycleProbe,
   MathProbe,
   PhysicsProbe,

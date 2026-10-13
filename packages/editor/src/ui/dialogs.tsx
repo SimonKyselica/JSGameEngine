@@ -1,5 +1,14 @@
 import { useEffect, useState, type ReactElement } from 'react';
-import { describeError, ENGINE_VERSION } from '@rowan/core';
+import {
+  addCollisionLayer,
+  DEFAULT_LAYER,
+  describeError,
+  ENGINE_VERSION,
+  layersCollide,
+  MAX_COLLISION_LAYERS,
+  removeCollisionLayer,
+  setLayersCollide,
+} from '@rowan/core';
 import type { EditorSession } from '../core/editorSession';
 import type { ExportFormat } from '../core/exportGame';
 import type { ProjectStore, ProjectSummary } from '../core/projectStore';
@@ -199,7 +208,103 @@ export function ProjectSettingsDialog(props: {
           }
         />
       </FieldRow>
+
+      <div className="settings-group">Collision Layers</div>
+      <CollisionLayersEditor session={session} />
     </Modal>
+  );
+}
+
+/**
+ * The collision layers of the project and a table of which of them collide. An entity is
+ * put on a layer in the inspector.
+ */
+function CollisionLayersEditor({ session }: { session: EditorSession }): ReactElement {
+  const { physics } = session.project.settings;
+  const { layers } = physics;
+  const [name, setName] = useState('');
+  const full = layers.length >= MAX_COLLISION_LAYERS;
+  const canAdd = name.trim() !== '' && !layers.includes(name.trim()) && !full;
+
+  const add = (): void => {
+    session.updateSettings((draft) => {
+      addCollisionLayer(draft.physics, name);
+    });
+    setName('');
+  };
+
+  return (
+    <>
+      <div className="layer-add">
+        <TextField
+          ariaLabel="New layer name"
+          placeholder={full ? `All ${MAX_COLLISION_LAYERS} layers are in use` : 'New layer name'}
+          value={name}
+          onChange={setName}
+        />
+        <button type="button" className="button" disabled={!canAdd} onClick={add}>
+          Add Layer
+        </button>
+      </div>
+      <table className="layer-matrix" aria-label="Which layers collide">
+        <thead>
+          <tr>
+            <td />
+            {layers.map((column) => (
+              <th key={column} scope="col" title={column}>
+                {column}
+              </th>
+            ))}
+            <td />
+          </tr>
+        </thead>
+        <tbody>
+          {layers.map((row, rowIndex) => (
+            <tr key={row}>
+              <th scope="row" title={row}>
+                {row}
+              </th>
+              {layers.map((column, columnIndex) => (
+                <td key={column}>
+                  {/* Each pair is shown once: the table is the same on both sides of its diagonal. */}
+                  {columnIndex >= rowIndex && (
+                    <input
+                      type="checkbox"
+                      aria-label={`${row} collides with ${column}`}
+                      title={`${row} collides with ${column}`}
+                      checked={layersCollide(physics, row, column)}
+                      onChange={(event) => {
+                        const collide = event.currentTarget.checked;
+                        session.updateSettings((draft) => {
+                          setLayersCollide(draft.physics, row, column, collide);
+                        });
+                      }}
+                    />
+                  )}
+                </td>
+              ))}
+              <td>
+                {row !== DEFAULT_LAYER && (
+                  <button
+                    type="button"
+                    className="icon-button"
+                    aria-label={`Remove layer ${row}`}
+                    title="Remove layer"
+                    onClick={() =>
+                      session.updateSettings((draft) => {
+                        removeCollisionLayer(draft.physics, row);
+                      })
+                    }
+                  >
+                    <Icon name="close" size={12} />
+                  </button>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </>
   );
 }
 

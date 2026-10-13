@@ -15,6 +15,7 @@ import { Vec2 } from '../math/vec2';
 import { BoxCollider2D, CircleCollider2D, Rigidbody2D } from '../scene/components';
 import type { Entity } from '../scene/entity';
 import type { Scene } from '../scene/scene';
+import { CollisionLayers } from './collisionLayers';
 
 const VELOCITY_ITERATIONS = 8;
 const POSITION_ITERATIONS = 3;
@@ -98,9 +99,11 @@ export class PhysicsSystem {
   private readonly scratchScale = new Vec2();
   private readonly scratchValues: number[] = [];
 
+  /** @param layers Which collision layers there are. Without it everything collides. */
   constructor(
     private readonly scene: Scene,
     gravity: Readonly<Vec2>,
+    private readonly layers = new CollisionLayers(),
   ) {
     this.world = this.createWorld(gravity);
   }
@@ -480,7 +483,9 @@ export class PhysicsSystem {
     const halfHeight = Math.abs(collider.size.y * scale.y) / 2;
     const offsetX = collider.offset.x * scale.x;
     const offsetY = collider.offset.y * scale.y;
-    if (!this.updateColliderValues(state, collider, halfWidth, halfHeight, offsetX, offsetY)) {
+    if (
+      !this.updateColliderValues(record, state, collider, halfWidth, halfHeight, offsetX, offsetY)
+    ) {
       return;
     }
     this.clearFixture(record, state);
@@ -507,7 +512,7 @@ export class PhysicsSystem {
     const radius = Math.abs(collider.radius) * Math.max(Math.abs(scale.x), Math.abs(scale.y));
     const offsetX = collider.offset.x * scale.x;
     const offsetY = collider.offset.y * scale.y;
-    if (!this.updateColliderValues(state, collider, radius, radius, offsetX, offsetY)) {
+    if (!this.updateColliderValues(record, state, collider, radius, radius, offsetX, offsetY)) {
       return;
     }
     this.clearFixture(record, state);
@@ -525,6 +530,7 @@ export class PhysicsSystem {
    * which means the existing fixture is still correct.
    */
   private updateColliderValues(
+    record: BodyRecord,
     state: ColliderState,
     collider: BoxCollider2D | CircleCollider2D,
     extentX: number,
@@ -541,6 +547,11 @@ export class PhysicsSystem {
     next[5] = sanitizeMaterial(collider.friction);
     next[6] = sanitizeMaterial(collider.restitution);
     next[7] = collider.isTrigger ? 1 : 0;
+    // The layer of the entity decides what its colliders touch. It is looked up every step,
+    // so a script that moves an entity to another layer is followed.
+    const layer = record.entity.layer;
+    next[8] = this.layers.getCategory(layer);
+    next[9] = this.layers.getMask(layer);
 
     const current = state.values;
     let changed = !state.synced;
@@ -671,6 +682,8 @@ function getMaterial(state: ColliderState): {
   friction: number;
   restitution: number;
   isSensor: boolean;
+  filterCategoryBits: number;
+  filterMaskBits: number;
 } {
   const values = state.values;
   return {
@@ -678,6 +691,8 @@ function getMaterial(state: ColliderState): {
     friction: values[5]!,
     restitution: values[6]!,
     isSensor: values[7] === 1,
+    filterCategoryBits: values[8]!,
+    filterMaskBits: values[9]!,
   };
 }
 

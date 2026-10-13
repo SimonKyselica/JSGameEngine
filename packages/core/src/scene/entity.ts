@@ -49,6 +49,19 @@ export class Entity {
     this.identity.tag = value;
   }
 
+  /**
+   * The collision layer of the entity's colliders. Which layers collide with which is set up
+   * in the project settings; a name that is not one of the project's layers counts as
+   * `Default`. Assigning another layer takes effect with the next physics step.
+   */
+  get layer(): string {
+    return this.identity.layer;
+  }
+
+  set layer(value: string) {
+    this.identity.layer = value;
+  }
+
   /** Whether this entity itself is switched on. See {@link Entity.activeInHierarchy}. */
   get active(): boolean {
     return this.identity.active;

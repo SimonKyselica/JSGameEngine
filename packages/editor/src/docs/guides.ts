@@ -276,6 +276,27 @@ const direction = target.transform.position.clone().sub(this.transform.position)
       p(
         'When two solid colliders start touching, both entities get `onCollisionEnter` with a [Collision](api/Collision): the `other` entity, the contact `point`, and a `normal` that points from the receiving entity towards the other one. When a trigger is involved, both get `onTriggerEnter` with the other entity instead. `onCollisionExit` and `onTriggerExit` report the end.',
       ),
+      h('Collision layers'),
+      p(
+        'By default everything collides with everything. Collision layers let some things pass through others: bullets through the player who fired them, ghosts through walls, pickups through enemies.',
+      ),
+      steps(
+        'Open **File → Project Settings…** and add a layer under **Collision Layers**, for example `Bullet`.',
+        'In the table below it, untick the box where the row and the column of two layers meet to make them pass through each other. A layer can also ignore itself, so that bullets do not hit other bullets.',
+        'Select an entity and choose its **Layer** in the inspector, below its tag. All colliders of the entity are on that layer.',
+      ),
+      p(
+        'A script can move an entity to another layer while the game runs with `entity.layer`, for example to make a character untouchable for a moment:',
+      ),
+      code(`this.entity.layer = 'Ghost';
+this.after(2, () => {
+  this.entity.layer = 'Player';
+});`),
+      list(
+        'Layers that pass through each other raise no collision and no trigger callbacks either.',
+        'Raycasts and overlap queries find colliders on every layer.',
+        'An entity whose layer the project does not have is treated as being on `Default`.',
+      ),
       h('Asking questions'),
       p(
         'The physics world can be queried at any time: `raycast` finds the first solid collider along a line, `raycastAll` finds all of them, and `overlapPoint` and `overlapCircle` find the colliders at a point or within a radius.',

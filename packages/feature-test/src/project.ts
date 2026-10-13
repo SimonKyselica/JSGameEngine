@@ -52,6 +52,9 @@ const SHEET_COLORS: readonly (readonly [number, number, number])[] = [
 export function createFeatureTestProject(): Project {
   const project = new Project(createDefaultSettings('Rowan Feature Test'));
   const { assets } = project;
+  // A second collision layer that passes through everything on the default one.
+  project.settings.physics.layers.push('Phantom');
+  project.settings.physics.ignoredLayerPairs.push(['Phantom', 'Default']);
 
   const scripts = new Map<string, string>();
   for (const [name, source] of Object.entries(FEATURE_TEST_SCRIPTS)) {
@@ -290,6 +293,15 @@ export function createFeatureTestProject(): Project {
   const sfx = at('Sfx', 0, 0);
   sfx.addComponent(AudioSource, { clip: beep, volume: 0.8, playOnStart: false });
   attach(sfx, 'AudioProbe');
+
+  // Collision layers, off to the right where nothing else comes by: a body on the Phantom
+  // layer falls through the first floor and, moved to the default layer, lands on the second.
+  const phantom = box(at('Phantom', 13.5, 1), 0.5, 0.5, new Color(0.8, 0.8, 1, 0.6));
+  phantom.layer = 'Phantom';
+  phantom.addComponent(Rigidbody2D);
+  attach(phantom, 'LayerProbe');
+  box(at('Thin Floor', 13.5, 0), 1.5, 0.25, new Color(0.6, 0.6, 0.7, 1));
+  box(at('Catch Floor', 13.5, -3), 1.5, 0.25, new Color(0.6, 0.6, 0.7, 1));
 
   // Kept out of the sprite row above, so the host can tell bullets and row sprites apart.
   attach(at('Spawner', 3, 3.25), 'Spawner', {

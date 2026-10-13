@@ -1034,6 +1034,16 @@
           "summary": "A free-form label for finding groups of entities with `scene.findByTag`."
         },
         {
+          "name": "layer",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "layer: string"
+          ],
+          "summary": "The collision layer of the entity's colliders. Which layers collide with which is set up in the project settings; a name that is not one of the project's layers counts as `Default`. Assigning another layer takes effect with the next physics step."
+        },
+        {
           "name": "active",
           "kind": "property",
           "static": false,
@@ -1287,6 +1297,16 @@
             "tag: string"
           ],
           "summary": "A free-form label for finding groups of entities from scripts."
+        },
+        {
+          "name": "layer",
+          "kind": "property",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "layer: string"
+          ],
+          "summary": "The collision layer the entity's colliders are on. Which layers collide with which is set up in the project settings."
         },
         {
           "name": "active",

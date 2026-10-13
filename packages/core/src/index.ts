@@ -50,6 +50,7 @@ export * from './audio/webAudioBackend';
 export * from './input/domInput';
 export * from './input/input';
 
+export * from './physics/collisionLayers';
 export * from './physics/physicsSystem';
 
 export * from './scripting/behaviour';

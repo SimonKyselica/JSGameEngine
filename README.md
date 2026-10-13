@@ -55,7 +55,8 @@ A/D and make jump with Space, a ground and a few crates. Press Play in the toolb
   `onClick` on the scripts of its entity.
 - 2D physics (planck.js, a Box2D port): dynamic, kinematic and static bodies with an optional
   start velocity, triggers, collision callbacks, raycasts, and point and circle queries, stepped
-  at a fixed rate.
+  at a fixed rate. Collision layers, set up in the project settings, decide what passes
+  through what.
 - Sound through the Web Audio API.
 - Keyboard and mouse input.
 

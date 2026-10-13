@@ -5,6 +5,7 @@ import { RowanError } from '../core/assert';
 import type { Logger } from '../core/logger';
 import { Input, type InputState } from '../input/input';
 import { type Vec2 } from '../math/vec2';
+import type { CollisionLayers } from '../physics/collisionLayers';
 import { Physics2D, PhysicsSystem } from '../physics/physicsSystem';
 import type { CameraView } from '../renderer/cameraView';
 import { findPrimaryCamera } from '../renderer/sceneRenderer';
@@ -31,6 +32,8 @@ export interface SceneRuntimeContext {
   readonly logger: Logger;
   readonly scriptLoader: ScriptModuleLoader;
   readonly gravity: Readonly<Vec2>;
+  /** Which collision layers the project has, and which of them collide. */
+  readonly collisionLayers: CollisionLayers;
   /** The view of the primary camera, used to map the pointer into world space. */
   getCameraView(): CameraView | null;
   requestSceneLoad(scene: string): void;
@@ -61,7 +64,7 @@ export class SceneRuntime implements SceneHost {
     readonly scene: Scene,
     private readonly context: SceneRuntimeContext,
   ) {
-    this.physics = new PhysicsSystem(scene, context.gravity);
+    this.physics = new PhysicsSystem(scene, context.gravity, context.collisionLayers);
     this.scripts = new ScriptSystem(
       scene,
       context.assets,

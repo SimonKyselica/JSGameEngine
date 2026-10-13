@@ -7,6 +7,7 @@ import { Logger } from '../core/logger';
 import { Signal } from '../core/signal';
 import { InputState } from '../input/input';
 import { Vec2 } from '../math/vec2';
+import { CollisionLayers } from '../physics/collisionLayers';
 import type { CameraView } from '../renderer/cameraView';
 import type { Renderer2D } from '../renderer/renderer2d';
 import { createCameraView, findPrimaryCamera, SceneRenderer } from '../renderer/sceneRenderer';
@@ -262,6 +263,7 @@ export class Game {
       logger: this.logger,
       scriptLoader: this.scriptLoader,
       gravity: new Vec2(gravity[0], gravity[1]),
+      collisionLayers: new CollisionLayers(physics),
       getCameraView: () => this.getCameraView(),
       requestSceneLoad: (next) => this.requestSceneLoad(next),
     });

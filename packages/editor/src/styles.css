@@ -529,6 +529,37 @@ span.tab {
   text-transform: uppercase;
 }
 
+.layer-add {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.layer-matrix {
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.layer-matrix th {
+  max-width: 90px;
+  padding: 2px 6px;
+  overflow: hidden;
+  color: var(--text-dim);
+  font-weight: normal;
+  text-align: right;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.layer-matrix thead th {
+  text-align: center;
+}
+
+.layer-matrix td {
+  padding: 2px 6px;
+  text-align: center;
+}
+
 .settings-group:first-child {
   margin-top: 0;
 }
