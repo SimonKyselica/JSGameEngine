@@ -33,6 +33,7 @@ import {
   clearFeatureTestReport,
   createFeatureTestProject,
   driveFeatureTestInput,
+  FEATURE_TEST_INPUT_FRAMES,
   FEATURE_TEST_SCRIPTS,
   getFeatureTestReport,
   type FeatureTestReport,
@@ -73,7 +74,13 @@ function quadAt(quads: readonly RecordedQuad[], x: number, y: number): RecordedQ
 const rounded = (values: readonly number[]): number[] =>
   values.map((value) => Math.round(value * 1e6) / 1e6);
 
-async function runFeatureTest(): Promise<Run> {
+/**
+ * Runs the feature test to its end.
+ *
+ * @param inputSlowdown Stretches the input: 25 plays in 25 frames what otherwise takes one,
+ *   the way a slow machine takes its time between one key and the next.
+ */
+async function runFeatureTest(inputSlowdown = 1): Promise<Run> {
   clearFeatureTestReport();
   const project = createFeatureTestProject();
   const headless = createHeadlessGame(project, new SourceScriptProvider(project.assets));
@@ -95,7 +102,9 @@ async function runFeatureTest(): Promise<Run> {
   let frame = 0;
   while (!getFeatureTestReport()?.done && frame < MAX_FRAMES) {
     frame++;
-    driveFeatureTestInput(game.input, frame);
+    if (frame % inputSlowdown === 0) {
+      driveFeatureTestInput(game.input, frame / inputSlowdown);
+    }
     if (frame === RENDER_CHANGE_FRAME) {
       before = snapshot();
     }
@@ -390,6 +399,24 @@ describe('feature-test scene, run headless', () => {
     expect(masterVolume).toBe(1);
     // Leaving the Main scene stops its sounds.
     expect(voices.every((voice) => !voice.isPlaying)).toBe(true);
+  });
+
+  it('waits for the fingers, however long the rest of the input takes to arrive', async () => {
+    // The checks that need fingers are only announced when the first one arrives. A host
+    // that is slow with the keys and the mouse must not find the scene gone by then: this
+    // is what failed in the browser tests on a slow machine. Here the input takes 12.5
+    // seconds, long after the last check that needs no input has reported.
+    const slow = await runFeatureTest(25);
+    expect(slow.report.done).toBe(true);
+    expect(slow.report.checks.filter((check) => !check.passed)).toEqual([]);
+    expect(slow.report.checks.map((check) => check.name)).toEqual(
+      expect.arrayContaining([
+        'Input.touches reports a finger that touches the screen',
+        'a second finger presses a button while the first is held',
+        'TouchPoint.ended is true in the frame a finger is lifted',
+      ]),
+    );
+    expect(slow.frames).toBeGreaterThan(FEATURE_TEST_INPUT_FRAMES * 25);
   });
 
   it.each([1, 2, 10, 31, 60, 120])(

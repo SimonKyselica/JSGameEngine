@@ -28,12 +28,14 @@ The report is written to `globalThis.__ROWAN_FEATURE_TEST__`:
 
 The Playwright tests need a fresh build: run `npm run build` first, or use `npm run test:e2e`.
 
-When run by hand, the input checks wait for you: hold and release Space, press D and W, move
-the pointer onto the "Click me" button, press all three mouse buttons there, scroll the wheel
-and move the pointer away again. `TouchProbe` checks two fingers, which only a touch screen or the automated runs can provide;
-it announces those checks when the first finger arrives, so without a touch screen they are
-simply not part of the run. Results appear in the Console panel; without input the scene
-finishes after its 15 second timeout with the input checks failed.
+When run by hand, the input checks wait for you: hold and release Space, press D and W, move the
+pointer onto the "Click me" button, press all three mouse buttons there, scroll the wheel and
+move the pointer away again. `TouchProbe` checks two fingers, which only a touch screen or the
+automated runs can provide; it announces those checks when the first finger arrives, so without
+a touch screen they are simply not part of the run. Results appear in the Console panel; without
+input the scene finishes after its 15 second timeout with the input checks failed. The automated
+runs turn the wheel last for that reason: until the first finger is down, the check of the wheel
+is what keeps the scene from finishing (see `driveFeatureTestInput`).
 
 Pressing Stop before the scene has finished is not a failure. The harness logs that it was
 stopped and which checks it was still waiting for, and nothing else.

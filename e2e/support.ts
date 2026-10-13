@@ -132,7 +132,7 @@ async function waitForCheck(page: Page, name: string): Promise<void> {
 }
 
 /**
- * Provides the keyboard and mouse input the feature test's InputProbe waits for.
+ * Provides the keyboard, mouse and touch input the feature test's probes wait for.
  *
  * Keys and buttons are held until the game has seen them, rather than for a fixed time,
  * so the test does not depend on how fast the machine renders frames.
@@ -163,7 +163,6 @@ export async function playFeatureTestInput(page: Page, canvas: Locator): Promise
     await waitForCheck(page, `Input.wasMouseButtonPressed ${button}`);
     await page.mouse.up({ button });
   }
-  await page.mouse.wheel(0, 120);
 
   // The pointer has been on the button that UiProbe sits on, and clicked it. Moving it
   // away is the last thing that probe waits for.
@@ -181,6 +180,12 @@ export async function playFeatureTestInput(page: Page, canvas: Locator): Promise
   await dispatchTouch(canvas, 'pointerup', second, false);
   await waitForCheck(page, 'TouchPoint.ended is true in the frame a finger is lifted');
   await dispatchTouch(canvas, 'pointerup', first, true);
+
+  // The wheel comes last on purpose. TouchProbe only announces its checks when the first
+  // finger arrives, so that a person without a touch screen is not asked for them. Until
+  // then the check of the wheel is what the scene still waits for: turned any earlier, a
+  // slow machine would find the scene finished before the fingers had come.
+  await page.mouse.wheel(0, 120);
 }
 
 /**

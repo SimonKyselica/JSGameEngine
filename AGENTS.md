@@ -187,6 +187,10 @@ Step-by-step versions of these live in `.claude/skills/`.
   it asked for had been destroyed a moment earlier and the lookup creates what is missing.
   Constructors ran during shutdown. Lookups now create nothing while an entity or the scene is
   going down.
+- **A check that is announced late leaves a gap.** The feature test finishes when nothing it
+  has announced is pending. `TouchProbe` announces its checks only when a finger arrives, and
+  on a slow CI machine the scene was over before the browser test got to the fingers. Input
+  whose check is announced from the start (the wheel) now comes last and bridges the gap.
 - **A scale on an entity stretches its children too.** A sprite without a texture gets its
   size from the scale, so a button's background is a child of the button, not the button
   itself, or the label on it would be stretched along (`entityPresets.ts`).

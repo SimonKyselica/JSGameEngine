@@ -34,6 +34,10 @@ export const FEATURE_TEST_INPUT_FRAMES = 30;
  * Plays the input that the feature test's InputProbe, UiProbe and TouchProbe wait for. Call
  * it once per frame, before updating the game, with the number of the frame that is about
  * to run.
+ *
+ * The wheel is turned last, and a host that plays the input in its own way must keep to
+ * that. The checks that need fingers are only announced when the first finger arrives, so
+ * until then it is the check of the wheel that keeps the scene from finishing.
  */
 export function driveFeatureTestInput(input: InputState, frame: number): void {
   switch (frame) {
@@ -60,9 +64,6 @@ export function driveFeatureTestInput(input: InputState, frame: number): void {
       input.handlePointerUp(1);
       input.handlePointerUp(2);
       break;
-    case 16:
-      input.handleWheel(120);
-      break;
     case 18:
       // Off the button that UiProbe sits on, which until now had the pointer.
       input.handlePointerMove(1000, 600, 1280, 720);
@@ -80,8 +81,11 @@ export function driveFeatureTestInput(input: InputState, frame: number): void {
     case 27:
       input.handleTouchEnd(FEATURE_TEST_TOUCHES.second.id);
       break;
-    case FEATURE_TEST_INPUT_FRAMES:
+    case 29:
       input.handleTouchEnd(FEATURE_TEST_TOUCHES.first.id);
+      break;
+    case FEATURE_TEST_INPUT_FRAMES:
+      input.handleWheel(120);
       break;
   }
 }
