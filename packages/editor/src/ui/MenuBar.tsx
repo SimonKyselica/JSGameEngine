@@ -21,6 +21,7 @@ export function MenuBar(): ReactElement {
       'separator',
       { label: 'Project Settings…', onSelect: commands.openSettings },
       { label: 'Build Game…', shortcut: `${MOD}B`, onSelect: commands.openBuild },
+      { label: 'Clear Saved Game Data', onSelect: commands.clearSaveData },
     ],
     Edit: [
       {

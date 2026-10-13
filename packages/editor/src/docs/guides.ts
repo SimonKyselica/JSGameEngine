@@ -2,6 +2,7 @@ import { slugify, type DocBlock, type GuidePage } from './docTypes';
 import attack from './examples/Attack.ts?raw';
 import characterAnimation from './examples/CharacterAnimation.ts?raw';
 import countdown from './examples/Countdown.ts?raw';
+import highScore from './examples/HighScore.ts?raw';
 import jukebox from './examples/Jukebox.ts?raw';
 import keyboardMover from './examples/KeyboardMover.ts?raw';
 import levelExit from './examples/LevelExit.ts?raw';
@@ -525,6 +526,38 @@ this.destroy(other, 2.5);  // in two and a half seconds`),
     ],
   },
   {
+    id: 'saving',
+    title: 'Saving progress',
+    summary:
+      'Keeping high scores, unlocked levels and settings from one scene to the next, and from one day to the next.',
+    blocks: [
+      p(
+        'Everything in a scene is gone when another scene is loaded, and everything in a game is gone when its page is closed. What should outlast that goes into [this.storage](api/StorageApi): values with a name, which are still there in the next scene and the next time the game is opened.',
+      ),
+      code(highScore),
+      h('What can be saved'),
+      list(
+        "Numbers, strings, booleans and `null`, and arrays and plain objects made of those: `this.storage.set('unlocked', ['forest', 'cave'])`.",
+        'Not objects of a class. For a [Vec2](api/Vec2) save `position.toArray()` and read it back with `Vec2.fromArray`; for a [Color](api/Color) likewise.',
+        'Arrays and objects are copied when they are saved and when they are read. To change one, read it, change it, and `set` it again.',
+        '`get` takes a second argument that is returned when nothing has been saved under the name, which is what a new player starts with.',
+      ),
+      code(`const unlocked = this.storage.get('unlocked', ['forest']);
+unlocked.push('castle');
+this.storage.set('unlocked', unlocked);`),
+      h('Where it is kept'),
+      list(
+        "In a browser the data is kept in the browser's local storage, on the player's own device, separately for every project. It is not sent anywhere, and a player on another device or in another browser starts afresh.",
+        'It is written at the end of every frame in which something changed. Saving a value every frame works, but writes every frame; save when something happens.',
+        'A browser can refuse to store data, in a private window for example. The game then keeps running and keeps its values until the page is closed.',
+        'In the editor, Play uses the same data from one run to the next, so saving and loading can be tried out. **File → Clear Saved Game Data** starts over as a new player would.',
+      ),
+      note(
+        'Values that only have to survive a scene change, such as the score carried from one level to the next, can go into `this.storage` too. Remove them when a new game starts, or they will still be there tomorrow.',
+      ),
+    ],
+  },
+  {
     id: 'scenes-and-assets',
     title: 'Scenes and assets',
     summary: 'Finding entities, switching scenes, and looking up assets by name.',
@@ -542,7 +575,7 @@ this.destroy(other, 2.5);  // in two and a half seconds`),
       ),
       h('Switching scenes'),
       p(
-        '`this.scene.load(name)` replaces the running scene once the current frame has finished. Every entity of the old scene is destroyed, their scripts get `onDestroy`, and `this.time.elapsed` and `frameCount` start again from zero. Values that must survive the switch have to be stored somewhere other than a script.',
+        '`this.scene.load(name)` replaces the running scene once the current frame has finished. Every entity of the old scene is destroyed, their scripts get `onDestroy`, and `this.time.elapsed` and `frameCount` start again from zero. Values that must survive the switch go into `this.storage`; see [Saving progress](guide/saving).',
       ),
       h('Assets'),
       p(

@@ -26,7 +26,17 @@ export const REFERENCE_GROUPS: readonly { title: string; types: readonly string[
   },
   {
     title: 'Scene',
-    types: ['Entity', 'EntityId', 'SceneApi', 'SpawnOptions', 'AssetsApi', 'AssetType', 'Time'],
+    types: [
+      'Entity',
+      'EntityId',
+      'SceneApi',
+      'SpawnOptions',
+      'AssetsApi',
+      'AssetType',
+      'StorageApi',
+      'SaveValue',
+      'Time',
+    ],
   },
   {
     title: 'Components',
@@ -67,6 +77,7 @@ export const ACCESS_HINTS: Readonly<Record<string, string>> = {
   Physics2D: 'this.physics',
   AudioApi: 'this.audio',
   AssetsApi: 'this.assets',
+  StorageApi: 'this.storage',
   Time: 'this.time',
 };
 
@@ -377,7 +388,15 @@ export function groupMembers(type: ApiType): MemberGroup[] {
 }
 
 /** Types a script never imports: the engine hands them out through `this`. */
-const SERVICE_TYPES = new Set(['SceneApi', 'Input', 'Physics2D', 'AudioApi', 'AssetsApi', 'Time']);
+const SERVICE_TYPES = new Set([
+  'SceneApi',
+  'Input',
+  'Physics2D',
+  'AudioApi',
+  'AssetsApi',
+  'StorageApi',
+  'Time',
+]);
 
 /**
  * How a script gets hold of a type: the import statement, when the type is one that

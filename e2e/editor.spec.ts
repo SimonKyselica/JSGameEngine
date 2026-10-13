@@ -431,6 +431,39 @@ test.describe('editor', () => {
     await expect.poll(async () => readNumber(page, 'Position Y')).toBeLessThan(-6);
   });
 
+  test('clears what the game has saved in the browser', async ({ page }) => {
+    await openEditor(page);
+    await page.evaluate(() => {
+      // What a game of some project would have left behind, and something that is not a save.
+      localStorage.setItem('rowan.save.another-project', '{"coins":9}');
+      localStorage.setItem('unrelated', 'stays');
+    });
+    const savesOfThisProject = (): Promise<number> =>
+      page.evaluate(
+        () =>
+          Object.keys(localStorage).filter(
+            (key) => key.startsWith('rowan.save.') && key !== 'rowan.save.another-project',
+          ).length,
+      );
+
+    // Playing the feature test saves something for the project that is open.
+    await chooseMenu(page, 'Help', 'Open Feature Test Project');
+    await expect(hierarchyRow(page, 'Harness')).toBeVisible();
+    await page.getByRole('button', { name: 'Play', exact: true }).click();
+    await expect.poll(savesOfThisProject).toBe(1);
+    await page.getByRole('button', { name: 'Stop', exact: true }).click();
+
+    await chooseMenu(page, 'File', 'Clear Saved Game Data');
+    expect(await savesOfThisProject()).toBe(0);
+    // Only the saves of this project are gone.
+    expect(await page.evaluate(() => localStorage.getItem('rowan.save.another-project'))).toBe(
+      '{"coins":9}',
+    );
+    expect(await page.evaluate(() => localStorage.getItem('unrelated'))).toBe('stays');
+    await page.getByRole('tab', { name: /Console/ }).click();
+    await expect(page.getByRole('log')).toContainText('Saved game data cleared.');
+  });
+
   test('pauses and steps the game one frame at a time', async ({ page }) => {
     await openEditor(page);
     await hierarchyRow(page, 'Player').click();

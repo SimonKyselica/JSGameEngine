@@ -14,6 +14,7 @@ import type { Scene } from '../scene/scene';
 import { instantiatePrefab } from '../scene/serializer';
 import type { ScriptModuleLoader } from '../scripting/scriptModuleLoader';
 import { ScriptSystem } from '../scripting/scriptSystem';
+import type { StorageApi } from '../storage/saveData';
 import { ButtonSystem } from '../ui/buttonSystem';
 import {
   AssetsApi,
@@ -34,6 +35,8 @@ export interface SceneRuntimeContext {
   readonly gravity: Readonly<Vec2>;
   /** Which collision layers the project has, and which of them collide. */
   readonly collisionLayers: CollisionLayers;
+  /** The game's save data, which outlives the scene. */
+  readonly storage: StorageApi;
   /** The view of the primary camera, used to map the pointer into world space. */
   getCameraView(): CameraView | null;
   requestSceneLoad(scene: string): void;
@@ -76,6 +79,7 @@ export class SceneRuntime implements SceneHost {
         audio: new AudioApi(context.audio),
         time: context.time,
         assets: new AssetsApi(context.assets),
+        storage: context.storage,
         logger: context.logger,
         instantiate: (prefab, options) => this.instantiate(prefab, options),
         destroy: (entity, delaySeconds) => this.queueDestroy(entity, delaySeconds),

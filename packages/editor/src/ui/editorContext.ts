@@ -1,5 +1,5 @@
 import { createContext, useContext, useSyncExternalStore } from 'react';
-import type { ImageDecoder, TextRasterizer } from '@rowan/core';
+import type { ImageDecoder, StorageBackend, TextRasterizer } from '@rowan/core';
 import type { ConsoleEntry } from '../core/consoleStore';
 import type { EditorCamera } from '../core/editorCamera';
 import type { EditorSession } from '../core/editorSession';
@@ -49,6 +49,8 @@ export interface EditorCommands {
   readonly toggleSnapping: () => void;
   /** Opens the scripting documentation in a new browser tab. */
   readonly openDocs: () => void;
+  /** Deletes what the project's game has saved in this browser, as a new player would start. */
+  readonly clearSaveData: () => void;
   readonly showAbout: () => void;
 }
 
@@ -58,6 +60,8 @@ export interface EditorApi {
   readonly imageDecoder: ImageDecoder;
   /** Measures and draws text for the viewport, the game and everything that needs its size. */
   readonly textRasterizer: TextRasterizer;
+  /** Where the game keeps its save data when it is played in the editor. */
+  readonly saveStorage: StorageBackend;
   readonly assetUrls: AssetUrlCache;
   readonly viewport: ViewportState;
   readonly commands: EditorCommands;

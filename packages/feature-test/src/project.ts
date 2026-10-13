@@ -243,6 +243,7 @@ export function createFeatureTestProject(): Project {
   disabledButton.addComponent(SpriteRenderer, { color: new Color(1, 0.8, 0.2, 1) });
 
   attach(at('Math Probe', 0, 0), 'MathProbe');
+  attach(at('Storage Probe', 0, 0), 'StorageProbe');
   attach(at('Lifecycle Probe', 0, 0), 'LifecycleProbe');
   attach(at('Counter', 0, 0), 'Counter');
   attach(at('Input Probe', 0, 0), 'InputProbe');

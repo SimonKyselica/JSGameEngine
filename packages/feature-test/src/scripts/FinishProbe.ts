@@ -21,6 +21,13 @@ export default class FinishProbe extends Behaviour implements ScriptLifecycle {
         detail: '',
       },
       {
+        name: 'save data is still there after a scene change',
+        passed:
+          this.storage.get('visits') === 1 &&
+          this.storage.get('trail', { label: '' }).label === 'trail',
+        detail: `saved names: ${this.storage.keys().join(', ')}`,
+      },
+      {
         name: 'time restarts with a new scene',
         passed: this.time.frameCount === 0 && this.time.elapsed === 0,
         detail: `frame ${this.time.frameCount}`,

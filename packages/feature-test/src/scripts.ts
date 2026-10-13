@@ -12,6 +12,7 @@ import MathProbe from './scripts/MathProbe.ts?raw';
 import PhysicsProbe from './scripts/PhysicsProbe.ts?raw';
 import RenderProbe from './scripts/RenderProbe.ts?raw';
 import Spawner from './scripts/Spawner.ts?raw';
+import StorageProbe from './scripts/StorageProbe.ts?raw';
 import support from './scripts/support.ts?raw';
 import TestHarness from './scripts/TestHarness.ts?raw';
 import TextProbe from './scripts/TextProbe.ts?raw';
@@ -40,6 +41,7 @@ export const FEATURE_TEST_SCRIPTS: Readonly<Record<string, string>> = {
   PhysicsProbe,
   RenderProbe,
   Spawner,
+  StorageProbe,
   support,
   TestHarness,
   TextProbe,

@@ -63,6 +63,15 @@ async function expectExportedGameToPass(game: Page): Promise<void> {
   // above the disc, so the lower half of the picture has none.
   expect(await countCanvasPixels(game, 'canvas', CYAN, 20)).toBeGreaterThan(MIN_TEXT_PIXELS);
 
+  // What the scripts saved is in the browser's own storage, where the next visit finds it.
+  const saved = await game.evaluate(() =>
+    Object.keys(localStorage)
+      .filter((key) => key.startsWith('rowan.save.'))
+      .map((key) => localStorage.getItem(key) ?? ''),
+  );
+  expect(saved).toHaveLength(1);
+  expect(JSON.parse(saved[0]!)).toMatchObject({ visits: 1, trail: { label: 'trail' } });
+
   await expect(game).toHaveTitle('Rowan Feature Test');
   expect(pageErrors).toEqual([]);
   expect(consoleErrors).toEqual([]);

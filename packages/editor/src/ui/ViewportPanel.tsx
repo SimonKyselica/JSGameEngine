@@ -61,7 +61,7 @@ export function ViewportPanel({
   mode: ViewportMode;
   hidden: boolean;
 }): ReactElement {
-  const { session, imageDecoder, textRasterizer, viewport } = useEditor();
+  const { session, imageDecoder, textRasterizer, saveStorage, viewport } = useEditor();
   const containerRef = useRef<HTMLDivElement>(null);
   const glCanvasRef = useRef<HTMLCanvasElement>(null);
   const overlayRef = useRef<HTMLCanvasElement>(null);
@@ -129,6 +129,7 @@ export function ViewportPanel({
       audioBackend,
       imageDecoder,
       textRasterizer,
+      storage: saveStorage,
       attachInput: (input) => attachDomInput(input, glCanvas),
     });
 
@@ -203,7 +204,7 @@ export function ViewportPanel({
       renderer.dispose();
       audioBackend.dispose();
     };
-  }, [session, imageDecoder, textRasterizer, viewport, pixelArt]);
+  }, [session, imageDecoder, textRasterizer, saveStorage, viewport, pixelArt]);
 
   /** Pointer position relative to the scene view, in CSS pixels and in world space. */
   const locate = (event: { clientX: number; clientY: number }): { screen: Vec2; world: Vec2 } => {

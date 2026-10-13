@@ -15,6 +15,7 @@ import type { TextRasterizer } from '../renderer/textLayout';
 import { TextureCache, type ImageDecoder } from '../renderer/textureCache';
 import type { Scene } from '../scene/scene';
 import { deserializeScene } from '../scene/serializer';
+import { SaveData, StorageApi, type StorageBackend } from '../storage/saveData';
 import * as scriptApi from '../scripting/api';
 import { ScriptModuleLoader, type ScriptFactoryProvider } from '../scripting/scriptModuleLoader';
 import { Time } from '../scripting/services';
@@ -34,6 +35,8 @@ export interface GameOptions {
   readonly imageDecoder: ImageDecoder;
   /** Measures and draws text. `CanvasTextRasterizer` in a browser. */
   readonly textRasterizer: TextRasterizer;
+  /** Where save data is kept between runs. `LocalStorageBackend` in a browser. */
+  readonly storage: StorageBackend;
   readonly scripts: ScriptFactoryProvider;
   readonly logger?: Logger;
 }
@@ -60,10 +63,13 @@ export class Game {
   readonly textures: TextureCache;
   readonly audio: AudioSystem;
   readonly sceneRenderer: SceneRenderer;
+  /** The save data scripts reach as `this.storage`. It belongs to the game, not to a scene. */
+  readonly saveData: SaveData;
   /** Emitted after a scene has been loaded and started. */
   readonly onSceneLoaded = new Signal<Scene>();
 
   private readonly renderer: Renderer2D;
+  private readonly storage: StorageApi;
   private readonly scriptLoader: ScriptModuleLoader;
   private runtime: SceneRuntime | null = null;
   private pendingScene: string | null = null;
@@ -92,6 +98,8 @@ export class Game {
       this.logger,
     );
     this.scriptLoader = new ScriptModuleLoader(this.assets, options.scripts, { ...scriptApi });
+    this.saveData = new SaveData(options.storage, this.logger);
+    this.storage = new StorageApi(this.saveData);
     this.time.fixedDeltaTime = physics.fixedTimeStep;
   }
 
@@ -151,6 +159,7 @@ export class Game {
 
     runtime.update(scaled);
     this.input.endFrame();
+    this.saveData.flush();
 
     if (this.pendingScene !== null) {
       const scene = this.pendingScene;
@@ -178,6 +187,8 @@ export class Game {
   /** Stops the running scene. The game can be started again afterwards. */
   stop(): void {
     this.runtime?.stop();
+    // Scripts may save in onDestroy, when a frame will not end any more.
+    this.saveData.flush();
     this.runtime = null;
     this.pendingScene = null;
     this.accumulator = 0;
@@ -264,6 +275,7 @@ export class Game {
       scriptLoader: this.scriptLoader,
       gravity: new Vec2(gravity[0], gravity[1]),
       collisionLayers: new CollisionLayers(physics),
+      storage: this.storage,
       getCameraView: () => this.getCameraView(),
       requestSceneLoad: (next) => this.requestSceneLoad(next),
     });

@@ -6,6 +6,7 @@ import {
   type ImageDecoder,
   type InputState,
   type Renderer2D,
+  type StorageBackend,
   type TextRasterizer,
 } from '@rowan/core';
 import { SourceScriptProvider } from '@rowan/core/compiler';
@@ -19,6 +20,8 @@ export interface PlayDependencies {
   readonly audioBackend: AudioBackend;
   readonly imageDecoder: ImageDecoder;
   readonly textRasterizer: TextRasterizer;
+  /** Where the game's save data is kept between plays. */
+  readonly storage: StorageBackend;
   /** Connects the game's input to the viewport and returns a function that disconnects it. */
   attachInput(input: InputState): () => void;
 }
@@ -77,6 +80,7 @@ export class PlayController {
       audioBackend: dependencies.audioBackend,
       imageDecoder: dependencies.imageDecoder,
       textRasterizer: dependencies.textRasterizer,
+      storage: dependencies.storage,
       scripts: new SourceScriptProvider(session.project.assets),
       logger: session.logger,
     });

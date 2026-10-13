@@ -7,6 +7,7 @@ import type { Vec2 } from '../math/vec2';
 import type { Physics2D } from '../physics/physicsSystem';
 import type { Transform } from '../scene/components';
 import type { Entity } from '../scene/entity';
+import type { StorageApi } from '../storage/saveData';
 import type { AssetsApi, SceneApi, ScriptServices, SpawnOptions, Time } from './services';
 
 /** Details of a collision between two solid colliders. */
@@ -174,6 +175,11 @@ export abstract class Behaviour {
   /** Looks up the project's assets by name. */
   get assets(): AssetsApi {
     return attachmentOf(this).services.assets;
+  }
+
+  /** Save data: values that survive a scene change and closing the game. */
+  get storage(): StorageApi {
+    return attachmentOf(this).services.storage;
   }
 
   /** The entity's component of this type, or `undefined` when it has none. */

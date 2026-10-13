@@ -5,7 +5,9 @@ import {
   createDefaultSettings,
   createGameBundle,
   decodeImageHeadless,
+  deserializeScene,
   encodePng,
+  getSaveKey,
   HeadlessRenderer,
   HeadlessTextRasterizer,
   NullAudioBackend,
@@ -150,6 +152,40 @@ describe('bootGame', () => {
     ]);
     player.dispose();
     errors.mockRestore();
+  });
+
+  it('keeps save data in the local storage of the browser, from one visit to the next', async () => {
+    const project = createGame();
+    const opened = project.assets.create({
+      name: 'Opened.ts',
+      type: 'script',
+      mimeType: 'text/typescript',
+      data: `import { Behaviour } from 'rowan';
+             export default class Opened extends Behaviour {
+               onStart() { this.storage.set('opened', this.storage.get('opened', 0) + 1); }
+             }`,
+    });
+    const scene = deserializeScene(
+      JSON.parse(project.assets.getText(project.settings.startScene!)) as unknown,
+    );
+    scene.findByName('Hero')!.requireComponent(ScriptComponent).scripts.push({
+      script: opened.id,
+      enabled: true,
+      properties: {},
+    });
+    project.assets.setData(project.settings.startScene!, JSON.stringify(serializeScene(scene)));
+    compileScripts(project);
+    const { bundle } = createGameBundle(project, { inlineBinaryAssets: true });
+
+    for (const visit of [1, 2]) {
+      const player = await bootGame(createOptions({ bundle: JSON.parse(JSON.stringify(bundle)) }));
+      await nextFrames();
+      player.dispose();
+      expect(JSON.parse(window.localStorage.getItem(getSaveKey(project.id))!)).toEqual({
+        opened: visit,
+      });
+    }
+    window.localStorage.clear();
   });
 
   it('fetches the manifest and its asset files relative to the manifest URL', async () => {

@@ -51,3 +51,4 @@ export type {
   ScriptPropertyType,
 } from './scriptProperties';
 export { AssetsApi, SceneApi, Time, type SpawnOptions } from './services';
+export { StorageApi, type SaveValue } from '../storage/saveData';

@@ -331,6 +331,16 @@
           "summary": "Looks up the project's assets by name."
         },
         {
+          "name": "storage",
+          "kind": "property",
+          "static": false,
+          "readonly": true,
+          "signatures": [
+            "storage: StorageApi"
+          ],
+          "summary": "Save data: values that survive a scene change and closing the game."
+        },
+        {
           "name": "getComponent",
           "kind": "method",
           "static": false,
@@ -1875,6 +1885,14 @@
       ]
     },
     {
+      "name": "SaveValue",
+      "summary": "A value that can be saved: anything made of numbers, strings, booleans, `null`, arrays and plain objects.",
+      "typeParameters": "",
+      "definition": "string | number | boolean | null | SaveValue[] | { [key: string]: SaveValue }",
+      "kind": "type",
+      "members": []
+    },
+    {
       "name": "SceneApi",
       "summary": "The scene functions available to scripts as `this.scene`.",
       "typeParameters": "",
@@ -2506,6 +2524,79 @@
             "frame: number"
           ],
           "summary": "Which frame of the sprite sheet is shown. Frames are counted from 0, from left to right and from the top row down. A number past the last frame starts over at the first."
+        }
+      ]
+    },
+    {
+      "name": "StorageApi",
+      "summary": "Save data as seen by scripts (`this.storage`): named values that are still there after a scene change and the next time the game is opened. High scores, unlocked levels and settings go here.\n\nA value can be a number, a string, a boolean, `null`, or an array or plain object of those. In a browser the data is kept in the browser's local storage, separately for every project. It is written at the end of each frame in which it changed.",
+      "typeParameters": "",
+      "definition": "",
+      "kind": "class",
+      "members": [
+        {
+          "name": "get",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "get(key: string, fallback: number): number",
+            "get(key: string, fallback: string): string",
+            "get(key: string, fallback: boolean): boolean",
+            "get<T extends SaveValue>(key: string, fallback: T): T",
+            "get(key: string): SaveValue | undefined"
+          ],
+          "summary": "The value saved under `key`, or `fallback` when there is none. Arrays and objects are returned as copies: change them and call `set` to save the change."
+        },
+        {
+          "name": "set",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "set(key: string, value: SaveValue): void"
+          ],
+          "summary": "Saves a value under `key`, replacing what was there. Throws when the value cannot be saved, such as a function, `NaN`, or an object of a class like `Vec2`; save `position.toArray()` instead."
+        },
+        {
+          "name": "has",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "has(key: string): boolean"
+          ],
+          "summary": "True when a value is saved under `key`."
+        },
+        {
+          "name": "remove",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "remove(key: string): boolean"
+          ],
+          "summary": "Forgets the value saved under `key`. Returns `false` when there was none."
+        },
+        {
+          "name": "keys",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "keys(): string[]"
+          ],
+          "summary": "The names of everything that is saved."
+        },
+        {
+          "name": "clear",
+          "kind": "method",
+          "static": false,
+          "readonly": false,
+          "signatures": [
+            "clear(): void"
+          ],
+          "summary": "Forgets everything that is saved."
         }
       ]
     },

@@ -7,6 +7,7 @@ import type { Vec2 } from '../math/vec2';
 import type { Physics2D } from '../physics/physicsSystem';
 import type { Entity } from '../scene/entity';
 import type { Scene } from '../scene/scene';
+import type { StorageApi } from '../storage/saveData';
 import type { Behaviour, BehaviourClass, CancelTimer } from './behaviour';
 
 /** Frame timing as seen by scripts (`this.time`). All durations are in seconds. */
@@ -121,6 +122,7 @@ export interface ScriptServices {
   readonly audio: AudioApi;
   readonly time: Time;
   readonly assets: AssetsApi;
+  readonly storage: StorageApi;
   readonly logger: Logger;
   instantiate(prefab: string, options?: SpawnOptions): Entity;
   destroy(entity: Entity, delaySeconds: number): void;

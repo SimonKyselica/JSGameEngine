@@ -12,6 +12,8 @@ import {
   CanvasTextRasterizer,
   decodeImageInBrowser,
   describeError,
+  getSaveKey,
+  LocalStorageBackend,
   generateUuid,
   getBaseName,
   getSupportedExtensions,
@@ -202,6 +204,12 @@ function Editor({ workspace, store, onReplaceProject }: EditorProps): ReactEleme
   const { session, assetUrls, viewport } = workspace;
   // One for the whole editor: the viewport draws text with it and tools measure text with it.
   const [textRasterizer] = useState(() => new CanvasTextRasterizer());
+  // The same place an exported game of this project saves to, so that saving and loading
+  // can be tried out in the editor. It is kept apart from the saves of other projects.
+  const saveStorage = useMemo(
+    () => new LocalStorageBackend(getSaveKey(session.project.id)),
+    [session],
+  );
   const [dialog, setDialog] = useState<DialogState>(null);
   const [centerTab, setCenterTab] = useState('scene');
   const [scriptTabs, setScriptTabs] = useState<readonly string[]>([]);
@@ -379,6 +387,18 @@ function Editor({ workspace, store, onReplaceProject }: EditorProps): ReactEleme
         session.setSnapping(!session.snapping);
         writePreference(SNAPPING_KEY, session.snapping ? 'on' : 'off');
       },
+      clearSaveData: () => {
+        try {
+          saveStorage.clear();
+          session.logger.info(
+            session.play.isActive
+              ? 'Saved game data cleared. The running game keeps what it has loaded until it is restarted.'
+              : 'Saved game data cleared.',
+          );
+        } catch (error) {
+          session.logger.error(`The saved game data could not be cleared: ${describeError(error)}`);
+        }
+      },
       openDocs: () => {
         // A separate tab, so the documentation can stay open next to the editor.
         window.open(new URL('docs.html', document.baseURI), '_blank', 'noopener');
@@ -390,6 +410,7 @@ function Editor({ workspace, store, onReplaceProject }: EditorProps): ReactEleme
       session,
       imageDecoder: decodeImageInBrowser,
       textRasterizer,
+      saveStorage,
       assetUrls,
       viewport,
       commands,
@@ -402,6 +423,7 @@ function Editor({ workspace, store, onReplaceProject }: EditorProps): ReactEleme
     assetUrls,
     viewport,
     textRasterizer,
+    saveStorage,
     store,
     onReplaceProject,
     prompt,

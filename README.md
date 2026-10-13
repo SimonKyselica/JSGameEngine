@@ -57,6 +57,8 @@ A/D and make jump with Space, a ground and a few crates. Press Play in the toolb
   start velocity, triggers, collision callbacks, raycasts, and point and circle queries, stepped
   at a fixed rate. Collision layers, set up in the project settings, decide what passes
   through what.
+- Save data: `this.storage` keeps named values, such as a high score, across scene changes
+  and until the next time the game is opened, in the browser's local storage.
 - Sound through the Web Audio API.
 - Keyboard and mouse input.
 
@@ -109,13 +111,13 @@ a Button `onPointerEnter`, `onPointerExit`, `onPointerDown`, `onPointerUp` and `
 `onAnimationEnd` when an animation that does not loop has finished.
 
 From a script you can reach `this.entity`, `this.transform`, `this.scene`, `this.input`,
-`this.physics`, `this.audio`, `this.assets` and `this.time`, plus `getComponent`, `getScript`,
-`instantiate`, `destroy` and `log`. `this.after(seconds, fn)` and `this.every(seconds, fn)` are
-timers that stop by themselves when the entity is destroyed, and `entity.findChild(name)`,
-`getComponentInChildren` and `getComponentInParent` look through the hierarchy. Scripts can
-import each other by relative path. Types are
-stripped, not checked, when a script is compiled. An error thrown by a script is reported in the
-Console panel and does not stop the game.
+`this.physics`, `this.audio`, `this.assets`, `this.storage` and `this.time`, plus
+`getComponent`, `getScript`, `instantiate`, `destroy` and `log`. `this.after(seconds, fn)` and
+`this.every(seconds, fn)` are timers that stop by themselves when the entity is destroyed, and
+`entity.findChild(name)`, `getComponentInChildren` and `getComponentInParent` look through the
+hierarchy. Scripts can import each other by relative path. Types are stripped, not checked, when
+a script is compiled. An error thrown by a script is reported in the Console panel and does not
+stop the game.
 
 Conventions: world Y points up, angles are in radians (the inspector shows degrees), time is in
 seconds, colors are floats from 0 to 1, and keys are named by their `KeyboardEvent.code`

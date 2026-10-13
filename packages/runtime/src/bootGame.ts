@@ -7,7 +7,9 @@ import {
   describeError,
   Game,
   GameLoop,
+  getSaveKey,
   loadGameBundle,
+  LocalStorageBackend,
   Logger,
   NullAudioBackend,
   PrecompiledScriptProvider,
@@ -18,6 +20,7 @@ import {
   type ImageDecoder,
   type ModuleFactory,
   type Renderer2D,
+  type StorageBackend,
   type TextRasterizer,
 } from '@rowan/core';
 
@@ -41,6 +44,8 @@ export interface PlayerOptions {
   readonly imageDecoder?: ImageDecoder;
   /** Replaces the canvas that text is drawn with. */
   readonly textRasterizer?: TextRasterizer;
+  /** Replaces the browser's local storage as the place where save data is kept. */
+  readonly storage?: StorageBackend;
 }
 
 export interface Player {
@@ -126,6 +131,7 @@ async function startPlayer(options: PlayerOptions): Promise<Player> {
       audioBackend,
       imageDecoder: options.imageDecoder ?? decodeImageInBrowser,
       textRasterizer: options.textRasterizer ?? new CanvasTextRasterizer(),
+      storage: options.storage ?? new LocalStorageBackend(getSaveKey(project.id)),
       scripts: new PrecompiledScriptProvider(options.scripts ?? getRegisteredScripts()),
       logger,
     });

@@ -9,6 +9,7 @@ import {
   HeadlessRenderer,
   HeadlessTextRasterizer,
   Identity,
+  MemoryStorageBackend,
   NullAudioBackend,
   Project,
   Rect,
@@ -63,6 +64,7 @@ function createPlayDependencies(): PlayDependencies & {
     audioBackend: new NullAudioBackend(),
     imageDecoder: decodeImageHeadless,
     textRasterizer: new HeadlessTextRasterizer(),
+    storage: new MemoryStorageBackend(),
     inputs: [] as InputState[],
     detached: 0,
     attachInput(input: InputState) {

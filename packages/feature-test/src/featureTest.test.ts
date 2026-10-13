@@ -14,6 +14,7 @@ import {
   Scene,
   SceneApi,
   ScriptApi,
+  StorageApi,
   SCRIPT_PROPERTY_TYPES,
   Time,
   Vec2,
@@ -306,6 +307,20 @@ describe('feature-test scene, run headless', () => {
     );
   });
 
+  it('stores what the scripts saved', () => {
+    const { storage } = run.headless;
+    expect(JSON.parse(storage.read()!)).toEqual({
+      visits: 1,
+      trail: {
+        points: [
+          [1, 2],
+          [3, 4],
+        ],
+        label: 'trail',
+      },
+    });
+  });
+
   it('plays the sounds the scene and its scripts ask for', () => {
     const { voices, masterVolume } = run.headless.audio;
     const music = voices[0]!;
@@ -424,6 +439,7 @@ describe('feature-test scene coverage', () => {
     Physics2D: prototypeMembers(Physics2D),
     AudioApi: prototypeMembers(AudioApi),
     AssetsApi: prototypeMembers(AssetsApi),
+    StorageApi: prototypeMembers(StorageApi),
     Time: Object.keys(new Time()),
     Vec2: [...prototypeMembers(Vec2), ...staticMembers(Vec2), ...Object.keys(new Vec2())],
     Color: [...prototypeMembers(Color), ...staticMembers(Color), ...Object.keys(new Color())],
